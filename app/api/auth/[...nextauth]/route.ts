@@ -1,8 +1,7 @@
-// app/api/auth/[...nextauth]/route.ts (v4)
+// app/api/auth/[...nextauth]/route.ts
 import NextAuth from "next-auth"
 import authOptions from "@/auth"
 
-export const runtime = "nodejs" // wichtig: nicht Edge
-
 const handler = NextAuth(authOptions)
 export { handler as GET, handler as POST }
+export const runtime = "nodejs"

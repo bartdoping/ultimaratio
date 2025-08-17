@@ -1,42 +1,62 @@
 // app/(auth)/login/page.tsx
 "use client"
 
-import { useSearchParams, useRouter } from "next/navigation"
-import { useState } from "react"
 import { signIn } from "next-auth/react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useState } from "react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Button } from "@/components/ui/button"
 
 export default function LoginPage() {
-  const params = useSearchParams()
   const router = useRouter()
-  const next = params.get("next") || "/dashboard"
+  const sp = useSearchParams()
+  const next = sp.get("next") || "/dashboard"
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [err, setErr] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setLoading(true); setErr(null)
-    const res = await signIn("credentials", { email, password, redirect: false })
-    setLoading(false)
-    if (!res || res.error) { setErr("Login fehlgeschlagen. Prüfe E-Mail, Passwort und Verifizierung."); return }
-    router.push(next)
+    setError(null)
+    setLoading(true)
+    try {
+      const res = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
+      if (!res) {
+        setError("Unerwartete Antwort")
+      } else if (res.error) {
+        setError("Login fehlgeschlagen. Prüfe E-Mail, Passwort und Verifizierung.")
+      } else {
+        router.push(next)
+        router.refresh()
+      }
+    } catch (err: any) {
+      setError(err?.message || "Fehler beim Login")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="max-w-sm mx-auto space-y-4">
+    <div className="max-w-sm space-y-4">
       <h1 className="text-2xl font-semibold">Login</h1>
-      {err && <p className="text-red-600 text-sm">{err}</p>}
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
-          <label className="text-sm font-medium">E-Mail</label>
-          <input className="w-full h-10 rounded-md border px-3" type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+          <Label htmlFor="email">E-Mail</Label>
+          <Input id="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </div>
         <div>
-          <label className="text-sm font-medium">Passwort</label>
-          <input className="w-full h-10 rounded-md border px-3" type="password" value={password} onChange={(e)=>setPassword(e.target.value)} required />
+          <Label htmlFor="password">Passwort</Label>
+          <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="current-password" />
         </div>
-        <button className="btn w-full" disabled={loading}>{loading ? "Bitte warten…" : "Einloggen"}</button>
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <Button type="submit" disabled={loading}>{loading ? "Anmelden…" : "Login"}</Button>
       </form>
     </div>
   )

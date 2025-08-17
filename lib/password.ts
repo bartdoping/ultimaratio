@@ -1,9 +1,10 @@
 // lib/password.ts
 import bcrypt from "bcryptjs"
 
-export async function hashPassword(plain: string) {
-  return bcrypt.hash(plain, 12)
+export async function hashPassword(password: string) {
+  return bcrypt.hash(password, 12)
 }
-export async function verifyPassword(plain: string, hash: string) {
-  return bcrypt.compare(plain, hash)
+
+export async function verifyPassword(password: string, hash: string) {
+  return bcrypt.compare(password, hash)
 }
