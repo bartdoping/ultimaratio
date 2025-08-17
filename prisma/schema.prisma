@@ -1,0 +1,180 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  user
+  admin
+}
+
+enum QuestionType {
+  single
+}
+
+enum MediaKind {
+  image
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  emailVerifiedAt DateTime?
+  name            String
+  surname         String
+  passwordHash    String
+  role            Role      @default(user)
+  createdAt       DateTime  @default(now())
+
+  purchases   Purchase[]
+  attempts    Attempt[]
+  emailTokens EmailVerification[]
+}
+
+model Exam {
+  id                     String   @id @default(cuid())
+  slug                   String   @unique
+  title                  String
+  description            String
+  priceCents             Int
+  isPublished            Boolean  @default(false)
+  passPercent            Int      @default(60)
+  allowImmediateFeedback Boolean  @default(false)
+  createdAt              DateTime @default(now())
+
+  sections  Section[]
+  questions Question[]
+  purchases Purchase[]
+  attempts  Attempt[]
+}
+
+model Section {
+  id     String @id @default(cuid())
+  examId String
+  title  String
+  order  Int
+
+  exam      Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@unique([examId, order])
+}
+
+model Question {
+  id                          String       @id @default(cuid())
+  examId                      String
+  sectionId                   String?
+  type                        QuestionType @default(single)
+  stem                        String
+  explanation                 String?
+  hasImmediateFeedbackAllowed Boolean      @default(false)
+
+  exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  section Section?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  options AnswerOption[]
+  media   QuestionMedia[]
+  answers AttemptAnswer[]
+}
+
+model AnswerOption {
+  id         String  @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean @default(false)
+
+  question Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // Back-Relation zu AttemptAnswer (explizit benannt)
+  chosenIn AttemptAnswer[] @relation("AnswerOption_ChosenIn")
+
+  @@index([questionId])
+}
+
+model Attempt {
+  id           String    @id @default(cuid())
+  userId       String
+  examId       String
+  startedAt    DateTime  @default(now())
+  finishedAt   DateTime?
+  scorePercent Int?
+  passed       Boolean?
+
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers AttemptAnswer[]
+}
+
+model AttemptAnswer {
+  id             String  @id @default(cuid())
+  attemptId      String
+  questionId     String
+  answerOptionId String
+  isCorrect      Boolean
+
+  attempt      Attempt      @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question     Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  // Vorwärts-Relation zur AnswerOption (Name muss identisch sein)
+  answerOption AnswerOption @relation("AnswerOption_ChosenIn", fields: [answerOptionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([answerOptionId])
+}
+
+model Purchase {
+  id              String   @id @default(cuid())
+  userId          String
+  examId          String
+  stripeSessionId String   @unique
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, examId])
+}
+
+model LabValue {
+  id       String @id @default(cuid())
+  name     String
+  refRange String
+  unit     String
+  category String
+}
+
+model MediaAsset {
+  id       String    @id @default(cuid())
+  url      String    @unique
+  kind     MediaKind
+  alt      String?
+  thumbUrl String?
+
+  usedIn QuestionMedia[]
+}
+
+model QuestionMedia {
+  questionId String
+  mediaId    String
+  order      Int    @default(0)
+
+  question Question   @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  media    MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, mediaId])
+}
+
+model EmailVerification {
+  id         String    @id @default(cuid())
+  userId     String
+  code       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, code])
+}
