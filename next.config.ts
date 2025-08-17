@@ -2,13 +2,12 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
-  // Lässt ESLint-Fehler den Build NICHT mehr blockieren
+  // Lint-Fehler brechen den Build nicht mehr ab
   eslint: { ignoreDuringBuilds: true },
 
-  // TypeScript-Fehler weiter ernst nehmen
+  // TypeScript-Fehler sollen weiterhin brechen (Empfehlung)
   typescript: { ignoreBuildErrors: false },
 
-  // Remote-Bilder (platzhalter). Ergänze eigene Hosts bei Bedarf.
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "via.placeholder.com" },
