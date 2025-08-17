@@ -3,12 +3,14 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import authOptions from "@/auth"
 import prisma from "@/lib/db"
+import { assertSameOrigin } from "@/lib/security"
 
 export const runtime = "nodejs"
 
 type Params = { params: { id: string } }
 
-export async function DELETE(_req: Request, { params }: Params) {
+export async function DELETE(req: Request, { params }: Params) {
+    assertSameOrigin(req)
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ ok: false }, { status: 401 })
   const me = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })

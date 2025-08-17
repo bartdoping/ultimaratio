@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react"
 import { ImageGallery } from "@/components/image-gallery"
 import { LabValuesButton } from "@/components/lab-values"
+import { formatSeconds } from "@/lib/time"
+
 
 type AttemptData = {
   attempt: { id: string; startedAt: string; finishedAt?: string | null; scorePercent?: number | null; passed?: boolean | null }
@@ -188,11 +190,4 @@ function useElapsedSeconds(startedAt?: string) {
     return () => clearInterval(id)
   }, [started])
   return t
-}
-
-function formatSeconds(s: number) {
-  const h = Math.floor(s / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  return `${h ? String(h).padStart(2, "0") + ":" : ""}${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`
 }
