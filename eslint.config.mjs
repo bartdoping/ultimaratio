@@ -1,4 +1,3 @@
-// eslint.config.mjs
 import next from "eslint-config-next"
 
 export default [
@@ -9,7 +8,5 @@ export default [
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
     },
   },
-  {
-    ignores: [".next/**", "node_modules/**", "coverage/**"],
-  },
+  { ignores: [".next/**", "node_modules/**", "coverage/**"] },
 ]
