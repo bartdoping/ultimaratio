@@ -7,22 +7,24 @@ export const runtime = "nodejs"
 
 export async function POST(
   req: Request,
-  ctx: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions)
   if (!session?.user) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
-  const attemptId = ctx.params.id
+  const attemptId = params.id
   const { questionId, answerOptionId } = (await req.json()) as {
     questionId?: string
     answerOptionId?: string
   }
+
   if (!questionId || !answerOptionId) {
     return NextResponse.json({ error: "invalid-body" }, { status: 400 })
   }
 
+  // Attempt gehört dem eingeloggten User?
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
     select: { userId: true },

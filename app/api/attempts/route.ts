@@ -1,42 +1,74 @@
-// app/api/attempts/route.ts
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
 import prisma from "@/lib/db"
-import { z } from "zod"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
 
 export const runtime = "nodejs"
 
-const BodySchema = z.object({
-  slug: z.string().min(1),
-})
-
+// POST /api/attempts  { examId: string }  ->  { attemptId }
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+  if (!session?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
 
-  const json = await req.json().catch(() => null)
-  const parsed = BodySchema.safeParse(json)
-  if (!parsed.success) return NextResponse.json({ ok: false, error: "Bad request" }, { status: 400 })
-  const { slug } = parsed.data
+  const body = (await req.json()) as { examId?: string }
+  const examId = body?.examId
+  if (!examId) {
+    return NextResponse.json({ error: "missing-examId" }, { status: 400 })
+  }
 
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-  if (!user) return NextResponse.json({ ok: false, error: "User not found" }, { status: 401 })
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, isPublished: true },
+  })
+  if (!exam || !exam.isPublished) {
+    return NextResponse.json({ error: "exam-not-found" }, { status: 404 })
+  }
 
-  const exam = await prisma.exam.findUnique({ where: { slug } })
-  if (!exam || !exam.isPublished) return NextResponse.json({ ok: false, error: "Exam not found" }, { status: 404 })
+  const userId = (session.user as any).id as string
+  const role = (session.user as any).role as "user" | "admin"
 
-  // Zugriff: Admin hat immer Zugriff, sonst Kauf prüfen
-  const isAdmin = (session.user as any).role === "admin"
-  if (!isAdmin) {
-    const hasPurchase = await prisma.purchase.findFirst({ where: { userId: user.id, examId: exam.id } })
-    if (!hasPurchase) return NextResponse.json({ ok: false, error: "No access" }, { status: 403 })
+  if (role !== "admin") {
+    const hasPurchase = await prisma.purchase.findUnique({
+      where: { userId_examId: { userId, examId } },
+      select: { id: true },
+    })
+    if (!hasPurchase) {
+      return NextResponse.json({ error: "forbidden" }, { status: 403 })
+    }
   }
 
   const attempt = await prisma.attempt.create({
-    data: { userId: user.id, examId: exam.id },
+    data: { userId, examId },
     select: { id: true },
   })
 
-  return NextResponse.json({ ok: true, attemptId: attempt.id })
+  return NextResponse.json({ attemptId: attempt.id })
+}
+
+// GET /api/attempts -> letzte 20 Versuche
+export async function GET() {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) {
+    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  }
+  const userId = (session.user as any).id as string
+
+  const attempts = await prisma.attempt.findMany({
+    where: { userId },
+    orderBy: { startedAt: "desc" },
+    take: 20,
+    select: {
+      id: true,
+      examId: true,
+      startedAt: true,
+      finishedAt: true,
+      scorePercent: true,
+      passed: true,
+      exam: { select: { title: true, slug: true } },
+    },
+  })
+
+  return NextResponse.json({ attempts })
 }
