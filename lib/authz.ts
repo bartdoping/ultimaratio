@@ -1,6 +1,6 @@
 // lib/authz.ts
 import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
+import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
 export async function requireAdmin() {

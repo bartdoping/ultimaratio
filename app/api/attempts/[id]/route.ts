@@ -1,40 +1,30 @@
-import { NextResponse } from "next/server"
-import prisma from "@/lib/db"
+// app/api/attempts/[id]/route.ts
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
 
 export const runtime = "nodejs"
 
-export async function GET(
-  _req: Request,
-  ctx: { params: { id: string } }
-) {
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
-  if (!session?.user) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+  if (!session?.user?.email) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
-  const attemptId = ctx.params.id
-
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    include: { exam: { select: { id: true, title: true } } },
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
   })
-  if (!attempt || attempt.userId !== (session.user as any).id) {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
-  const questions = await prisma.question.findMany({
-    where: { examId: attempt.examId },
-    orderBy: { id: "asc" },
+  const attempt = await prisma.attempt.findFirst({
+    where: { id, userId: me.id },
     include: {
-      options: { select: { id: true, text: true } },
-      media: { include: { media: true } },
+      exam: { select: { id: true, title: true, passPercent: true, allowImmediateFeedback: true } },
+      answers: true,
     },
   })
+  if (!attempt) return NextResponse.json({ error: "not found" }, { status: 404 })
 
-  return NextResponse.json({
-    attempt: { id: attempt.id, examId: attempt.examId, examTitle: attempt.exam.title },
-    questions,
-  })
+  return NextResponse.json({ ok: true, attempt })
 }

@@ -1,35 +1,45 @@
+// components/checkout-button.tsx
 "use client"
 
 import { useState } from "react"
 
-export function CheckoutButton({ slug }: { slug: string }) {
-  const [loading, setLoading] = useState(false)
+type Props = { slug?: string; examId?: string }
 
-  async function start() {
+export function CheckoutButton({ slug, examId }: Props) {
+  const [busy, setBusy] = useState(false)
+
+  async function onClick() {
+    setBusy(true)
     try {
-      setLoading(true)
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ slug, examId }),
       })
-      const data = await res.json()
-      if (data?.already && data?.redirect) {
-        window.location.href = data.redirect
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        alert(data?.error || "Fehler beim Starten des Checkouts.")
         return
       }
-      if (!data?.url) throw new Error("Checkout konnte nicht erstellt werden.")
-      window.location.href = data.url
-    } catch (e: any) {
-      alert(e.message ?? "Fehler beim Checkout.")
+      if (data.alreadyOwned) {
+        // schon gekauft → zurück zur Exam-Seite
+        const target = slug ? `/exams/${slug}` : "/exams"
+        window.location.href = target
+        return
+      }
+      if (data.url) {
+        window.location.href = data.url
+      } else {
+        alert("Unerwartete Antwort vom Server.")
+      }
     } finally {
-      setLoading(false)
+      setBusy(false)
     }
   }
 
   return (
-    <button className="btn" onClick={start} disabled={loading}>
-      {loading ? "Weiter zur Kasse…" : "Jetzt freischalten"}
+    <button className="btn w-full" onClick={onClick} disabled={busy}>
+      {busy ? "Weiterleiten…" : "Jetzt freischalten"}
     </button>
   )
 }

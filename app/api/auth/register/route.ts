@@ -1,39 +1,60 @@
 // app/api/auth/register/route.ts
-import { NextResponse } from "next/server"
-import prisma from "@/lib/db"
-import { RegisterSchema } from "@/lib/validators"
-import { hashPassword } from "@/lib/password"
-import { sendVerificationEmail } from "@/lib/mail"
-import { randomInt } from "crypto"
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import prisma from "@/lib/db";
+import { hashPassword } from "@/lib/password";
+import { sendVerificationMail } from "@/lib/mail";
+
+export const runtime = "nodejs";
+
+const RegisterSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+  name: z.string().min(1),
+  surname: z.string().min(1),
+});
+
+function generateSixDigitCode(): string {
+  // 000000–999999, immer 6-stellig
+  return Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0");
+}
 
 export async function POST(req: Request) {
-  const json = await req.json().catch(() => null)
-  const parsed = RegisterSchema.safeParse(json)
-  if (!parsed.success) {
-    return NextResponse.json({ ok: false, errors: parsed.error.flatten() }, { status: 400 })
+  try {
+    const body = await req.json();
+    const parsed = RegisterSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
+    }
+
+    const { email, password, name, surname } = parsed.data;
+
+    const exists = await prisma.user.findUnique({ where: { email } });
+    if (exists) {
+      return NextResponse.json({ ok: false, error: "email_taken" }, { status: 409 });
+    }
+
+    const passwordHash = await hashPassword(password);
+    const user = await prisma.user.create({
+      data: { email, name, surname, passwordHash, role: "user" },
+      select: { id: true, email: true },
+    });
+
+    const code = generateSixDigitCode();
+    await prisma.emailVerification.create({
+      data: {
+        userId: user.id,
+        code,
+        // ⚠️ hier war dein Fehler: "new Date(...)" statt "Date(...)"
+        expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+      },
+    });
+
+    await sendVerificationMail(user.email, code);
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("register error", err);
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
   }
-  const { name, surname, email, password } = parsed.data
-
-  const existing = await prisma.user.findUnique({ where: { email } })
-  if (existing?.emailVerifiedAt) {
-    return NextResponse.json({ ok: false, error: "E-Mail ist bereits registriert und verifiziert." }, { status: 409 })
-  }
-
-  const passwordHash = await hashPassword(password)
-
-  const user = existing
-    ? await prisma.user.update({ where: { email }, data: { name, surname, passwordHash } })
-    : await prisma.user.create({ data: { name, surname, email, passwordHash, role: "user" } })
-
-  // neuen Code erzeugen (6-stellig) – 15 Minuten gültig
-  const code = String(randomInt(0, 1_000_000)).padStart(6, "0")
-  const expiresAt = new Date(Date.now() + 15 * 60 * 1000)
-
-  // alte, nicht verbrauchte Codes optional aufbrauchen/entwerten
-  await prisma.emailVerification.create({
-    data: { userId: user.id, code, expiresAt },
-  })
-
-  const info = await sendVerificationEmail(email, code)
-  return NextResponse.json({ ok: true, devHint: info.dev ? `DEV-Code: ${code}` : undefined })
 }

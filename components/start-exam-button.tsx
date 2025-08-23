@@ -1,31 +1,44 @@
+// components/start-exam-button.tsx
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { Button } from "@/components/ui/button"
 
-export function StartExamButton({ slug }: { slug: string }) {
+type Props = { examId: string }
+
+export function StartExamButton({ examId }: Props) {
+  const router = useRouter()
   const [loading, setLoading] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
 
-  async function start() {
+  async function onClick() {
+    setLoading(true)
+    setErr(null)
     try {
-      setLoading(true)
       const res = await fetch("/api/attempts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({ examId }),
       })
-      const data = await res.json()
-      if (!res.ok || !data?.attemptId) throw new Error(data?.error || "Konnte Attempt nicht erstellen.")
-      window.location.href = `/exam-run/${data.attemptId}`
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data?.attemptId) {
+        throw new Error(data?.error || "Fehler beim Starten")
+      }
+      router.push(`/exam-run/${data.attemptId}`)
     } catch (e: any) {
-      alert(e.message ?? "Fehler beim Starten.")
+      setErr(e?.message || "Unbekannter Fehler")
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <button className="btn" onClick={start} disabled={loading}>
-      {loading ? "Starte…" : "Prüfung starten"}
-    </button>
+    <div className="space-y-2">
+      <Button onClick={onClick} disabled={loading} className="w-full sm:w-auto">
+        {loading ? "Lade..." : "Prüfung starten"}
+      </Button>
+      {err && <p className="text-sm text-red-600">{err}</p>}
+    </div>
   )
 }

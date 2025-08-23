@@ -1,83 +1,72 @@
 // app/exams/page.tsx
-import Link from "next/link"
 import prisma from "@/lib/db"
+import Link from "next/link"
 import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { CheckCircle, Lock } from "lucide-react"
+import { authOptions } from "@/auth"
+import { CheckoutButton } from "@/components/checkout-button"
 import { StartExamButton } from "@/components/start-exam-button"
 
-export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
 export default async function ExamsPage() {
-  // Eingeloggt?
   const session = await getServerSession(authOptions)
 
-  // Alle veröffentlichten Prüfungen
+  const user = session?.user?.email
+    ? await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: { id: true },
+      })
+    : null
+
+  const purchases = user
+    ? await prisma.purchase.findMany({
+        where: { userId: user.id },
+        select: { examId: true },
+      })
+    : []
+
+  const owned = new Set(purchases.map((p) => p.examId))
+
   const exams = await prisma.exam.findMany({
     where: { isPublished: true },
     orderBy: { createdAt: "desc" },
     select: { id: true, slug: true, title: true, description: true, priceCents: true },
   })
 
-  // IDs gekaufter Exams des Users
-  let purchasedIds = new Set<string>()
-  if (session?.user?.email) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    })
-    if (user) {
-      const purchases = await prisma.purchase.findMany({
-        where: { userId: user.id },
-        select: { examId: true },
-      })
-      purchasedIds = new Set(purchases.map((p) => p.examId))
-    }
-  }
-
-  if (exams.length === 0) {
-    return <p className="text-muted-foreground">Noch keine Prüfungen veröffentlicht.</p>
-  }
-
   return (
-    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {exams.map((e) => {
-        const owned = purchasedIds.has(e.id)
-        const price = (e.priceCents / 100).toFixed(2).replace(".", ",")
-        return (
-          <Card key={e.id}>
-            <CardHeader>
-              <CardTitle>{e.title}</CardTitle>
-              <CardDescription>{e.description}</CardDescription>
-            </CardHeader>
+    <div className="space-y-6">
+      <h1 className="text-2xl font-semibold">Prüfungen</h1>
 
-            <CardFooter className="flex items-center justify-between gap-3">
-              {owned ? (
-                <span className="inline-flex items-center gap-2 text-green-600">
-                  <CheckCircle className="h-4 w-4" />
-                  Bereits erworben
-                </span>
+      <div className="grid gap-4">
+        {exams.map((e) => (
+          <div key={e.id} className="rounded border p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="font-medium">
+                <Link href={`/exams/${e.slug}`} className="hover:underline">
+                  {e.title}
+                </Link>
+              </h2>
+              <span className="text-sm text-muted-foreground">
+                {(e.priceCents / 100).toFixed(2).replace(".", ",")} €
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground">{e.description}</p>
+
+            <div className="pt-2">
+              {owned.has(e.id) ? (
+                <div className="flex items-center gap-3">
+                  <span className="text-green-600 text-sm">Bereits erworben</span>
+                  <StartExamButton examId={e.id} />
+                </div>
+              ) : session?.user ? (
+                <CheckoutButton slug={e.slug} />
               ) : (
-                <span className="inline-flex items-center gap-2 text-muted-foreground">
-                  <Lock className="h-4 w-4" />
-                  Gesperrt (kein Kauf) · {price} €
-                </span>
+                <Link href="/login" className="btn">Jetzt freischalten (Login nötig)</Link>
               )}
-
-              <div className="flex items-center gap-2">
-                {owned ? (
-                  <StartExamButton slug={e.slug} />
-                ) : null}
-                <Button variant={owned ? "outline" : "default"} asChild>
-                  <Link href={`/exams/${e.slug}`}>Details</Link>
-                </Button>
-              </div>
-            </CardFooter>
-          </Card>
-        )
-      })}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

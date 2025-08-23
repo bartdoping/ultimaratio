@@ -1,90 +1,105 @@
 // app/exams/[slug]/page.tsx
-import prisma from "@/lib/db"
-import Link from "next/link"
-import { notFound } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
-import { CheckoutButton } from "@/components/checkout-button"
-import { StartExamButton } from "@/components/start-exam-button"
-import stripe from "@/lib/stripe"
+import { Suspense } from "react";
+import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/auth";
+import prisma from "@/lib/db";
+import { CheckoutButton } from "@/components/checkout-button";
+import { StartExamButton } from "@/components/start-exam-button";
+import { StripeConfirmOnce } from "@/components/stripe-confirm";
 
-type PageProps = {
-  params: Promise<{ slug: string }>
-  searchParams: Promise<Record<string, string | string[] | undefined>>
-}
+export const dynamic = "force-dynamic"; // immer frische DB-Daten (alternativ: export const revalidate = 0)
 
-export default async function ExamDetailPage({ params, searchParams }: PageProps) {
-  const { slug } = await params
-  const sp = await searchParams
-  const session = await getServerSession(authOptions)
+type PageProps = { params: { slug: string } };
 
-  const exam = await prisma.exam.findUnique({ where: { slug } })
-  if (!exam || !exam.isPublished) notFound()
+export default async function ExamDetailPage({ params }: PageProps) {
+  const { slug } = params;
 
-  // 1) Wenn vom Checkout zurück: Stripe-Session prüfen & Kauf eintragen (serverseitig, ohne Client-Fallback)
-  const sessionId = typeof sp.session_id === "string" ? sp.session_id : undefined
-  if (session?.user?.email && sessionId) {
-    try {
-      const s = await stripe.checkout.sessions.retrieve(sessionId)
-      if (s.payment_status === "paid") {
-        // user/exam ermitteln
-        const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-        const examId = (s.metadata?.examId as string | undefined) ?? undefined
-        if (user && examId) {
-          const exists = await prisma.purchase.findFirst({ where: { userId: user.id, examId } })
-          if (!exists) {
-            await prisma.purchase.create({ data: { userId: user.id, examId, stripeSessionId: s.id } })
-          }
-        }
-      }
-    } catch {
-      // falls Stripe nicht erreichbar → Webhook übernimmt die Freischaltung
-    }
+  const exam = await prisma.exam.findUnique({
+    where: { slug },
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      priceCents: true,
+      isPublished: true,
+      passPercent: true,
+      allowImmediateFeedback: true,
+    },
+  });
+
+  // In PROD nicht veröffentlichte Prüfungen verstecken
+  if (!exam || (!exam.isPublished && process.env.NODE_ENV === "production")) {
+    return notFound();
   }
 
-  // 2) Besitz prüfen
-  let purchased = false
+  const session = await getServerSession(authOptions);
+
+  let hasPurchase = false;
   if (session?.user?.email) {
-    const user = await prisma.user.findUnique({ where: { email: session.user.email } })
-    if (user) {
-      const p = await prisma.purchase.findFirst({ where: { userId: user.id, examId: exam.id } })
-      purchased = !!p
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (me) {
+      const purchase = await prisma.purchase.findFirst({
+        where: { userId: me.id, examId: exam.id },
+        select: { id: true },
+      });
+      hasPurchase = !!purchase;
     }
   }
 
-  const price = (exam.priceCents / 100).toFixed(2).replace(".", ",")
+  const priceEuro = (exam.priceCents ?? 0) / 100;
 
   return (
-    <div className="max-w-2xl space-y-5">
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+      {/* Fallback: legt Kauf nach Stripe-Redirect an, falls Webhook (lokal) nicht ankam */}
+      <Suspense fallback={null}>
+        <StripeConfirmOnce />
+      </Suspense>
+
       <h1 className="text-2xl font-semibold">{exam.title}</h1>
-      <p className="text-muted-foreground">{exam.description}</p>
-      <p><strong>Preis:</strong> {price} €</p>
 
-      {purchased ? (
-        <div className="flex items-center gap-3">
-          <StartExamButton slug={slug} />
-          <span className="text-green-600 text-sm">Freigeschaltet</span>
-        </div>
-      ) : session ? (
-        <CheckoutButton slug={slug} />
+      {exam.description && (
+        <p className="text-muted-foreground">{exam.description}</p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-4">
+        <span className="text-xl font-medium">
+          {priceEuro.toFixed(2)} €
+        </span>
+        <span className="text-sm text-muted-foreground">
+          Bestehensgrenze: {exam.passPercent}%
+        </span>
+        {exam.allowImmediateFeedback && (
+          <span className="text-xs rounded bg-gray-100 px-2 py-1">
+            Sofortiges Feedback
+          </span>
+        )}
+      </div>
+
+      {!hasPurchase ? (
+        session?.user?.id ? (
+          <CheckoutButton examId={exam.id} />
+        ) : (
+          <a
+            href="/login"
+            className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium"
+          >
+            Einloggen, um zu kaufen
+          </a>
+        )
       ) : (
-        <div className="flex gap-2">
-          <Button asChild><Link href={`/login?next=/exams/${slug}`}>Login</Link></Button>
-          <Button variant="outline" asChild><Link href={`/register?next=/exams/${slug}`}>Registrieren</Link></Button>
-        </div>
+        <StartExamButton examId={exam.id} />
       )}
 
-      {sp.success === "1" && !purchased && (
-        <p className="text-green-600 text-sm">Kauf erfolgreich – Zugriff wird freigeschaltet.</p>
-      )}
-      {sp.canceled === "1" && (
-        <p className="text-orange-600 text-sm">Zahlung abgebrochen.</p>
-      )}
-
-      <div className="pt-6">
-        <Button variant="outline" asChild><Link href="/exams">Zurück</Link></Button>
+      <div>
+        <a href="/exams" className="text-sm underline">
+          Zurück zur Übersicht
+        </a>
       </div>
     </div>
-  )
+  );
 }

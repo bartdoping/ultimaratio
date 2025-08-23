@@ -1,69 +1,113 @@
 // app/(dashboard)/dashboard/page.tsx
-import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
-import prisma from "@/lib/db"
 import Link from "next/link"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
 import { StartExamButton } from "@/components/start-exam-button"
+import { Badge } from "@/components/ui/badge"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+
+export const runtime = "nodejs"
 
 export default async function DashboardPage() {
   const session = await getServerSession(authOptions)
-  const email = session?.user?.email ?? null
-
-  if (!email) {
+  if (!session?.user?.email) {
     return (
-      <div className="space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4">
         <h1 className="text-2xl font-semibold">Mein Bereich</h1>
-        <p className="text-muted-foreground">Bitte zuerst einloggen.</p>
+        <p>Bitte zuerst einloggen.</p>
+        <Link href="/login" className="underline text-blue-600">Zum Login</Link>
       </div>
     )
   }
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true, surname: true } })
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true, name: true },
+  })
+  if (!me) {
+    return <p className="text-red-600">Benutzerkonto nicht gefunden.</p>
+  }
+
+  // Alle Käufe inkl. Exam
   const purchases = await prisma.purchase.findMany({
-    where: { userId: user!.id },
-    include: { exam: true },
+    where: { userId: me.id },
+    include: { exam: { select: { id: true, title: true, slug: true, description: true } } },
     orderBy: { createdAt: "desc" },
   })
 
+  // Offene Versuche für diese Exams (ein Query, dann in Map)
+  const openAttempts = await prisma.attempt.findMany({
+    where: { userId: me.id, finishedAt: null },
+    select: { id: true, examId: true },
+  })
+  const openByExam = new Map(openAttempts.map(a => [a.examId, a.id]))
+
   return (
-    <div className="space-y-6">
-      <div>
+    <div className="max-w-5xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Mein Bereich</h1>
-        <p className="text-muted-foreground">E-Mail: {email}</p>
+        <div className="flex items-center gap-2">
+          <Link href="/dashboard/history">
+            <Button variant="outline">Zur Historie</Button>
+          </Link>
+          <Link href="/exams">
+            <Button>Weitere Prüfungen</Button>
+          </Link>
+        </div>
       </div>
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium">Meine Produkte</h2>
-        {purchases.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Noch keine Produkte erworben. <Link href="/exams" className="underline">Zu den Prüfungen</Link></p>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {purchases.map((p) => (
-              <div key={p.id} className="border rounded-md p-3 space-y-2">
-                <div className="font-medium">{p.exam.title}</div>
-                <div className="text-sm text-muted-foreground">{p.exam.description}</div>
-                <div className="flex gap-2">
-                  <StartExamButton slug={p.exam.slug} />
-                  <Button variant="outline" asChild><Link href={`/exams/${p.exam.slug}`}>Details</Link></Button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
+      {purchases.length === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Keine Käufe gefunden</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-3">Du hast noch keine Prüfung erworben.</p>
+            <Link href="/exams" className="underline text-blue-600">Zu den Prüfungen</Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {purchases.map((p) => {
+            const e = p.exam
+            const openAttemptId = openByExam.get(e.id) || null
+            return (
+              <Card key={e.id}>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{e.title}</CardTitle>
+                    <Badge variant="default">Erworben</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {e.description && <p className="text-sm text-muted-foreground">{e.description}</p>}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium">Historie (bald)</h2>
-        <p className="text-muted-foreground text-sm">Versuche & Ergebnisse erscheinen in M6 hier.</p>
-      </section>
+                  {openAttemptId ? (
+                    <div className="flex items-center gap-3">
+                      <Link href={`/exam-run/${openAttemptId}`}>
+                        <Button>Weiter</Button>
+                      </Link>
+                      <span className="text-sm text-muted-foreground">Du hast einen offenen Versuch.</span>
+                    </div>
+                  ) : (
+                    <StartExamButton examId={e.id} />
+                  )}
 
-      <section className="space-y-3">
-        <h2 className="text-lg font-medium">Historie</h2>
-        <p className="text-muted-foreground text-sm">
-          Deine Versuche findest du in der <Link href="/dashboard/history" className="underline">Historie</Link>.
-        </p>
-      </section>
+                  <div className="text-xs text-muted-foreground">
+                    <Link href={`/exams/${e.slug}`} className="underline">Details</Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }
+
+<p className="text-sm text-muted-foreground">
+  Verlauf ansehen: <Link className="underline" href="/dashboard/history">Historie</Link>
+</p>

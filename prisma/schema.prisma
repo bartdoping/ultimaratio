@@ -32,9 +32,10 @@ model User {
   role            Role      @default(user)
   createdAt       DateTime  @default(now())
 
-  purchases   Purchase[]
-  attempts    Attempt[]
-  emailTokens EmailVerification[]
+  purchases     Purchase[]
+  attempts      Attempt[]
+  emailTokens   EmailVerification[]
+  PasswordReset PasswordReset[]
 }
 
 model Exam {
@@ -121,7 +122,7 @@ model AttemptAnswer {
   // Vorwärts-Relation zur AnswerOption (Name muss identisch sein)
   answerOption AnswerOption @relation("AnswerOption_ChosenIn", fields: [answerOptionId], references: [id], onDelete: Cascade)
 
-  @@unique([attemptId, questionId])
+  @@unique([attemptId, questionId], map: "AttemptAnswer_attemptId_questionId_key")
   @@index([answerOptionId])
 }
 
@@ -177,4 +178,16 @@ model EmailVerification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, code])
+}
+
+model PasswordReset {
+  id        String    @id @default(cuid())
+  userId    String
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, token])
 }

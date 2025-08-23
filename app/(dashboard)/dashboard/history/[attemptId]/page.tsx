@@ -1,6 +1,6 @@
 // app/(dashboard)/history/[attemptId]/page.tsx
 import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
+import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { notFound, redirect } from "next/navigation"
 import Link from "next/link"

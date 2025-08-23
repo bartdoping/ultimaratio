@@ -1,6 +1,6 @@
 // app/admin/page.tsx
 import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
+import { authOptions } from "@/auth"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"

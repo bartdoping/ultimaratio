@@ -1,43 +1,45 @@
 // auth.ts
 import type { NextAuthOptions } from "next-auth"
 import Credentials from "next-auth/providers/credentials"
-import { z } from "zod"
+import { getServerSession } from "next-auth"
 import prisma from "@/lib/db"
 import { verifyPassword } from "@/lib/password"
 
-const CredentialsSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-})
-
 export const authOptions: NextAuthOptions = {
-  secret: process.env.NEXTAUTH_SECRET,
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  pages: { signIn: "/login" }, // optional, hält alles konsistent
   providers: [
     Credentials({
-      name: "E-Mail & Passwort",
+      name: "credentials",
       credentials: {
-        email: { label: "E-Mail", type: "text" },
+        email: { label: "E-Mail", type: "email" },
         password: { label: "Passwort", type: "password" },
       },
-      authorize: async (credentials) => {
-        const parsed = CredentialsSchema.safeParse(credentials)
-        if (!parsed.success) return null
-        const { email, password } = parsed.data
+      async authorize(creds) {
+        try {
+          const email = (creds?.email ?? "").toLowerCase().trim()
+          const password = creds?.password ?? ""
+          if (!email || !password) return null
 
-        const user = await prisma.user.findUnique({ where: { email } })
-        if (!user) return null
-        if (!user.emailVerifiedAt) return null
+          const user = await prisma.user.findUnique({ where: { email } })
+          if (!user) return null
 
-        const ok = await verifyPassword(password, user.passwordHash)
-        if (!ok) return null
+          // E-Mail muss verifiziert sein (außer im DEV-Override)
+          const devSkip = process.env.DEV_AUTH_ENABLED === "true"
+          if (!devSkip && !user.emailVerifiedAt) return null
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role as "user" | "admin",
+          const ok = await verifyPassword(password, user.passwordHash)
+          if (!ok) return null
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: `${user.name} ${user.surname}`.trim(),
+            role: user.role,
+          }
+        } catch (e) {
+          console.error("authorize error:", e)
+          return null
         }
       },
     }),
@@ -45,6 +47,7 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        // läuft nur beim Login
         token.id = (user as any).id
         token.role = (user as any).role
       }
@@ -58,4 +61,8 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
+}
+
+export async function getSession() {
+  return getServerSession(authOptions)
 }

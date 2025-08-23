@@ -1,24 +1,22 @@
 // app/api/history/[id]/route.ts
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
-import authOptions from "@/auth"
+import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { assertSameOrigin } from "@/lib/security"
 
 export const runtime = "nodejs"
 
-type Params = { params: { id: string } }
-
-export async function DELETE(req: Request, { params }: Params) {
-    assertSameOrigin(req)
+export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) return NextResponse.json({ ok: false }, { status: 401 })
+
   const me = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
   if (!me) return NextResponse.json({ ok: false }, { status: 401 })
 
-  const attempt = await prisma.attempt.findUnique({ where: { id: params.id }, select: { userId: true } })
-  if (!attempt || attempt.userId !== me.id) return NextResponse.json({ ok: false }, { status: 404 })
+  const a = await prisma.attempt.findUnique({ where: { id }, select: { userId: true } })
+  if (!a || a.userId !== me.id) return NextResponse.json({ ok: false, error: "not found" }, { status: 404 })
 
-  await prisma.attempt.delete({ where: { id: params.id } }) // AttemptAnswer wird via onDelete Cascade mit gelöscht
+  await prisma.attempt.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }

@@ -1,42 +1,50 @@
+// components/history-actions.tsx
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useTransition } from "react"
+import { Button } from "@/components/ui/button"
 
-export function DeleteAttemptButton({ attemptId }: { attemptId: string }) {
+export function DeleteAttemptButton({ id }: { id: string }) {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  async function del() {
+  const [pending, startTransition] = useTransition()
+
+  async function onDelete() {
     if (!confirm("Diesen Versuch wirklich löschen?")) return
-    setLoading(true)
-    try {
-      const res = await fetch(`/api/history/${attemptId}`, { method: "DELETE" })
-      if (!res.ok) throw new Error("Löschen fehlgeschlagen")
-      router.refresh()
-    } catch (e: any) {
-      alert(e.message ?? "Fehler beim Löschen")
-    } finally {
-      setLoading(false)
+    const res = await fetch(`/api/history/${id}`, { method: "DELETE" })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok || !j?.ok) {
+      alert(j?.error || "Löschen fehlgeschlagen")
+      return
     }
+    startTransition(() => router.refresh())
   }
-  return <button className="btn" onClick={del} disabled={loading}>{loading ? "Lösche…" : "Löschen"}</button>
+
+  return (
+    <Button variant="destructive" onClick={onDelete} disabled={pending}>
+      {pending ? "Lösche…" : "Löschen"}
+    </Button>
+  )
 }
 
 export function DeleteAllAttemptsButton() {
   const router = useRouter()
-  const [loading, setLoading] = useState(false)
-  async function delAll() {
-    if (!confirm("Wirklich ALLE Versuche löschen? Dies kann nicht rückgängig gemacht werden.")) return
-    setLoading(true)
-    try {
-      const res = await fetch("/api/history", { method: "DELETE" })
-      if (!res.ok) throw new Error("Löschen fehlgeschlagen")
-      router.refresh()
-    } catch (e: any) {
-      alert(e.message ?? "Fehler beim Löschen")
-    } finally {
-      setLoading(false)
+  const [pending, startTransition] = useTransition()
+
+  async function onDeleteAll() {
+    if (!confirm("Alle Versuche löschen?")) return
+    const res = await fetch("/api/history", { method: "DELETE" })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok || !j?.ok) {
+      alert(j?.error || "Löschen fehlgeschlagen")
+      return
     }
+    startTransition(() => router.refresh())
   }
-  return <button className="btn" onClick={delAll} disabled={loading}>{loading ? "Lösche…" : "Alles löschen"}</button>
+
+  return (
+    <Button variant="destructive" onClick={onDeleteAll} disabled={pending}>
+      {pending ? "Lösche…" : "Alle löschen"}
+    </Button>
+  )
 }
