@@ -1,59 +1,97 @@
 // app/exam-run/[attemptId]/page.tsx
+import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { redirect, notFound } from "next/navigation"
 import { RunnerClient } from "@/components/runner-client"
 
-export const runtime = "nodejs"
+type Props = { params: Promise<{ attemptId: string }> }
 
-type Params = { params: Promise<{ attemptId: string }> }
+export const dynamic = "force-dynamic"
 
-export default async function ExamRunPage({ params }: Params) {
+export default async function ExamRunPage({ params }: Props) {
   const { attemptId } = await params
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) redirect("/login")
 
+  // Session & User
+  const session = await getServerSession(authOptions)
+  if (!session?.user?.email) {
+    redirect("/login")
+  }
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
     select: { id: true },
   })
   if (!me) redirect("/login")
 
-  const attempt = await prisma.attempt.findFirst({
-    where: { id: attemptId, userId: me.id },
-    include: {
-      exam: {
-        select: { id: true, title: true, passPercent: true, allowImmediateFeedback: true },
-      },
-      answers: { select: { questionId: true, answerOptionId: true } },
-    },
+  // Attempt laden (und Ownership prüfen)
+  const attempt = await prisma.attempt.findUnique({
+    where: { id: attemptId },
+    select: { id: true, userId: true, examId: true },
   })
-  if (!attempt) notFound()
+  if (!attempt || attempt.userId !== me.id) notFound()
 
-  // komplette Frageliste laden
-  const questions = await prisma.question.findMany({
-    where: { examId: attempt.examId },
-    orderBy: { id: "asc" }, // ggf. Section/Order falls vorhanden
+  // Exam + Fragen + Optionen + MEDIA laden
+  const exam = await prisma.exam.findUnique({
+    where: { id: attempt.examId },
     select: {
       id: true,
-      stem: true,
-      options: { select: { id: true, text: true, isCorrect: true }, orderBy: { id: "asc" } },
+      passPercent: true,
+      allowImmediateFeedback: true,
+      questions: {
+        orderBy: { id: "asc" },
+        select: {
+          id: true,
+          stem: true,
+          // Optionen (für Sofort-Feedback istCorrect nötig – Anzeige steuert der Client via allowImmediateFeedback)
+          options: {
+            orderBy: { id: "asc" },
+            select: { id: true, text: true, isCorrect: true },
+          },
+          // WICHTIG: Media mitsenden
+          media: {
+            orderBy: { order: "asc" },
+            include: { media: true }, // => { mediaId, order, media: { id, url, alt, ... } }
+          },
+        },
+      },
     },
   })
+  if (!exam) notFound()
 
+  // Bereits gegebene Antworten laden
+  const given = await prisma.attemptAnswer.findMany({
+    where: { attemptId: attempt.id },
+    select: { questionId: true, answerOptionId: true },
+  })
   const initialAnswers = Object.fromEntries(
-    attempt.answers.map(a => [a.questionId, a.answerOptionId])
+    given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
+
+  // In Client-Shape mappen (v.a. Media flach ziehen)
+  const questions = exam.questions.map((q) => ({
+    id: q.id,
+    stem: q.stem,
+    options: q.options.map((o) => ({
+      id: o.id,
+      text: o.text,
+      isCorrect: o.isCorrect,
+    })),
+    media:
+      q.media?.map((m) => ({
+        id: m.media.id,           // ID des MediaAssets
+        url: m.media.url,         // Bild-URL
+        alt: m.media.alt ?? "",   // Alt-Text
+        order: m.order ?? 0,      // Reihenfolge
+      })) ?? [],
+  }))
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-4">{attempt.exam.title}</h1>
       <RunnerClient
         attemptId={attempt.id}
-        examId={attempt.exam.id}
-        passPercent={attempt.exam.passPercent}
-        allowImmediateFeedback={attempt.exam.allowImmediateFeedback}
+        examId={exam.id}
+        passPercent={exam.passPercent}
+        allowImmediateFeedback={exam.allowImmediateFeedback}
         questions={questions}
         initialAnswers={initialAnswers}
       />
