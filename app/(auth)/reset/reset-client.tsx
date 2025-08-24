@@ -48,31 +48,31 @@ export default function ResetClient() {
   }
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Neues Passwort setzen</h1>
+    <div className="space-y-5">
+      <h1 className="card-title">Neues Passwort setzen</h1>
       {msg && <p className="text-sm text-green-600">{msg}</p>}
       {err && <p className="text-sm text-red-600">{err}</p>}
 
-      <form onSubmit={onSubmit} className="space-y-3">
+      <form onSubmit={onSubmit} className="space-y-4">
         {!token && (
           <div>
-            <label className="text-sm font-medium">Token</label>
+            <label className="label">Token</label>
             <input
-              className="w-full h-10 rounded-md border px-3"
+              className="input"
               value={token}
               onChange={e => setToken(e.target.value)}
               required
             />
-            <p className="text-xs text-muted-foreground mt-1">
+            <p className="muted text-xs mt-1">
               Öffne den Link aus der E-Mail – der Token wird sonst nicht automatisch übernommen.
             </p>
           </div>
         )}
 
         <div>
-          <label className="text-sm font-medium">Neues Passwort</label>
+          <label className="label">Neues Passwort</label>
           <input
-            className="w-full h-10 rounded-md border px-3"
+            className="input"
             type="password"
             autoComplete="new-password"
             value={password}
@@ -83,9 +83,9 @@ export default function ResetClient() {
         </div>
 
         <div>
-          <label className="text-sm font-medium">Passwort bestätigen</label>
+          <label className="label">Passwort bestätigen</label>
           <input
-            className="w-full h-10 rounded-md border px-3"
+            className="input"
             type="password"
             autoComplete="new-password"
             value={confirm}

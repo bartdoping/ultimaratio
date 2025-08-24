@@ -1,8 +1,13 @@
+/* app/globals.css */
+
+/* Tailwind + Animations */
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Dark-Variant Helper (dein bestehender) */
 @custom-variant dark (&:is(.dark *));
 
+/* ===== Theme (deine bestehenden Tokens beibehalten) ===== */
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,6 +48,7 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ===== Tokens (dein bestehender Block) ===== */
 :root {
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -112,11 +118,118 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ===== Base (dein bestehender + optische Tweaks) ===== */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
+  html, body {
+    height: 100%;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
 }
+
+/* Softes Hintergrunddekor (rein visuell, keine Funktionsänderung) */
+body::before {
+  content: "";
+  position: fixed;
+  inset: -10% -20% auto -20%;
+  height: 60vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40% 30% at 20% 10%, color-mix(in oklab, var(--primary) 15%, transparent) 0%, transparent 60%),
+    radial-gradient(30% 25% at 85% 0%, color-mix(in oklab, var(--chart-2) 22%, transparent) 0%, transparent 60%);
+  filter: blur(30px) saturate(1.1);
+}
+
+/* Auswahl / Fokus */
+::selection { background: color-mix(in oklab, var(--ring) 35%, transparent); }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+/* Scrollbar dezent */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: color-mix(in oklab, var(--muted-foreground) 35%, transparent); border-radius: 999px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+/* ===== Components: rein visuelle Hilfsklassen ===== */
+@layer components {
+  /* Seiten-Container */
+  .page { @apply max-w-3xl mx-auto px-4 sm:px-6 lg:px-8; }
+
+  /* Card */
+  .card {
+    @apply rounded-xl border bg-card text-card-foreground
+           shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur;
+  }
+  .card-body { @apply p-5 sm:p-6; }
+  .card-title { @apply text-lg sm:text-xl font-semibold tracking-tight; }
+  .card-subtle { @apply text-sm text-muted-foreground; }
+
+  /* Typografie */
+  .muted { @apply text-muted-foreground; }
+
+  /* Inputs – drop-in Ersatz für deine bestehenden Inputs */
+  .label { @apply text-sm font-medium mb-1 block; }
+  .input {
+    @apply w-full h-10 rounded-md border bg-background px-3
+           border-input placeholder:text-muted-foreground/70
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+           transition-shadow;
+  }
+  .textarea {
+    @apply w-full min-h-24 rounded-md border bg-background px-3 py-2
+           border-input placeholder:text-muted-foreground/70
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+           transition-shadow;
+  }
+
+  /* Buttons – nutzbar mit class="btn", "btn-outline", ... */
+  .btn {
+    @apply inline-flex items-center justify-center rounded-md px-3.5 py-2.5
+           font-medium tracking-tight
+           bg-primary text-primary-foreground
+           hover:opacity-95
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
+           disabled:opacity-60 disabled:cursor-not-allowed
+           transition;
+  }
+  .btn-outline {
+    @apply bg-transparent text-foreground border border-border
+           hover:bg-foreground/5 dark:hover:bg-foreground/10;
+  }
+  .btn-ghost {
+    @apply bg-transparent hover:bg-foreground/5 dark:hover:bg-foreground/10;
+  }
+  .btn-danger {
+    @apply bg-destructive text-white hover:brightness-110;
+  }
+  .btn-muted {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/90;
+  }
+
+  /* Kleine Badges */
+  .pill {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1
+           text-xs font-medium border-border bg-secondary text-secondary-foreground;
+  }
+
+  /* Bild-Thumbnail mit Hover-Hinweis (für klick-zum-Vergrößern) */
+  .thumb {
+    @apply relative cursor-zoom-in overflow-hidden rounded-lg border border-border transition;
+  }
+  .thumb:hover { @apply shadow-md; }
+  .thumb::after {
+    content: "Zum Vergrößern klicken";
+    @apply pointer-events-none absolute inset-x-0 bottom-0 translate-y-2 opacity-0
+           text-[10px] tracking-wide text-white/90 text-center
+           bg-black/40 backdrop-blur-sm py-1 transition;
+  }
+  .thumb:hover::after { @apply translate-y-0 opacity-100; }
+}
+
+/* Prose-Tweaks (falls du md/prose nutzt) */
+.prose p { line-height: 1.7; }
+hr { border-color: var(--border); }

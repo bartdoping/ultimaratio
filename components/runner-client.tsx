@@ -11,6 +11,14 @@ type Question = {
   media?: { id: string; url: string; alt: string; order: number }[]
 }
 
+type LabValue = {
+  id: string
+  name: string
+  unit: string
+  refRange: string
+  category: string
+}
+
 type Props = {
   attemptId: string
   examId: string
@@ -20,10 +28,14 @@ type Props = {
   initialAnswers: Record<string, string | undefined>
 }
 
-function format(seconds: number) {
-  const m = Math.floor(seconds / 60)
-  const s = seconds % 60
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+// zeigt mm:ss bzw. ab 1h hh:mm:ss
+function formatUp(totalSeconds: number) {
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = totalSeconds % 60
+  return h > 0
+    ? `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+    : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
 }
 
 export function RunnerClient(props: Props) {
@@ -32,18 +44,28 @@ export function RunnerClient(props: Props) {
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
-  const [left, setLeft] = useState(60 * 60) // 60 Minuten Beispiel
 
-  // Lightbox-State
+  // ------- Timer: zählt hoch, pausierbar -------
+  const [elapsed, setElapsed] = useState(0)     // Sekunden seit Start
+  const [running, setRunning] = useState(true)  // true = läuft, false = pausiert
+
+  useEffect(() => {
+    if (!running) return
+    const t = setInterval(() => setElapsed(v => v + 1), 1000)
+    return () => clearInterval(t)
+  }, [running])
+
+  // ------- Lightbox (Bilder) -------
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
-  // Timer
-  useEffect(() => {
-    const t = setInterval(() => setLeft(v => (v > 0 ? v - 1 : 0)), 1000)
-    return () => clearInterval(t)
-  }, [])
+  // ------- Laborwerte Panel -------
+  const [labOpen, setLabOpen] = useState(false)
+  const [labLoading, setLabLoading] = useState(false)
+  const [labError, setLabError] = useState<string | null>(null)
+  const [labValues, setLabValues] = useState<LabValue[]>([])
+  const [labQuery, setLabQuery] = useState("")
 
   // aktuelle Frage
   const q = questions[idx]
@@ -88,7 +110,7 @@ export function RunnerClient(props: Props) {
     return `${answered}/${questions.length}`
   }, [answers, questions.length])
 
-  // Lightbox
+  // ------- Lightbox (Bilder) -------
   function openLightbox(i: number) {
     setLightboxIndex(i)
     setLightboxOpen(true)
@@ -110,14 +132,30 @@ export function RunnerClient(props: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (!lightboxOpen) return
-      if (e.key === "Escape") closeLightbox()
-      if (e.key === "ArrowRight") nextImage()
-      if (e.key === "ArrowLeft") prevImage()
+      // Lightbox Shortcuts
+      if (lightboxOpen) {
+        if (e.key === "Escape") closeLightbox()
+        if (e.key === "ArrowRight") nextImage()
+        if (e.key === "ArrowLeft") prevImage()
+        return
+      }
+      // Labs Shortcut
+      if (e.key.toLowerCase() === "l") {
+        e.preventDefault()
+        setLabOpen(true)
+      }
+      if (labOpen && e.key === "Escape") {
+        setLabOpen(false)
+      }
+      // Timer Shortcut (P = Pause/Weiter)
+      if (e.key.toLowerCase() === "p") {
+        e.preventDefault()
+        setRunning(r => !r)
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [lightboxOpen, media.length])
+  }, [lightboxOpen, labOpen, media.length])
 
   useEffect(() => {
     if (lightboxOpen) {
@@ -125,14 +163,68 @@ export function RunnerClient(props: Props) {
     }
   }, [lightboxOpen])
 
+  // ------- Laborwerte: Lazy Load beim Öffnen -------
+  useEffect(() => {
+    if (!labOpen || labValues.length > 0 || labLoading) return
+    ;(async () => {
+      setLabLoading(true)
+      setLabError(null)
+      try {
+        const res = await fetch("/api/labs")
+        const raw = await res.json().catch(() => null)
+        const arr =
+          (Array.isArray(raw) ? raw
+            : (raw?.items || raw?.labs || raw?.data || [])) as any[]
+        const norm: LabValue[] = (arr || []).map((x) => ({
+          id: String(x.id ?? `${x.name}-${x.unit}`),
+          name: String(x.name ?? ""),
+          unit: String(x.unit ?? ""),
+          refRange: String(x.refRange ?? x.ref_range ?? ""),
+          category: String(x.category ?? ""),
+        }))
+        setLabValues(norm)
+      } catch {
+        setLabError("Laborwerte konnten nicht geladen werden.")
+      } finally {
+        setLabLoading(false)
+      }
+    })()
+  }, [labOpen, labValues.length, labLoading])
+
+  const filteredLabs = useMemo(() => {
+    const q = labQuery.trim().toLowerCase()
+    if (!q) return labValues
+    return labValues.filter((lv) =>
+      [lv.name, lv.unit, lv.refRange, lv.category]
+        .filter(Boolean)
+        .some((s) => s.toLowerCase().includes(q))
+    )
+  }, [labValues, labQuery])
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
         <span>Frage {idx + 1} / {questions.length} ({progress})</span>
-        <span>Zeit: {format(left)}</span>
+
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte anzeigen (L)">
+            Laborwerte
+          </Button>
+
+          <div className="flex items-center gap-2">
+            <span>Zeit: {formatUp(elapsed)}</span>
+            <Button
+              variant="outline"
+              onClick={() => setRunning(r => !r)}
+              title="Timer pausieren/fortsetzen (P)"
+            >
+              {running ? "Pause" : "Weiter"}
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="rounded border p-4 space-y-4">
+      <div className="card card-body space-y-4">
         {/* Frage */}
         <p className="font-medium">{q.stem}</p>
 
@@ -148,7 +240,6 @@ export function RunnerClient(props: Props) {
                 title={m.alt || "Bild vergrößern"}
                 aria-label="Bild vergrößern"
               >
-                {/* Bild */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={m.url}
@@ -156,9 +247,7 @@ export function RunnerClient(props: Props) {
                   className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
                   loading="lazy"
                 />
-                {/* sanfter Overlay-Tint */}
                 <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                {/* kleines Lupe-Icon oben rechts */}
                 <svg
                   className="pointer-events-none absolute right-2 top-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white drop-shadow"
                   viewBox="0 0 24 24"
@@ -209,7 +298,7 @@ export function RunnerClient(props: Props) {
         </div>
       </div>
 
-      {/* Lightbox / Vollbild-Overlay */}
+      {/* ------- Lightbox / Vollbild-Overlay (Bilder) ------- */}
       {lightboxOpen && media.length > 0 && (
         <div
           ref={overlayRef}
@@ -257,6 +346,78 @@ export function RunnerClient(props: Props) {
               className="max-h-[95vh] max-w-[95vw] object-contain select-none"
               draggable={false}
             />
+          </div>
+        </div>
+      )}
+
+      {/* ------- Laborwerte Overlay ------- */}
+      {labOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Laborwerte"
+          className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4"
+          onClick={() => setLabOpen(false)}
+        >
+          <div
+            className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-lg border bg-white dark:bg-card shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h2 className="font-semibold">Laborwerte</h2>
+              <div className="flex items-center gap-2">
+                <input
+                  className="input h-9 w-64"
+                  placeholder="Suchen (Name, Kategorie, Einheit)…"
+                  value={labQuery}
+                  onChange={(e) => setLabQuery(e.target.value)}
+                  autoFocus
+                />
+                <Button variant="outline" onClick={() => setLabOpen(false)}>Schließen</Button>
+              </div>
+            </div>
+
+            <div className="p-0">
+              {labLoading ? (
+                <div className="p-4 text-sm text-muted-foreground">Lade Laborwerte…</div>
+              ) : labError ? (
+                <div className="p-4 text-sm text-red-600">{labError}</div>
+              ) : (
+                <div className="max-h-[70vh] overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-secondary">
+                      <tr className="text-left">
+                        <th className="px-4 py-2 font-medium">Name</th>
+                        <th className="px-4 py-2 font-medium">Einheit</th>
+                        <th className="px-4 py-2 font-medium">Referenz</th>
+                        <th className="px-4 py-2 font-medium">Kategorie</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredLabs.length === 0 ? (
+                        <tr>
+                          <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
+                            Keine Treffer.
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredLabs.map((lv) => (
+                          <tr key={lv.id} className="odd:bg-muted/40">
+                            <td className="px-4 py-2">{lv.name}</td>
+                            <td className="px-4 py-2">{lv.unit}</td>
+                            <td className="px-4 py-2">{lv.refRange}</td>
+                            <td className="px-4 py-2">{lv.category}</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <div className="border-t px-4 py-2 text-xs text-muted-foreground">
+                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
+              </div>
+            </div>
           </div>
         </div>
       )}
