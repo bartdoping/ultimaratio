@@ -3,6 +3,7 @@
 
 import { useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
 
 type FormState = {
   name: string
@@ -73,95 +74,102 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="page py-10">
-      <div className="card max-w-sm mx-auto">
-        <div className="card-body space-y-5">
-          <h1 className="card-title">Registrieren</h1>
+    <div className="max-w-sm mx-auto space-y-4 p-6">
+      <h1 className="text-2xl font-semibold">Registrieren</h1>
 
-          {msg && <p className="text-green-600 text-sm">{msg}</p>}
-          {err && <p className="text-red-600 text-sm">{err}</p>}
+      {msg && <p className="text-green-600 text-sm">{msg}</p>}
+      {err && <p className="text-red-600 text-sm">{err}</p>}
 
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div>
-              <label className="label">Vorname</label>
-              <input
-                className="input"
-                type="text"
-                autoComplete="given-name"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="label">Nachname</label>
-              <input
-                className="input"
-                type="text"
-                autoComplete="family-name"
-                required
-                value={form.surname}
-                onChange={(e) => setForm({ ...form, surname: e.target.value })}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="label">E-Mail</label>
-              <input
-                className="input"
-                type="email"
-                autoComplete="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="label">Passwort</label>
-              <input
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <label className="label">Passwort bestätigen</label>
-              <input
-                className="input"
-                type="password"
-                autoComplete="new-password"
-                minLength={8}
-                required
-                value={form.confirm}
-                onChange={(e) => setForm({ ...form, confirm: e.target.value })}
-                disabled={loading}
-              />
-              {passwordsFilled && !passwordsMatch && (
-                <p className="text-xs text-red-600 mt-1">
-                  Passwörter stimmen nicht überein.
-                </p>
-              )}
-            </div>
-
-            <button
-              className="btn w-full"
-              disabled={loading || (passwordsFilled && !passwordsMatch)}
-            >
-              {loading ? "Bitte warten…" : "Konto erstellen"}
-            </button>
-          </form>
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div>
+          <label className="text-sm font-medium">Vorname</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="text"
+            autoComplete="given-name"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            disabled={loading}
+          />
         </div>
+
+        <div>
+          <label className="text-sm font-medium">Nachname</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="text"
+            autoComplete="family-name"
+            required
+            value={form.surname}
+            onChange={(e) => setForm({ ...form, surname: e.target.value })}
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">E-Mail</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="email"
+            autoComplete="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Passwort</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Passwort bestätigen</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            required
+            value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+            disabled={loading}
+          />
+          {passwordsFilled && !passwordsMatch && (
+            <p className="text-xs text-red-600 mt-1">
+              Passwörter stimmen nicht überein.
+            </p>
+          )}
+        </div>
+
+        <button
+          className="btn w-full"
+          disabled={loading || (passwordsFilled && !passwordsMatch)}
+        >
+          {loading ? "Bitte warten…" : "Konto erstellen"}
+        </button>
+      </form>
+
+      {/* CTA: Anmelden */}
+      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+        <span>Bereits ein Konto vorhanden?</span>
+        <Link
+          href="/login"
+          className="inline-flex items-center h-9 rounded-md border px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          Jetzt anmelden
+        </Link>
       </div>
     </div>
   )
