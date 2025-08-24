@@ -9,53 +9,95 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    // 1) Auth
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ ok: false }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
+    // 2) Body
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json({ ok: false, error: "invalid json" }, { status: 400 });
+    }
+    const slug = typeof body?.slug === "string" ? body.slug : null;
+    if (!slug) {
+      return NextResponse.json({ ok: false, error: "missing slug" }, { status: 400 });
+    }
+
+    // 3) User + Exam
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: { id: true, email: true },
     });
-    if (!me) return NextResponse.json({ ok: false }, { status: 401 });
-
-    const { examId } = await req.json().catch(() => ({}));
-    if (!examId) {
-      return NextResponse.json({ ok: false, error: "missing examId" }, { status: 400 });
-    }
+    if (!me) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
 
     const exam = await prisma.exam.findUnique({
-      where: { id: examId },
-      select: { id: true, slug: true, priceCents: true },
+      where: { slug },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        description: true,
+        isPublished: true,
+        priceCents: true,
+      },
     });
-    if (!exam) return NextResponse.json({ ok: false, error: "unknown exam" }, { status: 404 });
+    if (!exam || !exam.isPublished) {
+      return NextResponse.json({ ok: false, error: "exam not found" }, { status: 404 });
+    }
 
-    const origin = new URL(req.url).origin;
+    // 4) Doppelkäufe verhindern
+    const already = await prisma.purchase.findUnique({
+      where: { userId_examId: { userId: me.id, examId: exam.id } },
+      select: { id: true },
+    });
+    if (already) {
+      return NextResponse.json({ ok: true, alreadyPurchased: true });
+    }
 
-    const lineItem =
-      process.env.STRIPE_PRICE_GENERALPROBE
-        ? { price: process.env.STRIPE_PRICE_GENERALPROBE, quantity: 1 }
-        : {
-            price_data: {
-              currency: "eur",
-              product_data: { name: exam.slug },
-              unit_amount: exam.priceCents, // aus DB
-            },
-            quantity: 1,
-          };
+    // 5) Preis prüfen und Stripe-Session bauen (immer price_data)
+    const priceCents = Number(exam.priceCents);
+    if (!Number.isFinite(priceCents) || priceCents <= 0) {
+      return NextResponse.json({ ok: false, error: "invalid price" }, { status: 400 });
+    }
 
-    const checkout = await stripe.checkout.sessions.create({
+    const base =
+      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.NEXTAUTH_URL ??
+      "http://localhost:3000";
+
+    const s = await stripe.checkout.sessions.create({
       mode: "payment",
-      line_items: [lineItem as any],
-      success_url: `${origin}/exams/${exam.slug}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/exams/${exam.slug}?cancelled=1`,
-      metadata: { userId: me.id, examId: exam.id },
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: {
+              name: exam.title,
+              description: exam.description ?? undefined,
+              metadata: { examId: exam.id, slug: exam.slug },
+            },
+            unit_amount: priceCents,
+          },
+          quantity: 1,
+        },
+      ],
+      success_url: `${base}/exams/${exam.slug}?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}/exams/${exam.slug}`,
+      customer_email: me.email ?? undefined,
+      metadata: {
+        userId: me.id,
+        examId: exam.id,
+        slug: exam.slug,
+      },
     });
 
-    return NextResponse.json({ ok: true, url: checkout.url });
-  } catch (e: any) {
-    console.error("checkout error", e);
-    return NextResponse.json({ ok: false, error: "checkout_failed" }, { status: 500 });
+    return NextResponse.json({ ok: true, url: s.url });
+  } catch (err: any) {
+    console.error("checkout error", err);
+    return NextResponse.json({ ok: false, error: "checkout failed" }, { status: 500 });
   }
 }

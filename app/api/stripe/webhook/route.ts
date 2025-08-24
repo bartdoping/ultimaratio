@@ -1,7 +1,7 @@
 // app/api/stripe/webhook/route.ts
 import { NextResponse } from "next/server";
-import prisma from "@/lib/db";
 import stripe from "@/lib/stripe";
+import prisma from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
 
   try {
     if (event.type === "checkout.session.completed") {
-      const s = event.data.object as any; // Stripe.Checkout.Session
+      const s = event.data.object as any;
       if (s.payment_status !== "paid") return NextResponse.json({ ok: true });
 
       const userId = s.metadata?.userId as string | undefined;

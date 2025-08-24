@@ -15,7 +15,8 @@
     "db:migrate": "prisma migrate dev --name init",
     "db:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "stripe:sync": "DOTENV_CONFIG_PATH=.env.local DOTENV_CONFIG_OVERRIDE=true tsx ./scripts/stripe-sync.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.14.0",

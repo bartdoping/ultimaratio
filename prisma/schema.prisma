@@ -49,6 +49,10 @@ model Exam {
   allowImmediateFeedback Boolean  @default(false)
   createdAt              DateTime @default(now())
 
+  // Stripe-Verknüpfung (neu/prüfen)
+  stripeProductId String? @unique
+  stripePriceId   String? @unique
+
   sections  Section[]
   questions Question[]
   purchases Purchase[]
