@@ -31,6 +31,7 @@ export default async function ExamRunPage({ params }: Props) {
   if (!attempt || attempt.userId !== me.id) notFound()
 
   // Exam + Fragen + Optionen + MEDIA laden
+  // WICHTIG: 'explanation' wird als 'tip' in den Client gemappt (Oberarztkommentar)
   const exam = await prisma.exam.findUnique({
     where: { id: attempt.examId },
     select: {
@@ -42,12 +43,11 @@ export default async function ExamRunPage({ params }: Props) {
         select: {
           id: true,
           stem: true,
-          // Optionen (für Sofort-Feedback istCorrect nötig – Anzeige steuert der Client via allowImmediateFeedback)
+          explanation: true, // <- als Tip benutzen
           options: {
             orderBy: { id: "asc" },
             select: { id: true, text: true, isCorrect: true },
           },
-          // WICHTIG: Media mitsenden
           media: {
             orderBy: { order: "asc" },
             include: { media: true }, // => { mediaId, order, media: { id, url, alt, ... } }
@@ -67,10 +67,11 @@ export default async function ExamRunPage({ params }: Props) {
     given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
 
-  // In Client-Shape mappen (v.a. Media flach ziehen)
+  // In Client-Shape mappen – explanation => tip
   const questions = exam.questions.map((q) => ({
     id: q.id,
     stem: q.stem,
+    tip: q.explanation ?? null, // Oberarztkommentar
     options: q.options.map((o) => ({
       id: o.id,
       text: o.text,

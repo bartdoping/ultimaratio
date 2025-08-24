@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 type Question = {
   id: string
   stem: string
+  tip?: string | null
   options: { id: string; text: string; isCorrect: boolean }[]
   media?: { id: string; url: string; alt: string; order: number }[]
 }
@@ -67,10 +68,17 @@ export function RunnerClient(props: Props) {
   const [labValues, setLabValues] = useState<LabValue[]>([])
   const [labQuery, setLabQuery] = useState("")
 
+  // ------- Oberarztkommentar -------
+  const [tipOpen, setTipOpen] = useState(false)
+
   // aktuelle Frage
   const q = questions[idx]
   const given = answers[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const hasTip = !!(q.tip && q.tip.trim().length)
+
+  // Tipp beim Fragenwechsel schließen
+  useEffect(() => { setTipOpen(false) }, [idx])
 
   async function choose(optionId: string) {
     setSubmitting(true)
@@ -227,6 +235,29 @@ export function RunnerClient(props: Props) {
       <div className="card card-body space-y-4">
         {/* Frage */}
         <p className="font-medium">{q.stem}</p>
+
+        {/* Oberarztkommentar (nur wenn vorhanden) */}
+        {hasTip && (
+          <div className="rounded border bg-secondary/40">
+            <button
+              type="button"
+              onClick={() => setTipOpen(o => !o)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+              aria-expanded={tipOpen}
+              aria-controls="tip-content"
+            >
+              <span>Oberarztkommentar</span>
+              <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+              </svg>
+            </button>
+            {tipOpen && (
+              <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                {q.tip}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Medien (Thumbnails / klickbar mit Hover-Hinweis) */}
         {media.length > 0 && (

@@ -79,6 +79,7 @@ model Question {
   stem                        String
   explanation                 String?
   hasImmediateFeedbackAllowed Boolean      @default(false)
+  tip                         String?
 
   exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
   section Section?        @relation(fields: [sectionId], references: [id], onDelete: SetNull)
