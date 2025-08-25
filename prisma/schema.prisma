@@ -174,8 +174,9 @@ model QuestionMedia {
 }
 
 model EmailVerification {
-  id         String    @id @default(cuid())
+  id         String   @id @default(cuid())
   userId     String
+  newEmail   String?
   code       String
   expiresAt  DateTime
   consumedAt DateTime?
@@ -183,6 +184,7 @@ model EmailVerification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, code])
+  @@index([userId, newEmail, code]) // schnelleres Lookup für E-Mail-Änderung
 }
 
 model PasswordReset {
