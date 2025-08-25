@@ -56,6 +56,11 @@ export function RunnerClient(props: Props) {
     return () => clearInterval(t)
   }, [running])
 
+  // ------- Prüfungsmodus (Standard: EIN) -------
+  // EIN  = KEIN Sofort-Feedback
+  // AUS  = Sofort-Feedback anzeigen
+  const [examMode, setExamMode] = useState(true)
+
   // ------- Lightbox (Bilder) -------
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
@@ -160,6 +165,11 @@ export function RunnerClient(props: Props) {
         e.preventDefault()
         setRunning(r => !r)
       }
+      // Prüfungsmodus (M) toggle
+      if (e.key.toLowerCase() === "m") {
+        e.preventDefault()
+        setExamMode(m => !m)
+      }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
@@ -214,7 +224,21 @@ export function RunnerClient(props: Props) {
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
         <span>Frage {idx + 1} / {questions.length} ({progress})</span>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Prüfungsmodus-Schalter */}
+          <label className="flex items-center gap-2 cursor-pointer select-none" title="Prüfungsmodus EIN: kein Sofort-Feedback (M zum Umschalten)">
+            <input
+              type="checkbox"
+              className="sr-only"
+              checked={examMode}
+              onChange={(e) => setExamMode(e.target.checked)}
+            />
+            <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${examMode ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"}`}>
+              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${examMode ? "translate-x-5" : "translate-x-1"}`} />
+            </span>
+            <span>Prüfungsmodus</span>
+          </label>
+
           <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte anzeigen (L)">
             Laborwerte
           </Button>
@@ -304,7 +328,10 @@ export function RunnerClient(props: Props) {
                 className={`w-full text-left rounded border px-3 py-2 transition-shadow ${isSelected ? "border-blue-500 ring-1 ring-blue-500" : "hover:shadow-sm"}`}
               >
                 {o.text}
-                {allowImmediateFeedback && isSelected && (
+                {/* Sofort-Feedback NUR wenn Prüfungsmodus AUS.
+                   Hinweis: allowImmediateFeedback wird hier bewusst ignoriert,
+                   da der Schalter das Verhalten übersteuert. */}
+                {!examMode && isSelected && (
                   <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
                     {o.isCorrect ? "✓ richtig" : "✗ falsch"}
                   </span>
@@ -446,7 +473,7 @@ export function RunnerClient(props: Props) {
                 </div>
               )}
               <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
+                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter, <kbd className="px-1 py-0.5 rounded border">M</kbd> Prüfungsmodus.
               </div>
             </div>
           </div>
