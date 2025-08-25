@@ -90,23 +90,8 @@ export function RunnerClient(props: Props) {
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasTip = !!(q.tip && q.tip.trim().length)
 
-  // Anzeige eines Fallkopfs dann, wenn es der erste Frage-Index
-  // des aktuellen Falls ist (oder wenn eine Frage überhaupt einen Fall hat und
-  // die vorherige Frage einem anderen Fall angehörte)
-  const showCaseHeader = useMemo(() => {
-    const curCase = q.caseId ?? null
-    if (!curCase) return false
-    // erste Frage insgesamt → Header zeigen
-    if (idx === 0) return true
-    // vorherige Frage gehörte zu einem anderen Fall oder keinem Fall → Header zeigen
-    const prevCase = questions[idx - 1]?.caseId ?? null
-    return prevCase !== curCase
-  }, [q.caseId, idx, questions])
-
   // Gruppen (optional): für Seitenleiste anzeigen
   const groups = useMemo(() => {
-    // Map: caseId|null => { label, startIdxs[] }
-    // Wir brauchen nur Label & eine Liste der Indizes
     const res: {
       id: string | null
       label: string
@@ -119,9 +104,7 @@ export function RunnerClient(props: Props) {
       const key = qu.caseId ?? null
       if (!byId.has(key)) {
         const order = qu.caseOrder ?? 0
-        const label = key
-          ? (qu.caseTitle || "Fall")
-          : "Einzelfragen"
+        const label = key ? (qu.caseTitle || "Fall") : "Einzelfragen"
         byId.set(key, res.length)
         res.push({ id: key, label, indices: [i], order })
       } else {
@@ -250,7 +233,7 @@ export function RunnerClient(props: Props) {
   // -------- UI --------
   return (
     <div className="relative">
-      {/* Toggle für Seitenleiste (mobil/klein) */}
+      {/* Kopfzeile */}
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)">
@@ -264,7 +247,7 @@ export function RunnerClient(props: Props) {
             <input
               type="checkbox"
               checked={examMode}
-              onChange={(e) => { /* Sofort-Feedback im Prüfungsmodus verbergen */ setExamMode(e.target.checked) }}
+              onChange={(e) => setExamMode(e.target.checked)}
             />
             Prüfungsmodus
           </label>
@@ -284,8 +267,8 @@ export function RunnerClient(props: Props) {
 
       {/* Kartenbereich */}
       <div className="card card-body space-y-4">
-        {/* Fallkopf (optional) */}
-        {showCaseHeader && (
+        {/* Fallkopf (jetzt bei JEDER Frage des Falls anzeigen) */}
+        {(q.caseTitle || q.caseVignette) && (
           <div className="rounded border bg-secondary/40 p-4 space-y-1">
             <div className="font-semibold">{q.caseTitle || "Fall"}</div>
             {q.caseVignette && (
