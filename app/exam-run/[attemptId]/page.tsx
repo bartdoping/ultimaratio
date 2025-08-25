@@ -30,8 +30,7 @@ export default async function ExamRunPage({ params }: Props) {
   })
   if (!attempt || attempt.userId !== me.id) notFound()
 
-  // Exam + Fragen + Optionen + MEDIA + CASE laden
-  // `tip` wird bevorzugt, Fallback auf altes Feld `explanation` (falls noch vorhanden)
+  // Exam + Fragen + Optionen (+Erklärung) + MEDIA + CASE laden
   const exam = await prisma.exam.findUnique({
     where: { id: attempt.examId },
     select: {
@@ -43,19 +42,16 @@ export default async function ExamRunPage({ params }: Props) {
         select: {
           id: true,
           stem: true,
-          tip: true,            // neues Feld (Oberarztkommentar)
-          // Fallback-Feld (falls Altbestand)
-          // @ts-ignore – existiert evtl. nicht mehr in deinem Schema; ist nur zur Abwärtskompatibilität
-          explanation: true,
+          tip: true,             // Oberarztkommentar
+          explanation: true,     // zusammenfassende Erläuterung
           options: {
             orderBy: { id: "asc" },
-            select: { id: true, text: true, isCorrect: true },
+            select: { id: true, text: true, isCorrect: true, explanation: true },
           },
           media: {
             orderBy: { order: "asc" },
             include: { media: true },
           },
-          // Case-Infos (für Fallfragen)
           case: {
             select: { id: true, title: true, vignette: true, order: true },
           },
@@ -78,11 +74,13 @@ export default async function ExamRunPage({ params }: Props) {
   const questions = exam.questions.map((q) => ({
     id: q.id,
     stem: q.stem,
-    tip: (q as any).tip ?? (q as any).explanation ?? null, // bevorzugt `tip`, sonst Fallback
+    tip: q.tip ?? null,
+    explanation: q.explanation ?? null,
     options: q.options.map((o) => ({
       id: o.id,
       text: o.text,
       isCorrect: o.isCorrect,
+      explanation: o.explanation ?? null,
     })),
     media:
       q.media?.map((m) => ({
@@ -91,7 +89,6 @@ export default async function ExamRunPage({ params }: Props) {
         alt: m.media.alt ?? "",
         order: (m as any).order ?? 0,
       })) ?? [],
-    // Case (optional)
     caseId: q.case?.id ?? null,
     caseTitle: q.case?.title ?? null,
     caseVignette: q.case?.vignette ?? null,

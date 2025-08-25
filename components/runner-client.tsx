@@ -4,11 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
+type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
   id: string
   stem: string
   tip?: string | null
-  options: { id: string; text: string; isCorrect: boolean }[]
+  explanation?: string | null
+  options: Option[]
   media?: { id: string; url: string; alt: string; order: number }[]
   // Case (optional)
   caseId?: string | null
@@ -34,7 +36,7 @@ type Props = {
   initialAnswers: Record<string, string | undefined>
 }
 
-// ↑ Zeitformat
+// Zeitformat: mm:ss / hh:mm:ss
 function formatUp(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
@@ -53,7 +55,7 @@ export function RunnerClient(props: Props) {
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
 
-  // Timer (hochzählend, pausierbar)
+  // Timer
   const [elapsed, setElapsed] = useState(0)
   const [running, setRunning] = useState(true)
   useEffect(() => {
@@ -62,7 +64,7 @@ export function RunnerClient(props: Props) {
     return () => clearInterval(t)
   }, [running])
 
-  // Prüfungsmodus (direktes Feedback an/aus)
+  // Prüfungsmodus (true = „kein Direktfeedback“)
   const [examMode, setExamMode] = useState(true)
   const showFeedback = allowImmediateFeedback && !examMode
 
@@ -78,10 +80,12 @@ export function RunnerClient(props: Props) {
   const [labValues, setLabValues] = useState<LabValue[]>([])
   const [labQuery, setLabQuery] = useState("")
 
-  // Oberarztkommentar
+  // Kommentare & Erklärungen
   const [tipOpen, setTipOpen] = useState(false)
+  const [qExpOpen, setQExpOpen] = useState(false)
+  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({}) // pro Option
 
-  // Seitenleiste (Fragenübersicht)
+  // Seitenleiste
   const [navOpen, setNavOpen] = useState(false)
 
   // Aktuelle Frage
@@ -89,16 +93,11 @@ export function RunnerClient(props: Props) {
   const given = answers[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasTip = !!(q.tip && q.tip.trim().length)
+  const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
 
-  // Gruppen (optional): für Seitenleiste anzeigen
+  // Gruppen für Seitenleiste
   const groups = useMemo(() => {
-    const res: {
-      id: string | null
-      label: string
-      indices: number[]
-      order: number
-    }[] = []
-
+    const res: { id: string | null; label: string; indices: number[]; order: number }[] = []
     const byId = new Map<string | null, number>()
     questions.forEach((qu, i) => {
       const key = qu.caseId ?? null
@@ -111,8 +110,6 @@ export function RunnerClient(props: Props) {
         res[byId.get(key)!].indices.push(i)
       }
     })
-
-    // Fälle nach order sortieren; „Einzelfragen“ (null) zuletzt
     return res.sort((a, b) => {
       if (a.id === null && b.id !== null) return 1
       if (a.id !== null && b.id === null) return -1
@@ -120,8 +117,8 @@ export function RunnerClient(props: Props) {
     })
   }, [questions])
 
-  // Tipp beim Fragenwechsel schließen
-  useEffect(() => { setTipOpen(false) }, [idx])
+  // Aufklapper zurücksetzen bei Fragenwechsel
+  useEffect(() => { setTipOpen(false); setQExpOpen(false); setOptOpen({}) }, [idx])
 
   async function choose(optionId: string) {
     setSubmitting(true)
@@ -174,19 +171,15 @@ export function RunnerClient(props: Props) {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // Lightbox
       if (lightboxOpen) {
         if (e.key === "Escape") closeLightbox()
         if (e.key === "ArrowRight") nextImage()
         if (e.key === "ArrowLeft") prevImage()
         return
       }
-      // Laborwerte
       if (e.key.toLowerCase() === "l") { e.preventDefault(); setLabOpen(true) }
       if (labOpen && e.key === "Escape") setLabOpen(false)
-      // Timer
       if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r) }
-      // Seitenleiste
       if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v) }
     }
     window.addEventListener("keydown", onKey)
@@ -258,7 +251,11 @@ export function RunnerClient(props: Props) {
 
           <div className="flex items-center gap-2">
             <span>Zeit: {formatUp(elapsed)}</span>
-            <Button variant="outline" onClick={() => setRunning(r => !r)} title="Timer pausieren/fortsetzen (P)">
+            <Button
+              variant="outline"
+              onClick={() => setRunning(r => !r)}
+              title="Timer pausieren/fortsetzen (P)"
+            >
               {running ? "Pause" : "Weiter"}
             </Button>
           </div>
@@ -267,7 +264,7 @@ export function RunnerClient(props: Props) {
 
       {/* Kartenbereich */}
       <div className="card card-body space-y-4">
-        {/* Fallkopf (jetzt bei JEDER Frage des Falls anzeigen) */}
+        {/* Fallkopf (immer bei Fragen mit Fall anzeigen) */}
         {(q.caseTitle || q.caseVignette) && (
           <div className="rounded border bg-secondary/40 p-4 space-y-1">
             <div className="font-semibold">{q.caseTitle || "Fall"}</div>
@@ -338,27 +335,69 @@ export function RunnerClient(props: Props) {
           </div>
         )}
 
-        {/* Optionen */}
+        {/* Optionen (aufklappbare Erklärungen, wenn Prüfungsmodus aus & eine Antwort gewählt) */}
         <div className="space-y-2">
           {q.options.map(o => {
             const isSelected = given === o.id
+            const canExplain = showFeedback && !!given
+            const open = !!optOpen[o.id]
             return (
-              <button
-                key={o.id}
-                onClick={() => choose(o.id)}
-                disabled={submitting}
-                className={`w-full text-left rounded border px-3 py-2 transition-shadow ${isSelected ? "border-blue-500 ring-1 ring-blue-500" : "hover:shadow-sm"}`}
-              >
-                {o.text}
-                {showFeedback && isSelected && (
-                  <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
-                    {o.isCorrect ? "✓ richtig" : "✗ falsch"}
+              <div key={o.id} className="rounded border">
+                <button
+                  onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
+                  disabled={submitting}
+                  className={[
+                    "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
+                    isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
+                    "bg-transparent"
+                  ].join(" ")}
+                  aria-expanded={canExplain ? open : undefined}
+                >
+                  <span>
+                    {o.text}
+                    {showFeedback && isSelected && (
+                      <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
+                        {o.isCorrect ? "✓ richtig" : "✗ falsch"}
+                      </span>
+                    )}
                   </span>
+                  {canExplain && (
+                    <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                    </svg>
+                  )}
+                </button>
+                {canExplain && open && o.explanation && (
+                  <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {o.explanation}
+                  </div>
                 )}
-              </button>
+              </div>
             )
           })}
         </div>
+
+        {/* Frage-Gesamterklärung (aufklappbar, nur wenn Prüfungsmodus aus & Antwort gegeben) */}
+        {hasQExplanation && showFeedback && !!given && (
+          <div className="rounded border bg-secondary/40">
+            <button
+              type="button"
+              onClick={() => setQExpOpen(v => !v)}
+              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+              aria-expanded={qExpOpen}
+            >
+              <span>Erklärung</span>
+              <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+              </svg>
+            </button>
+            {qExpOpen && (
+              <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                {q.explanation}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Navigation unten */}

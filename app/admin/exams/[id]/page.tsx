@@ -49,8 +49,8 @@ async function addQuestionAction(formData: FormData) {
     data: {
       examId,
       stem,
-      explanation: explanation || null,
-      tip: tip || null, // Oberarztkommentar
+      explanation: explanation || null, // zusammenfassende Erläuterung
+      tip: tip || null,                 // Oberarztkommentar
       hasImmediateFeedbackAllowed: allowImmediate,
       type: "single",
     },
@@ -59,6 +59,7 @@ async function addQuestionAction(formData: FormData) {
   const options = [0, 1, 2, 3].map((i) => ({
     questionId: q.id,
     text: String(formData.get(`opt${i}`) || `Option ${i + 1}`),
+    explanation: String(formData.get(`optExp${i}`) || "") || null, // NEU
     isCorrect: String(formData.get("correct")) === String(i),
   }))
   await prisma.answerOption.createMany({ data: options })
@@ -85,6 +86,34 @@ async function setCorrectOptionAction(formData: FormData) {
     data: { isCorrect: false },
   })
   await prisma.answerOption.update({ where: { id: oid }, data: { isCorrect: true } })
+  redirect(`/admin/exams/${examId}`)
+}
+
+async function updateOptionAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  const oid = String(formData.get("oid") || "")
+  const text = String(formData.get("text") || "")
+  const explanation = String(formData.get("explanation") || "")
+  await prisma.answerOption.update({
+    where: { id: oid },
+    data: { text, explanation: explanation || null },
+  })
+  redirect(`/admin/exams/${examId}`)
+}
+
+async function updateQuestionMetaAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  const qid = String(formData.get("qid") || "")
+  const tip = String(formData.get("tip") || "")
+  const explanation = String(formData.get("explanation") || "")
+  await prisma.question.update({
+    where: { id: qid },
+    data: { tip: tip || null, explanation: explanation || null },
+  })
   redirect(`/admin/exams/${examId}`)
 }
 
@@ -166,11 +195,11 @@ export default async function EditExamPage({ params }: Props) {
           stem: true,
           explanation: true,
           tip: true,
-          caseId: true, // <- WICHTIG: für die Dropdown-Vorauswahl
+          caseId: true,
           hasImmediateFeedbackAllowed: true,
           options: {
             orderBy: { id: "asc" },
-            select: { id: true, text: true, isCorrect: true },
+            select: { id: true, text: true, isCorrect: true, explanation: true },
           },
           media: { include: { media: true }, orderBy: { order: "asc" } },
         },
@@ -314,6 +343,28 @@ export default async function EditExamPage({ params }: Props) {
               </button>
             </form>
 
+            {/* Frage-Meta (Tip & Gesamterklärung) */}
+            <form action={updateQuestionMetaAction} className="grid gap-2">
+              <input type="hidden" name="examId" value={exam.id} />
+              <input type="hidden" name="qid" value={q.id} />
+              <div>
+                <Label>Oberarztkommentar (optional)</Label>
+                <Input name="tip" defaultValue={q.tip ?? ""} placeholder="Hinweis/Tipp zur Lösung" />
+              </div>
+              <div>
+                <Label>Zusammenfassende Erläuterung</Label>
+                <textarea
+                  name="explanation"
+                  className="input w-full h-24"
+                  defaultValue={q.explanation ?? ""}
+                  placeholder="Erklärung zur Frage…"
+                />
+              </div>
+              <div>
+                <Button type="submit" variant="outline">Frage-Info speichern</Button>
+              </div>
+            </form>
+
             {/* Bilder */}
             <div className="space-y-2">
               <div className="text-sm font-medium">Bilder</div>
@@ -352,22 +403,48 @@ export default async function EditExamPage({ params }: Props) {
               </form>
             </div>
 
-            {/* Optionen */}
-            <div className="space-y-1">
+            {/* Optionen inkl. Bearbeiten & Erklärung */}
+            <div className="space-y-2">
               <div className="text-sm font-medium">Antwortoptionen</div>
-              <ul className="space-y-1">
+              <ul className="space-y-2">
                 {q.options.map((o) => (
-                  <li key={o.id} className="flex items-center justify-between gap-2">
-                    <div className={o.isCorrect ? "text-green-600" : ""}>
-                      {o.text} {o.isCorrect ? "✓" : ""}
+                  <li key={o.id} className="rounded border p-2 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className={o.isCorrect ? "text-green-600 font-medium" : ""}>
+                        {o.text} {o.isCorrect ? "✓" : ""}
+                      </div>
+                      <form action={setCorrectOptionAction}>
+                        <input type="hidden" name="examId" value={exam.id} />
+                        <input type="hidden" name="qid" value={q.id} />
+                        <input type="hidden" name="oid" value={o.id} />
+                        <Button variant="outline" size="sm">Als korrekt</Button>
+                      </form>
                     </div>
-                    <form action={setCorrectOptionAction}>
+
+                    {o.explanation && (
+                      <div className="text-xs text-muted-foreground">
+                        Aktuelle Erklärung: {o.explanation}
+                      </div>
+                    )}
+
+                    <form action={updateOptionAction} className="grid gap-2 sm:grid-cols-2">
                       <input type="hidden" name="examId" value={exam.id} />
-                      <input type="hidden" name="qid" value={q.id} />
                       <input type="hidden" name="oid" value={o.id} />
-                      <Button variant="outline" size="sm">
-                        Als korrekt markieren
-                      </Button>
+                      <div className="sm:col-span-2">
+                        <Label>Optionstext</Label>
+                        <Input name="text" defaultValue={o.text} />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Label>Erklärung (warum richtig/falsch)</Label>
+                        <Input
+                          name="explanation"
+                          defaultValue={o.explanation ?? ""}
+                          placeholder="Erklärung zur Option…"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <Button variant="outline" size="sm" type="submit">Option speichern</Button>
+                      </div>
                     </form>
                   </li>
                 ))}
@@ -387,34 +464,28 @@ export default async function EditExamPage({ params }: Props) {
             <Input name="stem" required />
           </div>
           <div>
-            <Label>Erklärung (optional)</Label>
-            <Input name="explanation" />
-          </div>
-          <div>
             <Label>Oberarztkommentar (optional)</Label>
             <Input name="tip" placeholder="Hinweis/Tipp zur Lösung" />
+          </div>
+          <div>
+            <Label>Zusammenfassende Erläuterung</Label>
+            <textarea name="explanation" className="input w-full h-24" placeholder="Erklärung zur Frage…" />
           </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="allowImmediate" /> Sofort-Feedback für diese Frage erlauben
           </label>
-          <div className="grid sm:grid-cols-2 gap-2">
-            <div>
-              <Label>Option 1</Label>
-              <Input name="opt0" required />
-            </div>
-            <div>
-              <Label>Option 2</Label>
-              <Input name="opt1" required />
-            </div>
-            <div>
-              <Label>Option 3</Label>
-              <Input name="opt2" required />
-            </div>
-            <div>
-              <Label>Option 4</Label>
-              <Input name="opt3" required />
-            </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[0, 1, 2, 3].map((i) => (
+              <div key={i} className="space-y-1">
+                <Label>Option {i + 1}</Label>
+                <Input name={`opt${i}`} required />
+                <Label className="text-xs text-muted-foreground">Erklärung zu Option {i + 1}</Label>
+                <Input name={`optExp${i}`} placeholder="Warum richtig/falsch?" />
+              </div>
+            ))}
           </div>
+
           <div className="flex items-center gap-2 text-sm">
             <span>Korrekte Option:</span>
             <label className="flex items-center gap-1">

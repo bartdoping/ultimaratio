@@ -96,6 +96,7 @@ model AnswerOption {
   questionId String
   text       String
   isCorrect  Boolean @default(false)
+  explanation String?
 
   question Question        @relation(fields: [questionId], references: [id], onDelete: Cascade)
   // Back-Relation zu AttemptAnswer (explizit benannt)
