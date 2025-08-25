@@ -1,4 +1,3 @@
-// app/(dashboard)/dashboard/history/[attemptId]/page.tsx
 import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -39,8 +38,6 @@ export default async function HistoryDetailPage({ params }: Props) {
               explanation: true,
               options: {
                 orderBy: { id: "asc" },
-                // Erklärung pro Option
-                
                 select: { id: true, text: true, isCorrect: true, explanation: true },
               },
             },
@@ -55,11 +52,16 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   const correctCount = attempt.answers.filter((a) => a.isCorrect).length
   const total = attempt.answers.length
-  const percent = attempt.scorePercent ?? (total > 0 ? Math.round((correctCount / total) * 100) : 0)
+  const percent =
+    attempt.scorePercent ?? (total > 0 ? Math.round((correctCount / total) * 100) : 0)
+
+  // Dauer: bevorzugt persisted elapsedSec, sonst (finishedAt - startedAt)
   const durationMs =
-    attempt.finishedAt && attempt.startedAt
-      ? attempt.finishedAt.getTime() - attempt.startedAt.getTime()
-      : 0
+    typeof (attempt as any).elapsedSec === "number"
+      ? Math.max(0, ((attempt as any).elapsedSec as number) * 1000)
+      : (attempt.finishedAt && attempt.startedAt
+          ? attempt.finishedAt.getTime() - attempt.startedAt.getTime()
+          : 0)
 
   return (
     <main className="container mx-auto max-w-3xl py-8 space-y-6">
@@ -77,7 +79,7 @@ export default async function HistoryDetailPage({ params }: Props) {
       </div>
 
       <div className="space-y-4">
-        {attempt.answers.map((a: typeof attempt.answers[number], idx: number) => {
+        {attempt.answers.map((a, idx) => {
           const q = a.question
           const selectedId = a.answerOption?.id
           return (
@@ -92,7 +94,7 @@ export default async function HistoryDetailPage({ params }: Props) {
               <div className="px-4 pb-4 space-y-3">
                 {/* Optionen mit Erklärungen */}
                 <div className="space-y-2">
-                  {q.options.map((o) => {
+                  {q.options.map(o => {
                     const isSelected = o.id === selectedId
                     return (
                       <div
@@ -112,11 +114,8 @@ export default async function HistoryDetailPage({ params }: Props) {
                             )}
                           </div>
                         </div>
-                        {/** Erklärung pro Antwortoption (falls vorhanden) */}
-                        {}
                         {o.explanation && (
                           <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                            {}
                             {o.explanation}
                           </div>
                         )}

@@ -34,6 +34,8 @@ type Props = {
   allowImmediateFeedback: boolean
   questions: Question[]
   initialAnswers: Record<string, string | undefined>
+  /** vom Server übergebene, bisher akkumulierte Sekunden */
+  initialElapsedSec?: number
 }
 
 // Zeitformat: mm:ss / hh:mm:ss
@@ -47,25 +49,151 @@ function formatUp(totalSeconds: number) {
 }
 
 export function RunnerClient(props: Props) {
-  const { attemptId, allowImmediateFeedback, questions, initialAnswers } = props
+  const { attemptId, allowImmediateFeedback, questions, initialAnswers, initialElapsedSec = 0 } = props
   const router = useRouter()
 
+  // Lokale Persistenz Keys
+  const LS_IDX = `examRun:${attemptId}:idx`
+  const LS_MODE = `examRun:${attemptId}:examMode`
+  const LS_ELAPSED = `examRun:${attemptId}:elapsedSec`
+
   // Index/Antworten
-  const [idx, setIdx] = useState(0)
+  const [idx, setIdx] = useState(() => {
+    if (typeof window === "undefined") return 0
+    const raw = window.localStorage.getItem(LS_IDX)
+    const i = raw ? parseInt(raw, 10) : 0
+    return Number.isFinite(i) ? Math.min(Math.max(i, 0), Math.max(questions.length - 1, 0)) : 0
+  })
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
 
-  // Timer
-  const [elapsed, setElapsed] = useState(0)
+  // Timer (robust gegen Tab-Wechsel & SPA-Navigation)
+  const lsElapsedAtMount = (() => {
+    if (typeof window === "undefined") return 0
+    const raw = window.localStorage.getItem(LS_ELAPSED)
+    const v = raw ? parseInt(raw, 10) : 0
+    return Number.isFinite(v) ? Math.max(0, v) : 0
+  })()
+
+  const [elapsed, setElapsed] = useState<number>(Math.max(initialElapsedSec, lsElapsedAtMount))
   const [running, setRunning] = useState(true)
+
+  // Heartbeat-Steuerung
+  const lastSentRef = useRef<number>(0)
+  const sendingRef = useRef<boolean>(false)
+  const HEARTBEAT_MS = 10_000 // etwas häufiger, um Verluste zu minimieren
+
+  function persistElapsedToLS(value: number) {
+    try {
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(LS_ELAPSED, String(Math.max(0, Math.floor(value))))
+      }
+    } catch {}
+  }
+
+  async function sendHeartbeat(nowSec?: number) {
+    try {
+      const value = typeof nowSec === "number" ? nowSec : elapsed
+      persistElapsedToLS(value)
+      if (sendingRef.current) return
+      if (Date.now() - lastSentRef.current < 2000) return
+      sendingRef.current = true
+      await fetch(`/api/attempts/${attemptId}/heartbeat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elapsedSec: Math.max(0, Math.floor(value)) }),
+        keepalive: true,
+      })
+      lastSentRef.current = Date.now()
+    } catch {
+      // still – wir versuchen später erneut
+    } finally {
+      sendingRef.current = false
+    }
+  }
+
+  // Ticker
   useEffect(() => {
     if (!running) return
-    const t = setInterval(() => setElapsed(v => v + 1), 1000)
+    const t = setInterval(() => setElapsed(v => {
+      const nv = v + 1
+      // Sofort in LS spiegeln, damit SPA-Navigation nichts verliert
+      persistElapsedToLS(nv)
+      return nv
+    }), 1000)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running])
 
+  // periodischer Heartbeat
+  useEffect(() => {
+    const t = setInterval(() => { if (running) sendHeartbeat() }, HEARTBEAT_MS)
+    return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, attemptId])
+
+  // Sichtbarkeit / (Page)Unload
+  useEffect(() => {
+    function onVis() {
+      if (document.hidden) {
+        // Beim Verstecken speichern + Heartbeat
+        persistElapsedToLS(elapsed)
+        sendHeartbeat(elapsed)
+      }
+    }
+    function onBeforeUnload() {
+      try {
+        const val = Math.max(0, Math.floor(elapsed))
+        persistElapsedToLS(val)
+        const data = new Blob([JSON.stringify({ elapsedSec: val })], { type: "application/json" })
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon(`/api/attempts/${attemptId}/heartbeat`, data)
+        } else {
+          fetch(`/api/attempts/${attemptId}/heartbeat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ elapsedSec: val }),
+            keepalive: true,
+          }).catch(() => {})
+        }
+      } catch {}
+    }
+    // „pagehide“ ist auf Mobilgeräten zuverlässiger
+    function onPageHide() {
+      persistElapsedToLS(elapsed)
+      const val = Math.max(0, Math.floor(elapsed))
+      try {
+        const data = new Blob([JSON.stringify({ elapsedSec: val })], { type: "application/json" })
+        navigator.sendBeacon?.(`/api/attempts/${attemptId}/heartbeat`, data)
+      } catch {}
+    }
+
+    document.addEventListener("visibilitychange", onVis)
+    window.addEventListener("beforeunload", onBeforeUnload)
+    window.addEventListener("pagehide", onPageHide)
+
+    // WICHTIG: Heartbeat auch beim Unmount (SPA-Navigation)
+    return () => {
+      document.removeEventListener("visibilitychange", onVis)
+      window.removeEventListener("beforeunload", onBeforeUnload)
+      window.removeEventListener("pagehide", onPageHide)
+      persistElapsedToLS(elapsed)
+      // Unmount-Heartbeat (best effort)
+      try {
+        const val = Math.max(0, Math.floor(elapsed))
+        const data = new Blob([JSON.stringify({ elapsedSec: val })], { type: "application/json" })
+        navigator.sendBeacon?.(`/api/attempts/${attemptId}/heartbeat`, data)
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [elapsed, attemptId])
+
   // Prüfungsmodus (true = „kein Direktfeedback“)
-  const [examMode, setExamMode] = useState(true)
+  const [examMode, setExamMode] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true
+    const raw = window.localStorage.getItem(LS_MODE)
+    return raw == null ? true : raw === "1"
+  })
   const showFeedback = allowImmediateFeedback && !examMode
 
   // Lightbox
@@ -120,6 +248,10 @@ export function RunnerClient(props: Props) {
   // Aufklapper zurücksetzen bei Fragenwechsel
   useEffect(() => { setTipOpen(false); setQExpOpen(false); setOptOpen({}) }, [idx])
 
+  // idx / mode in localStorage spiegeln
+  useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_IDX, String(idx)) }, [idx])
+  useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_MODE, examMode ? "1" : "0") }, [examMode])
+
   async function choose(optionId: string) {
     setSubmitting(true)
     try {
@@ -142,9 +274,23 @@ export function RunnerClient(props: Props) {
     if (!confirm("Prüfung wirklich beenden und auswerten?")) return
     setSubmitting(true)
     try {
-      const res = await fetch(`/api/attempts/${attemptId}/finish`, { method: "POST" })
+      // Vor dem Finish: letzten Stand sichern
+      persistElapsedToLS(elapsed)
+      await sendHeartbeat(elapsed)
+      const res = await fetch(`/api/attempts/${attemptId}/finish`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ elapsedSec: Math.max(0, Math.floor(elapsed)) }),
+        keepalive: true,
+      })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Konnte nicht auswerten.")
+      // Aufräumen lokaler Keys nach erfolgreichem Abschluss
+      try {
+        window.localStorage.removeItem(LS_IDX)
+        window.localStorage.removeItem(LS_MODE)
+        window.localStorage.removeItem(LS_ELAPSED)
+      } catch {}
       router.push(`/dashboard/history/${attemptId}`)
     } catch (e) {
       alert((e as Error).message)
@@ -486,7 +632,6 @@ export function RunnerClient(props: Props) {
               onClick={closeLightbox}
               className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-white/90 text-black text-xl leading-none grid place-items-center shadow"
               aria-label="Schließen"
-              title="Schließen (Esc)"
             >
               ×
             </button>
@@ -497,7 +642,6 @@ export function RunnerClient(props: Props) {
                   onClick={prevImage}
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-r bg-white/80 text-black shadow"
                   aria-label="Vorheriges Bild"
-                  title="Vorheriges Bild (←)"
                 >
                   ‹
                 </button>
@@ -505,7 +649,6 @@ export function RunnerClient(props: Props) {
                   onClick={nextImage}
                   className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-l bg-white/80 text-black shadow"
                   aria-label="Nächstes Bild"
-                  title="Nächstes Bild (→)"
                 >
                   ›
                 </button>

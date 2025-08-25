@@ -113,6 +113,8 @@ model Attempt {
   finishedAt   DateTime?
   scorePercent Int?
   passed       Boolean?
+  elapsedSec   Int       @default(0)
+  
 
   user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)

@@ -1,4 +1,3 @@
-// app/exam-run/[attemptId]/page.tsx
 import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -14,23 +13,21 @@ export default async function ExamRunPage({ params }: Props) {
 
   // Session & User
   const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    redirect("/login")
-  }
+  if (!session?.user?.email) redirect("/login")
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
     select: { id: true },
   })
   if (!me) redirect("/login")
 
-  // Attempt laden (Ownership prüfen)
+  // Attempt laden (Ownership prüfen) + bisherige Zeit
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    select: { id: true, userId: true, examId: true },
+    select: { id: true, userId: true, examId: true, elapsedSec: true },
   })
   if (!attempt || attempt.userId !== me.id) notFound()
 
-  // Exam + Fragen + Optionen (+Erklärung) + MEDIA + CASE laden
+  // Exam + Fragen + Optionen + MEDIA + CASE laden
   const exam = await prisma.exam.findUnique({
     where: { id: attempt.examId },
     select: {
@@ -42,8 +39,9 @@ export default async function ExamRunPage({ params }: Props) {
         select: {
           id: true,
           stem: true,
-          tip: true,             // Oberarztkommentar
-          explanation: true,     // zusammenfassende Erläuterung
+          tip: true,
+          // @ts-ignore (Altbestand)
+          explanation: true,
           options: {
             orderBy: { id: "asc" },
             select: { id: true, text: true, isCorrect: true, explanation: true },
@@ -52,35 +50,33 @@ export default async function ExamRunPage({ params }: Props) {
             orderBy: { order: "asc" },
             include: { media: true },
           },
-          case: {
-            select: { id: true, title: true, vignette: true, order: true },
-          },
+          case: { select: { id: true, title: true, vignette: true, order: true } },
         },
       },
     },
   })
   if (!exam) notFound()
 
-  // Bereits gegebene Antworten laden
+  // gegebene Antworten laden
   const given = await prisma.attemptAnswer.findMany({
     where: { attemptId: attempt.id },
     select: { questionId: true, answerOptionId: true },
   })
   const initialAnswers = Object.fromEntries(
-    given.map((g) => [g.questionId, g.answerOptionId] as const)
+    given.map(g => [g.questionId, g.answerOptionId] as const)
   )
 
-  // In Client-Shape mappen
+  // Client-Shape
   const questions = exam.questions.map((q) => ({
     id: q.id,
     stem: q.stem,
-    tip: q.tip ?? null,
-    explanation: q.explanation ?? null,
+    tip: (q as any).tip ?? (q as any).explanation ?? null,
+    explanation: (q as any).explanation ?? null,
     options: q.options.map((o) => ({
       id: o.id,
       text: o.text,
       isCorrect: o.isCorrect,
-      explanation: o.explanation ?? null,
+      explanation: (o as any).explanation ?? null,
     })),
     media:
       q.media?.map((m) => ({
@@ -104,6 +100,7 @@ export default async function ExamRunPage({ params }: Props) {
         allowImmediateFeedback={exam.allowImmediateFeedback}
         questions={questions}
         initialAnswers={initialAnswers}
+        initialElapsedSec={attempt.elapsedSec ?? 0} // ← wichtig fürs Fortsetzen
       />
     </div>
   )
