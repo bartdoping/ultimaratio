@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { useEffect, useRef, useState } from "react"
+import ThemeToggle from "@/components/theme-toggle" // ⬅️ default import
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -23,12 +24,11 @@ export function SiteHeader() {
     }
     setMenuOpen(true)
   }
-  function scheduleClose(delay = 180) {
+  function scheduleClose(delay = 160) {
     if (closeTimer.current) window.clearTimeout(closeTimer.current)
     closeTimer.current = window.setTimeout(() => setMenuOpen(false), delay)
   }
 
-  // Outside-Click schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!menuRef.current) return
@@ -53,7 +53,6 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
-        {/* Left */}
         <div className="flex items-center gap-4">
           <Link href="/" className="font-semibold">UltimaRatio</Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
@@ -63,14 +62,15 @@ export function SiteHeader() {
           </nav>
         </div>
 
-        {/* Right */}
         <div className="flex items-center gap-2">
+          <ThemeToggle />
+
           {session ? (
             <div
               ref={menuRef}
               className="relative"
               onMouseEnter={openMenu}
-              onMouseLeave={() => scheduleClose(160)}   // kleine Verzögerung gegen „Abrisskanten“
+              onMouseLeave={() => scheduleClose(160)}
             >
               <button
                 type="button"
@@ -91,7 +91,6 @@ export function SiteHeader() {
                 </svg>
               </button>
 
-              {/* Dropdown */}
               <div
                 role="menu"
                 onMouseEnter={openMenu}
