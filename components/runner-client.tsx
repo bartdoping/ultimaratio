@@ -10,6 +10,11 @@ type Question = {
   tip?: string | null
   options: { id: string; text: string; isCorrect: boolean }[]
   media?: { id: string; url: string; alt: string; order: number }[]
+  // Case (optional)
+  caseId?: string | null
+  caseTitle?: string | null
+  caseVignette?: string | null
+  caseOrder?: number | null
 }
 
 type LabValue = {
@@ -29,7 +34,7 @@ type Props = {
   initialAnswers: Record<string, string | undefined>
 }
 
-// zeigt mm:ss bzw. ab 1h hh:mm:ss
+// ↑ Zeitformat
 function formatUp(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600)
   const m = Math.floor((totalSeconds % 3600) / 60)
@@ -42,45 +47,95 @@ function formatUp(totalSeconds: number) {
 export function RunnerClient(props: Props) {
   const { attemptId, allowImmediateFeedback, questions, initialAnswers } = props
   const router = useRouter()
+
+  // Index/Antworten
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
 
-  // ------- Timer: zählt hoch, pausierbar -------
-  const [elapsed, setElapsed] = useState(0)     // Sekunden seit Start
-  const [running, setRunning] = useState(true)  // true = läuft, false = pausiert
-
+  // Timer (hochzählend, pausierbar)
+  const [elapsed, setElapsed] = useState(0)
+  const [running, setRunning] = useState(true)
   useEffect(() => {
     if (!running) return
     const t = setInterval(() => setElapsed(v => v + 1), 1000)
     return () => clearInterval(t)
   }, [running])
 
-  // ------- Prüfungsmodus (Standard: EIN) -------
-  // EIN  = KEIN Sofort-Feedback
-  // AUS  = Sofort-Feedback anzeigen
+  // Prüfungsmodus (direktes Feedback an/aus)
   const [examMode, setExamMode] = useState(true)
+  const showFeedback = allowImmediateFeedback && !examMode
 
-  // ------- Lightbox (Bilder) -------
+  // Lightbox
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
-  // ------- Laborwerte Panel -------
+  // Laborwerte
   const [labOpen, setLabOpen] = useState(false)
   const [labLoading, setLabLoading] = useState(false)
   const [labError, setLabError] = useState<string | null>(null)
   const [labValues, setLabValues] = useState<LabValue[]>([])
   const [labQuery, setLabQuery] = useState("")
 
-  // ------- Oberarztkommentar -------
+  // Oberarztkommentar
   const [tipOpen, setTipOpen] = useState(false)
 
-  // aktuelle Frage
+  // Seitenleiste (Fragenübersicht)
+  const [navOpen, setNavOpen] = useState(false)
+
+  // Aktuelle Frage
   const q = questions[idx]
   const given = answers[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasTip = !!(q.tip && q.tip.trim().length)
+
+  // Anzeige eines Fallkopfs dann, wenn es der erste Frage-Index
+  // des aktuellen Falls ist (oder wenn eine Frage überhaupt einen Fall hat und
+  // die vorherige Frage einem anderen Fall angehörte)
+  const showCaseHeader = useMemo(() => {
+    const curCase = q.caseId ?? null
+    if (!curCase) return false
+    // erste Frage insgesamt → Header zeigen
+    if (idx === 0) return true
+    // vorherige Frage gehörte zu einem anderen Fall oder keinem Fall → Header zeigen
+    const prevCase = questions[idx - 1]?.caseId ?? null
+    return prevCase !== curCase
+  }, [q.caseId, idx, questions])
+
+  // Gruppen (optional): für Seitenleiste anzeigen
+  const groups = useMemo(() => {
+    // Map: caseId|null => { label, startIdxs[] }
+    // Wir brauchen nur Label & eine Liste der Indizes
+    const res: {
+      id: string | null
+      label: string
+      indices: number[]
+      order: number
+    }[] = []
+
+    const byId = new Map<string | null, number>()
+    questions.forEach((qu, i) => {
+      const key = qu.caseId ?? null
+      if (!byId.has(key)) {
+        const order = qu.caseOrder ?? 0
+        const label = key
+          ? (qu.caseTitle || "Fall")
+          : "Einzelfragen"
+        byId.set(key, res.length)
+        res.push({ id: key, label, indices: [i], order })
+      } else {
+        res[byId.get(key)!].indices.push(i)
+      }
+    })
+
+    // Fälle nach order sortieren; „Einzelfragen“ (null) zuletzt
+    return res.sort((a, b) => {
+      if (a.id === null && b.id !== null) return 1
+      if (a.id !== null && b.id === null) return -1
+      return a.order - b.order
+    })
+  }, [questions])
 
   // Tipp beim Fragenwechsel schließen
   useEffect(() => { setTipOpen(false) }, [idx])
@@ -123,76 +178,51 @@ export function RunnerClient(props: Props) {
     return `${answered}/${questions.length}`
   }, [answers, questions.length])
 
-  // ------- Lightbox (Bilder) -------
-  function openLightbox(i: number) {
-    setLightboxIndex(i)
-    setLightboxOpen(true)
-  }
+  // Shortcuts
+  function openLightbox(i: number) { setLightboxIndex(i); setLightboxOpen(true) }
   function closeLightbox() {
     setLightboxOpen(false)
     if (typeof document !== "undefined" && document.fullscreenElement) {
       document.exitFullscreen().catch(() => {})
     }
   }
-  function nextImage() {
-    if (!media.length) return
-    setLightboxIndex(i => (i + 1) % media.length)
-  }
-  function prevImage() {
-    if (!media.length) return
-    setLightboxIndex(i => (i - 1 + media.length) % media.length)
-  }
+  function nextImage() { if (media.length) setLightboxIndex(i => (i + 1) % media.length) }
+  function prevImage() { if (media.length) setLightboxIndex(i => (i - 1 + media.length) % media.length) }
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      // Lightbox Shortcuts
+      // Lightbox
       if (lightboxOpen) {
         if (e.key === "Escape") closeLightbox()
         if (e.key === "ArrowRight") nextImage()
         if (e.key === "ArrowLeft") prevImage()
         return
       }
-      // Labs Shortcut
-      if (e.key.toLowerCase() === "l") {
-        e.preventDefault()
-        setLabOpen(true)
-      }
-      if (labOpen && e.key === "Escape") {
-        setLabOpen(false)
-      }
-      // Timer Shortcut (P = Pause/Weiter)
-      if (e.key.toLowerCase() === "p") {
-        e.preventDefault()
-        setRunning(r => !r)
-      }
-      // Prüfungsmodus (M) toggle
-      if (e.key.toLowerCase() === "m") {
-        e.preventDefault()
-        setExamMode(m => !m)
-      }
+      // Laborwerte
+      if (e.key.toLowerCase() === "l") { e.preventDefault(); setLabOpen(true) }
+      if (labOpen && e.key === "Escape") setLabOpen(false)
+      // Timer
+      if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r) }
+      // Seitenleiste
+      if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v) }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [lightboxOpen, labOpen, media.length])
+  }, [lightboxOpen, labOpen])
 
   useEffect(() => {
-    if (lightboxOpen) {
-      overlayRef.current?.requestFullscreen?.().catch(() => {})
-    }
+    if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
   }, [lightboxOpen])
 
-  // ------- Laborwerte: Lazy Load beim Öffnen -------
+  // Laborwerte lazy laden
   useEffect(() => {
     if (!labOpen || labValues.length > 0 || labLoading) return
     ;(async () => {
-      setLabLoading(true)
-      setLabError(null)
+      setLabLoading(true); setLabError(null)
       try {
         const res = await fetch("/api/labs")
         const raw = await res.json().catch(() => null)
-        const arr =
-          (Array.isArray(raw) ? raw
-            : (raw?.items || raw?.labs || raw?.data || [])) as any[]
+        const arr = (Array.isArray(raw) ? raw : (raw?.items || raw?.labs || raw?.data || [])) as any[]
         const norm: LabValue[] = (arr || []).map((x) => ({
           id: String(x.id ?? `${x.name}-${x.unit}`),
           name: String(x.name ?? ""),
@@ -210,57 +240,66 @@ export function RunnerClient(props: Props) {
   }, [labOpen, labValues.length, labLoading])
 
   const filteredLabs = useMemo(() => {
-    const q = labQuery.trim().toLowerCase()
-    if (!q) return labValues
-    return labValues.filter((lv) =>
-      [lv.name, lv.unit, lv.refRange, lv.category]
-        .filter(Boolean)
-        .some((s) => s.toLowerCase().includes(q))
+    const t = labQuery.trim().toLowerCase()
+    if (!t) return labValues
+    return labValues.filter(lv =>
+      [lv.name, lv.unit, lv.refRange, lv.category].filter(Boolean).some(s => s.toLowerCase().includes(t))
     )
   }, [labValues, labQuery])
 
+  // -------- UI --------
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <span>Frage {idx + 1} / {questions.length} ({progress})</span>
+    <div className="relative">
+      {/* Toggle für Seitenleiste (mobil/klein) */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)">
+            Fragenübersicht
+          </Button>
+          <span>Frage {idx + 1} / {questions.length} ({progress})</span>
+        </div>
 
-        <div className="flex items-center gap-3">
-          {/* Prüfungsmodus-Schalter */}
-          <label className="flex items-center gap-2 cursor-pointer select-none" title="Prüfungsmodus EIN: kein Sofort-Feedback (M zum Umschalten)">
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2">
             <input
               type="checkbox"
-              className="sr-only"
               checked={examMode}
-              onChange={(e) => setExamMode(e.target.checked)}
+              onChange={(e) => { /* Sofort-Feedback im Prüfungsmodus verbergen */ setExamMode(e.target.checked) }}
             />
-            <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${examMode ? "bg-green-600" : "bg-gray-300 dark:bg-gray-600"}`}>
-              <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${examMode ? "translate-x-5" : "translate-x-1"}`} />
-            </span>
-            <span>Prüfungsmodus</span>
+            Prüfungsmodus
           </label>
 
-          <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte anzeigen (L)">
+          <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
             Laborwerte
           </Button>
 
           <div className="flex items-center gap-2">
             <span>Zeit: {formatUp(elapsed)}</span>
-            <Button
-              variant="outline"
-              onClick={() => setRunning(r => !r)}
-              title="Timer pausieren/fortsetzen (P)"
-            >
+            <Button variant="outline" onClick={() => setRunning(r => !r)} title="Timer pausieren/fortsetzen (P)">
               {running ? "Pause" : "Weiter"}
             </Button>
           </div>
         </div>
       </div>
 
+      {/* Kartenbereich */}
       <div className="card card-body space-y-4">
+        {/* Fallkopf (optional) */}
+        {showCaseHeader && (
+          <div className="rounded border bg-secondary/40 p-4 space-y-1">
+            <div className="font-semibold">{q.caseTitle || "Fall"}</div>
+            {q.caseVignette && (
+              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                {q.caseVignette}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Frage */}
         <p className="font-medium">{q.stem}</p>
 
-        {/* Oberarztkommentar (nur wenn vorhanden) */}
+        {/* Oberarztkommentar */}
         {hasTip && (
           <div className="rounded border bg-secondary/40">
             <button
@@ -283,7 +322,7 @@ export function RunnerClient(props: Props) {
           </div>
         )}
 
-        {/* Medien (Thumbnails / klickbar mit Hover-Hinweis) */}
+        {/* Medien */}
         {media.length > 0 && (
           <div className="flex flex-wrap gap-3">
             {media.map((m, i) => (
@@ -328,10 +367,7 @@ export function RunnerClient(props: Props) {
                 className={`w-full text-left rounded border px-3 py-2 transition-shadow ${isSelected ? "border-blue-500 ring-1 ring-blue-500" : "hover:shadow-sm"}`}
               >
                 {o.text}
-                {/* Sofort-Feedback NUR wenn Prüfungsmodus AUS.
-                   Hinweis: allowImmediateFeedback wird hier bewusst ignoriert,
-                   da der Schalter das Verhalten übersteuert. */}
-                {!examMode && isSelected && (
+                {showFeedback && isSelected && (
                   <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
                     {o.isCorrect ? "✓ richtig" : "✗ falsch"}
                   </span>
@@ -342,7 +378,8 @@ export function RunnerClient(props: Props) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      {/* Navigation unten */}
+      <div className="mt-4 flex items-center justify-between">
         <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
           Zurück
         </Button>
@@ -356,7 +393,63 @@ export function RunnerClient(props: Props) {
         </div>
       </div>
 
-      {/* ------- Lightbox / Vollbild-Overlay (Bilder) ------- */}
+      {/* ------- Seitenleiste (Fragenübersicht) ------- */}
+      {navOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Fragenübersicht"
+          className="fixed inset-0 z-50 bg-black/40"
+          onClick={() => setNavOpen(false)}
+        >
+          <aside
+            className="absolute left-0 top-0 h-full w-[320px] bg-white dark:bg-card border-r shadow-xl p-4 overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-3 flex items-center justify-between">
+              <div className="font-semibold">Fragenübersicht</div>
+              <Button variant="outline" onClick={() => setNavOpen(false)}>Schließen</Button>
+            </div>
+
+            <div className="space-y-4">
+              {groups.map((g, gi) => (
+                <div key={`${g.id ?? "single"}-${gi}`} className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {g.id ? g.label : "Einzelfragen"}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {g.indices.map((i) => {
+                      const n = i + 1
+                      const answered = !!answers[questions[i].id]
+                      const isCurrent = i === idx
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => { setIdx(i); setNavOpen(false) }}
+                          className={[
+                            "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center",
+                            answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
+                            isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
+                          ].join(" ")}
+                          title={answered ? `Frage ${n} (beantwortet)` : `Frage ${n} (offen)`}
+                        >
+                          {n}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 text-xs text-muted-foreground">
+              Tipp: <kbd className="px-1 py-0.5 rounded border">F</kbd> öffnen/schließen.
+            </div>
+          </aside>
+        </div>
+      )}
+
+      {/* ------- Lightbox ------- */}
       {lightboxOpen && media.length > 0 && (
         <div
           ref={overlayRef}
@@ -408,7 +501,7 @@ export function RunnerClient(props: Props) {
         </div>
       )}
 
-      {/* ------- Laborwerte Overlay ------- */}
+      {/* ------- Laborwerte ------- */}
       {labOpen && (
         <div
           role="dialog"
@@ -473,7 +566,7 @@ export function RunnerClient(props: Props) {
                 </div>
               )}
               <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter, <kbd className="px-1 py-0.5 rounded border">M</kbd> Prüfungsmodus.
+                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter, <kbd className="px-1 py-0.5 rounded border">F</kbd> Fragenübersicht.
               </div>
             </div>
           </div>

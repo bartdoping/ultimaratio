@@ -57,6 +57,7 @@ model Exam {
   questions Question[]
   purchases Purchase[]
   attempts  Attempt[]
+  cases     QuestionCase[]
 }
 
 model Section {
@@ -86,6 +87,8 @@ model Question {
   options AnswerOption[]
   media   QuestionMedia[]
   answers AttemptAnswer[]
+  caseId  String?
+  case    QuestionCase?   @relation(fields: [caseId], references: [id], onDelete: SetNull)
 }
 
 model AnswerOption {
@@ -174,7 +177,7 @@ model QuestionMedia {
 }
 
 model EmailVerification {
-  id         String   @id @default(cuid())
+  id         String    @id @default(cuid())
   userId     String
   newEmail   String?
   code       String
@@ -197,4 +200,17 @@ model PasswordReset {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, token])
+}
+
+model QuestionCase {
+  id       String  @id @default(cuid())
+  examId   String
+  title    String
+  vignette String?
+  order    Int     @default(0)
+
+  exam      Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
+  questions Question[]
+
+  @@index([examId, order])
 }

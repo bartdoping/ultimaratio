@@ -23,15 +23,15 @@ export default async function ExamRunPage({ params }: Props) {
   })
   if (!me) redirect("/login")
 
-  // Attempt laden (und Ownership prüfen)
+  // Attempt laden (Ownership prüfen)
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
     select: { id: true, userId: true, examId: true },
   })
   if (!attempt || attempt.userId !== me.id) notFound()
 
-  // Exam + Fragen + Optionen + MEDIA laden
-  // WICHTIG: 'explanation' wird als 'tip' in den Client gemappt (Oberarztkommentar)
+  // Exam + Fragen + Optionen + MEDIA + CASE laden
+  // `tip` wird bevorzugt, Fallback auf altes Feld `explanation` (falls noch vorhanden)
   const exam = await prisma.exam.findUnique({
     where: { id: attempt.examId },
     select: {
@@ -43,14 +43,21 @@ export default async function ExamRunPage({ params }: Props) {
         select: {
           id: true,
           stem: true,
-          explanation: true, // <- als Tip benutzen
+          tip: true,            // neues Feld (Oberarztkommentar)
+          // Fallback-Feld (falls Altbestand)
+          // @ts-ignore – existiert evtl. nicht mehr in deinem Schema; ist nur zur Abwärtskompatibilität
+          explanation: true,
           options: {
             orderBy: { id: "asc" },
             select: { id: true, text: true, isCorrect: true },
           },
           media: {
             orderBy: { order: "asc" },
-            include: { media: true }, // => { mediaId, order, media: { id, url, alt, ... } }
+            include: { media: true },
+          },
+          // Case-Infos (für Fallfragen)
+          case: {
+            select: { id: true, title: true, vignette: true, order: true },
           },
         },
       },
@@ -67,11 +74,11 @@ export default async function ExamRunPage({ params }: Props) {
     given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
 
-  // In Client-Shape mappen – explanation => tip
+  // In Client-Shape mappen
   const questions = exam.questions.map((q) => ({
     id: q.id,
     stem: q.stem,
-    tip: q.explanation ?? null, // Oberarztkommentar
+    tip: (q as any).tip ?? (q as any).explanation ?? null, // bevorzugt `tip`, sonst Fallback
     options: q.options.map((o) => ({
       id: o.id,
       text: o.text,
@@ -79,15 +86,20 @@ export default async function ExamRunPage({ params }: Props) {
     })),
     media:
       q.media?.map((m) => ({
-        id: m.media.id,           // ID des MediaAssets
-        url: m.media.url,         // Bild-URL
-        alt: m.media.alt ?? "",   // Alt-Text
-        order: m.order ?? 0,      // Reihenfolge
+        id: m.media.id,
+        url: m.media.url,
+        alt: m.media.alt ?? "",
+        order: (m as any).order ?? 0,
       })) ?? [],
+    // Case (optional)
+    caseId: q.case?.id ?? null,
+    caseTitle: q.case?.title ?? null,
+    caseVignette: q.case?.vignette ?? null,
+    caseOrder: q.case?.order ?? null,
   }))
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <RunnerClient
         attemptId={attempt.id}
         examId={exam.id}
