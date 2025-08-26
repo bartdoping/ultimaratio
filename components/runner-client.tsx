@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
-import type React from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
@@ -49,6 +48,8 @@ function formatUp(totalSeconds: number) {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
 }
 
+type FilterMode = "all" | "open" | "flagged"
+
 export function RunnerClient(props: Props) {
   const { attemptId, allowImmediateFeedback, questions, initialAnswers, initialElapsedSec = 0 } = props
   const router = useRouter()
@@ -57,6 +58,8 @@ export function RunnerClient(props: Props) {
   const LS_IDX = `examRun:${attemptId}:idx`
   const LS_MODE = `examRun:${attemptId}:examMode`
   const LS_ELAPSED = `examRun:${attemptId}:elapsedSec`
+  const LS_FLAGGED = `examRun:${attemptId}:flagged`
+  const LS_FILTER = `examRun:${attemptId}:filter`
 
   // Index/Antworten
   const [idx, setIdx] = useState(() => {
@@ -75,13 +78,14 @@ export function RunnerClient(props: Props) {
     const v = raw ? parseInt(raw, 10) : 0
     return Number.isFinite(v) ? Math.max(0, v) : 0
   })()
+
   const [elapsed, setElapsed] = useState<number>(Math.max(initialElapsedSec, lsElapsedAtMount))
   const [running, setRunning] = useState(true)
 
   // Heartbeat-Steuerung
   const lastSentRef = useRef<number>(0)
   const sendingRef = useRef<boolean>(false)
-  const HEARTBEAT_MS = 10_000
+  const HEARTBEAT_MS = 10_000 // etwas häufiger, um Verluste zu minimieren
 
   function persistElapsedToLS(value: number) {
     try {
@@ -117,16 +121,19 @@ export function RunnerClient(props: Props) {
     if (!running) return
     const t = setInterval(() => setElapsed(v => {
       const nv = v + 1
+      // Sofort in LS spiegeln, damit SPA-Navigation nichts verliert
       persistElapsedToLS(nv)
       return nv
     }), 1000)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running])
 
   // periodischer Heartbeat
   useEffect(() => {
     const t = setInterval(() => { if (running) sendHeartbeat() }, HEARTBEAT_MS)
     return () => clearInterval(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, attemptId])
 
   // Sichtbarkeit / (Page)Unload
@@ -164,7 +171,7 @@ export function RunnerClient(props: Props) {
     }
 
     document.addEventListener("visibilitychange", onVis)
-    window.addEventListener("beforeunload", onBeforeUnload)
+    window.addEventListener("beforeunload", onBeforeUnload as any)
     window.addEventListener("pagehide", onPageHide)
 
     return () => {
@@ -178,6 +185,7 @@ export function RunnerClient(props: Props) {
         navigator.sendBeacon?.(`/api/attempts/${attemptId}/heartbeat`, data)
       } catch {}
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, attemptId])
 
   // Prüfungsmodus (true = „kein Direktfeedback“)
@@ -192,16 +200,6 @@ export function RunnerClient(props: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const overlayRef = useRef<HTMLDivElement | null>(null)
-  const mediaNav = {
-    next: () => setLightboxIndex(i => (i + 1) % Math.max(1, media.length)),
-    prev: () => setLightboxIndex(i => (i - 1 + Math.max(1, media.length)) % Math.max(1, media.length)),
-    close: () => {
-      setLightboxOpen(false)
-      if (typeof document !== "undefined" && document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {})
-      }
-    },
-  }
 
   // Laborwerte
   const [labOpen, setLabOpen] = useState(false)
@@ -209,20 +207,41 @@ export function RunnerClient(props: Props) {
   const [labError, setLabError] = useState<string | null>(null)
   const [labValues, setLabValues] = useState<LabValue[]>([])
   const [labQuery, setLabQuery] = useState("")
+  const filteredLabs = useMemo(() => {
+    const t = labQuery.trim().toLowerCase()
+    if (!t) return labValues
+    return labValues.filter(lv =>
+      [lv.name, lv.unit, lv.refRange, lv.category].filter(Boolean).some(s => s.toLowerCase().includes(t))
+    )
+  }, [labValues, labQuery])
 
   // Kommentare & Erklärungen
   const [tipOpen, setTipOpen] = useState(false)
   const [qExpOpen, setQExpOpen] = useState(false)
-  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
+  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({}) // pro Option
+
+  // Markierungen & Filter
+  const [flagged, setFlagged] = useState<Record<string, boolean>>(() => {
+    if (typeof window === "undefined") return {}
+    try {
+      const raw = window.localStorage.getItem(LS_FLAGGED)
+      return raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
+    } catch { return {} }
+  })
+  const [filterMode, setFilterMode] = useState<FilterMode>(() => {
+    if (typeof window === "undefined") return "all"
+    const raw = window.localStorage.getItem(LS_FILTER)
+    return raw === "open" || raw === "flagged" ? raw : "all"
+  })
 
   // Seitenleiste (Mobile Bottom-Sheet)
   const [navOpen, setNavOpen] = useState(false)
   const [sheetDragY, setSheetDragY] = useState(0)
-  const sheetStartYRef = useRef<number | null>(null)
 
   // Aktuelle Frage
   const q = questions[idx]
   const given = answers[q.id]
+  const isCurrentFlagged = !!flagged[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasTip = !!(q.tip && q.tip.trim().length)
   const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
@@ -249,58 +268,28 @@ export function RunnerClient(props: Props) {
     })
   }, [questions])
 
-  // Gefilterte Laborwerte (Suchfeld)
-  const filteredLabs = useMemo(() => {
-    const t = labQuery.trim().toLowerCase()
-    if (!t) return labValues
-    return labValues.filter(lv =>
-      [lv.name, lv.unit, lv.refRange, lv.category]
-        .filter(Boolean)
-        .some(s => String(s).toLowerCase().includes(t))
-    )
-  }, [labValues, labQuery])
+  // Counters & Ziel-Listen
+  const openIndices = useMemo(
+    () => questions.map((_, i) => i).filter(i => !answers[questions[i].id]),
+    [answers, questions]
+  )
+  const flaggedIndices = useMemo(
+    () => questions.map((_, i) => i).filter(i => !!flagged[questions[i].id]),
+    [flagged, questions]
+  )
+  const counts = useMemo(() => ({
+    total: questions.length,
+    open: openIndices.length,
+    flagged: flaggedIndices.length,
+  }), [questions.length, openIndices.length, flaggedIndices.length])
 
-  // Laborwerte lazy laden
+  // Filter-Persistenz
   useEffect(() => {
-    if (!labOpen || labLoading || labValues.length > 0) return
-    ;(async () => {
-      setLabLoading(true); setLabError(null)
-      try {
-        const res = await fetch("/api/labs")
-        const raw = await res.json().catch(() => null)
-
-        let arr: any[] = []
-        if (Array.isArray(raw)) {
-          arr = raw
-        } else if (raw && typeof raw === "object") {
-          arr =
-            raw.items ??
-            raw.labs ??
-            raw.labValues ??
-            raw.data ??
-            raw.results ??
-            raw.values ??
-            raw.records ??
-            []
-          if (!Array.isArray(arr)) arr = Object.values(raw)
-        }
-
-        const norm: LabValue[] = (arr || []).map((x: any, i: number) => ({
-          id: String(x.id ?? x.key ?? `${x.name ?? x.test ?? x.title ?? "?"}-${x.unit ?? ""}-${i}`),
-          name: String(x.name ?? x.test ?? x.title ?? ""),
-          unit: String(x.unit ?? x.units ?? ""),
-          refRange: String(x.refRange ?? x.ref_range ?? x.reference ?? x.range ?? ""),
-          category: String(x.category ?? x.group ?? x.panel ?? ""),
-        })).filter(v => v.name)
-
-        setLabValues(norm)
-      } catch {
-        setLabError("Laborwerte konnten nicht geladen werden.")
-      } finally {
-        setLabLoading(false)
-      }
-    })()
-  }, [labOpen, labLoading, labValues.length])
+    try { window.localStorage.setItem(LS_FILTER, filterMode) } catch {}
+  }, [filterMode])
+  useEffect(() => {
+    try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(flagged)) } catch {}
+  }, [flagged])
 
   // Aufklapper zurücksetzen bei Fragenwechsel
   useEffect(() => { setTipOpen(false); setQExpOpen(false); setOptOpen({}) }, [idx])
@@ -309,7 +298,35 @@ export function RunnerClient(props: Props) {
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_IDX, String(idx)) }, [idx])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_MODE, examMode ? "1" : "0") }, [examMode])
 
-  // Antwort wählen / speichern
+  // Helpers
+  function matchFilter(i: number) {
+    if (filterMode === "open") return !answers[questions[i].id]
+    if (filterMode === "flagged") return !!flagged[questions[i].id]
+    return true
+  }
+
+  function nextTargetIndex(): number {
+    const list = filterMode === "flagged" ? flaggedIndices : openIndices
+    if (list.length === 0) return -1
+    const after = list.find(x => x > idx)
+    return typeof after === "number" ? after : list[0]
+  }
+
+  function goNextTarget() {
+    const ni = nextTargetIndex()
+    if (ni >= 0) setIdx(ni)
+  }
+
+  function toggleFlagCurrent() {
+    const id = q.id
+    setFlagged(f => {
+      const v = !f[id]
+      const nf = { ...f, [id]: v }
+      try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(nf)) } catch {}
+      return nf
+    })
+  }
+
   async function choose(optionId: string) {
     setSubmitting(true)
     try {
@@ -328,11 +345,11 @@ export function RunnerClient(props: Props) {
     }
   }
 
-  // Prüfung beenden
   async function finish() {
     if (!confirm("Prüfung wirklich beenden und auswerten?")) return
     setSubmitting(true)
     try {
+      // Vor dem Finish: letzten Stand sichern
       persistElapsedToLS(elapsed)
       await sendHeartbeat(elapsed)
       const res = await fetch(`/api/attempts/${attemptId}/finish`, {
@@ -343,10 +360,13 @@ export function RunnerClient(props: Props) {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Konnte nicht auswerten.")
+      // Aufräumen lokaler Keys nach erfolgreichem Abschluss
       try {
         window.localStorage.removeItem(LS_IDX)
         window.localStorage.removeItem(LS_MODE)
         window.localStorage.removeItem(LS_ELAPSED)
+        window.localStorage.removeItem(LS_FLAGGED)
+        window.localStorage.removeItem(LS_FILTER)
       } catch {}
       router.push(`/dashboard/history/${attemptId}`)
     } catch (e) {
@@ -356,58 +376,107 @@ export function RunnerClient(props: Props) {
     }
   }
 
-  // Fortschritt
   const progress = useMemo(() => {
     const answered = Object.values(answers).filter(Boolean).length
     return `${answered}/${questions.length}`
   }, [answers, questions.length])
 
-  // ---------- Globaler Keyboard-Handler ----------
+  // ---------- Shortcuts ----------
   useEffect(() => {
+    function isTyping() {
+      const ae = document.activeElement as HTMLElement | null
+      if (!ae) return false
+      const tag = ae.tagName.toLowerCase()
+      return tag === "input" || tag === "textarea" || ae.isContentEditable
+    }
+
     function onKey(e: KeyboardEvent) {
-      const key = e.key
-      const k = key.toLowerCase()
-      const target = e.target as HTMLElement | null
-      const tag = target?.tagName
-      const isTyping =
-        !!target &&
-        (target.isContentEditable ||
-          tag === "INPUT" ||
-          tag === "TEXTAREA" ||
-          tag === "SELECT")
-
-      // Esc schließt Overlays immer
-      if (k === "escape") {
-        if (lightboxOpen) { e.preventDefault(); mediaNav.close(); return }
-        if (labOpen)      { e.preventDefault(); setLabOpen(false); return }
-        if (navOpen)      { e.preventDefault(); setNavOpen(false); return }
+      // Modals: Lightbox/Lab priorisieren
+      if (lightboxOpen) {
+        if (e.key === "Escape") { setLightboxOpen(false); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}) }
+        if (e.key === "ArrowRight") setLightboxIndex(i => (i + 1) % Math.max(1, media.length))
+        if (e.key === "ArrowLeft") setLightboxIndex(i => (i - 1 + Math.max(1, media.length)) % Math.max(1, media.length))
+        return
+      }
+      if (labOpen) {
+        if (e.key === "Escape") setLabOpen(false)
+        // Beim Tippen in der Suche: keine weiteren Shortcuts
+        return
       }
 
-      // Lightbox Navigation nur wenn offen
-      if (!isTyping && lightboxOpen) {
-        if (key === "ArrowRight") { e.preventDefault(); mediaNav.next(); return }
-        if (key === "ArrowLeft")  { e.preventDefault(); mediaNav.prev(); return }
+      // global
+      if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r); return }
+      if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v); return }
+      if (e.key.toLowerCase() === "l") {
+        // Nicht öffnen, wenn der Nutzer in einem Eingabefeld ist (Konflikt mit "L" tippen)
+        if (!isTyping()) { e.preventDefault(); setLabOpen(true) }
+        return
       }
 
-      // Andere Shortcuts nicht während Tippen
-      if (isTyping) return
+      if (isTyping()) return
 
-      if (k === "f") { e.preventDefault(); setNavOpen(v => !v) }
-      if (k === "l") { e.preventDefault(); setLabOpen(true) }
-      if (k === "p") { e.preventDefault(); setRunning(r => !r) }
+      // Markieren (M)
+      if (e.key.toLowerCase() === "m") { e.preventDefault(); toggleFlagCurrent(); return }
+      // Nächste offene/markierte (U)
+      if (e.key.toLowerCase() === "u") { e.preventDefault(); goNextTarget(); return }
+      // Enter → Weiter
+      if (e.key === "Enter") {
+        e.preventDefault()
+        setIdx(i => Math.min(questions.length - 1, i + 1))
+        return
+      }
+      // 1–4 → Option wählen
+      if (/^[1-4]$/.test(e.key)) {
+        const n = Number(e.key) - 1
+        const opt = q.options[n]
+        if (opt) {
+          e.preventDefault()
+          choose(opt.id)
+        }
+      }
     }
 
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [lightboxOpen, labOpen, navOpen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightboxOpen, labOpen, media.length, q.options, answers, idx, filterMode, flagged])
 
-  // ---------- Swipe-Gesten (mobile) ----------
+  useEffect(() => {
+    if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
+  }, [lightboxOpen])
+
+  // Laborwerte lazy laden
+  useEffect(() => {
+    if (!labOpen || labValues.length > 0 || labLoading) return
+    ;(async () => {
+      setLabLoading(true); setLabError(null)
+      try {
+        const res = await fetch("/api/labs")
+        const raw = await res.json().catch(() => null)
+        const arr = (Array.isArray(raw) ? raw : (raw?.items || raw?.labs || raw?.data || [])) as any[]
+        const norm: LabValue[] = (arr || []).map((x) => ({
+          id: String(x.id ?? `${x.name}-${x.unit}`),
+          name: String(x.name ?? ""),
+          unit: String(x.unit ?? ""),
+          refRange: String(x.refRange ?? x.ref_range ?? ""),
+          category: String(x.category ?? ""),
+        }))
+        setLabValues(norm)
+      } catch {
+        setLabError("Laborwerte konnten nicht geladen werden.")
+      } finally {
+        setLabLoading(false)
+      }
+    })()
+  }, [labOpen, labValues.length, labLoading])
+
+  // ---------- Swipe-Gesten (mobile) für Prev/Next ----------
   const touchStart = useRef<{ x: number; y: number } | null>(null)
-  function onTouchStart(e: React.TouchEvent) {
+  function onTouchStart(e: any) {
     const t = e.touches[0]
     touchStart.current = { x: t.clientX, y: t.clientY }
   }
-  function onTouchEnd(e: React.TouchEvent) {
+  function onTouchEnd(e: any) {
     if (!touchStart.current) return
     const t0 = touchStart.current
     const t = e.changedTouches[0]
@@ -423,50 +492,78 @@ export function RunnerClient(props: Props) {
   }
 
   // -------- UI --------
+  const primaryJumpLabel = filterMode === "flagged" ? "Nächste markierte" : "Nächste offene"
+  const hasPrimaryJump = (filterMode === "flagged" ? flaggedIndices.length : openIndices.length) > 0
+
   return (
-    <div className="relative lg:flex lg:items-start lg:gap-6">
+    <div className="relative block lg:flex lg:items-start lg:gap-6">
       {/* ---------- Desktop: Sticky Left-Rail (lg+) ---------- */}
-      <aside className="hidden lg:block sticky top-4 self-start lg:w-64 lg:flex-shrink-0 rounded border p-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
+      <aside className="hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[16rem] lg:flex-none rounded border p-3 overflow-y-auto">
         <div className="mb-2 text-sm font-semibold">Fragen</div>
-        <div className="space-y-4">
-          {groups.map((g, gi) => (
-            <div key={`${g.id ?? "single"}-rail-${gi}`} className="space-y-2">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
-                {g.id ? g.label : "Einzelfragen"}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {g.indices.map((i) => {
-                  const n = i + 1
-                  const answered = !!answers[questions[i].id]
-                  const isCurrent = i === idx
-                  return (
-                    <button
-                      key={`rail-btn-${i}`}
-                      onClick={() => setIdx(i)}
-                      className={[
-                        "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center transition",
-                        answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
-                        isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
-                      ].join(" ")}
-                      title={answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`}
-                    >
-                      {n}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          ))}
+
+        {/* Filter-Chips */}
+        <div className="mb-3 flex flex-wrap gap-2">
+          <Button size="sm" variant={filterMode === "all" ? "default" : "outline"} onClick={() => setFilterMode("all")}>
+            Alle ({counts.total})
+          </Button>
+          <Button size="sm" variant={filterMode === "open" ? "default" : "outline"} onClick={() => setFilterMode("open")}>
+            Offen ({counts.open})
+          </Button>
+          <Button size="sm" variant={filterMode === "flagged" ? "default" : "outline"} onClick={() => setFilterMode("flagged")}>
+            Markiert ({counts.flagged})
+          </Button>
         </div>
 
+        <div className="space-y-4">
+          {groups.map((g, gi) => {
+            const visible = g.indices.filter(matchFilter)
+            if (visible.length === 0) return null
+            return (
+              <div key={`${g.id ?? "single"}-rail-${gi}`} className="space-y-2">
+                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  {g.id ? g.label : "Einzelfragen"}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {visible.map((i) => {
+                    const n = i + 1
+                    const answered = !!answers[questions[i].id]
+                    const isCurrent = i === idx
+                    const isFlagged = !!flagged[questions[i].id]
+                    return (
+                      <button
+                        key={`rail-btn-${i}`}
+                        onClick={() => setIdx(i)}
+                        className={[
+                          "relative h-9 w-9 rounded-full border text-sm font-medium grid place-items-center transition",
+                          answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
+                          isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
+                        ].join(" ")}
+                        title={
+                          (isFlagged ? "⭐ " : "") +
+                          (answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`)
+                        }
+                      >
+                        {n}
+                        {isFlagged && <span className="absolute -top-1 -right-1 text-[11px] leading-none">★</span>}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+
+        {/* Legende */}
         <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
           <div>✓ Grün = beantwortet</div>
           <div>• Ring = aktuell</div>
+          <div>★ = markiert</div>
         </div>
       </aside>
 
       {/* ---------- Hauptbereich ---------- */}
-      <div className="relative lg:flex-1">
+      <div className="relative min-w-0">
         {/* Kopfzeile */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
@@ -492,6 +589,16 @@ export function RunnerClient(props: Props) {
               Prüfungsmodus
             </label>
 
+            {/* Markieren */}
+            <Button
+              variant={isCurrentFlagged ? "default" : "outline"}
+              onClick={toggleFlagCurrent}
+              title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
+              aria-pressed={isCurrentFlagged}
+            >
+              {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
+            </Button>
+
             <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
               Laborwerte
             </Button>
@@ -515,7 +622,7 @@ export function RunnerClient(props: Props) {
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          {/* Fallkopf (optional, aber bei Fragen mit Fall immer) */}
+          {/* Fallkopf (immer bei Fragen mit Fall anzeigen) */}
           {(q.caseTitle || q.caseVignette) && (
             <div className="rounded border bg-secondary/40 p-4 space-y-1">
               <div className="font-semibold">{q.caseTitle || "Fall"}</div>
@@ -578,7 +685,7 @@ export function RunnerClient(props: Props) {
             </div>
           )}
 
-          {/* Optionen */}
+          {/* Optionen (aufklappbare Erklärungen, wenn Prüfungsmodus aus & eine Antwort gewählt) */}
           <div className="space-y-2">
             {q.options.map(o => {
               const isSelected = given === o.id
@@ -621,7 +728,7 @@ export function RunnerClient(props: Props) {
             })}
           </div>
 
-          {/* Frage-Gesamterklärung */}
+          {/* Frage-Gesamterklärung (aufklappbar, nur wenn Prüfungsmodus aus & Antwort gegeben) */}
           {hasQExplanation && showFeedback && !!given && (
             <div className="rounded border bg-secondary/40">
               <button
@@ -645,13 +752,24 @@ export function RunnerClient(props: Props) {
         </div>
 
         {/* Navigation unten */}
-        <div className="mt-4 flex items-center justify-between">
-          <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
-            Zurück
-          </Button>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
+            <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
+              Zurück
+            </Button>
             <Button variant="outline" onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}>
               Weiter
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={goNextTarget}
+              disabled={!hasPrimaryJump}
+              title={filterMode === "flagged" ? "Zur nächsten markierten Frage springen (U)" : "Zur nächsten offenen Frage springen (U)"}
+            >
+              {primaryJumpLabel}
             </Button>
             <Button variant="destructive" onClick={finish} disabled={submitting}>
               Beenden & Auswerten
@@ -668,11 +786,21 @@ export function RunnerClient(props: Props) {
           aria-modal="true"
           aria-label="Bildanzeige"
           className="fixed inset-0 z-50 bg-black/80 grid place-items-center p-4"
-          onClick={mediaNav.close}
+          onClick={() => {
+            setLightboxOpen(false)
+            if (typeof document !== "undefined" && document.fullscreenElement) {
+              document.exitFullscreen().catch(() => {})
+            }
+          }}
         >
           <div className="relative max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={mediaNav.close}
+              onClick={() => {
+                setLightboxOpen(false)
+                if (typeof document !== "undefined" && document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {})
+                }
+              }}
               className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-white/90 text-black text-xl leading-none grid place-items-center shadow"
               aria-label="Schließen"
             >
@@ -682,14 +810,14 @@ export function RunnerClient(props: Props) {
             {media.length > 1 && (
               <>
                 <button
-                  onClick={mediaNav.prev}
+                  onClick={() => setLightboxIndex(i => (i - 1 + media.length) % media.length)}
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-r bg-white/80 text-black shadow"
                   aria-label="Vorheriges Bild"
                 >
                   ‹
                 </button>
                 <button
-                  onClick={mediaNav.next}
+                  onClick={() => setLightboxIndex(i => (i + 1) % media.length)}
                   className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-l bg-white/80 text-black shadow"
                   aria-label="Nächstes Bild"
                 >
@@ -774,7 +902,9 @@ export function RunnerClient(props: Props) {
                 </div>
               )}
               <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen (außer im Suchfeld), <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
+                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen,&nbsp;
+                <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen,&nbsp;
+                <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
               </div>
             </div>
           </div>
@@ -782,28 +912,27 @@ export function RunnerClient(props: Props) {
       )}
 
       {/* ------- Mobile Bottom-Sheet (Fragenübersicht) ------- */}
+      {/* Hintergrund */}
       {navOpen && <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setNavOpen(false)} />}
 
+      {/* Sheet */}
       <div
         className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden transform transition-transform ${navOpen ? "translate-y-0" : "translate-y-full"}`}
         style={{ transform: `translateY(${navOpen ? sheetDragY : 0}px)` }}
         onTouchStart={(e) => {
           if (!navOpen) return
           setSheetDragY(0)
-          sheetStartYRef.current = e.touches[0]?.clientY ?? null
           ;(e.target as HTMLElement).closest("[data-sheet]") && e.stopPropagation()
         }}
         onTouchMove={(e) => {
-          if (!navOpen || sheetStartYRef.current == null) return
-          const y = e.touches[0]?.clientY ?? sheetStartYRef.current
-          const dy = Math.max(0, y - sheetStartYRef.current)
-          setSheetDragY(dy)
+          if (!navOpen) return
+          const dy = e.touches[0].clientY - (e.targetTouches[0]?.clientY ?? e.touches[0].clientY)
+          setSheetDragY(prev => Math.max(0, prev + (Number.isFinite(dy) ? dy : 0)))
         }}
         onTouchEnd={() => {
           if (!navOpen) return
-          if (sheetDragY > 100) { setNavOpen(false) }
-          setSheetDragY(0)
-          sheetStartYRef.current = null
+          if (sheetDragY > 100) { setNavOpen(false); setSheetDragY(0) }
+          else setSheetDragY(0)
         }}
         aria-hidden={!navOpen}
       >
@@ -812,6 +941,7 @@ export function RunnerClient(props: Props) {
           className="rounded-t-xl border-t bg-white dark:bg-card shadow-xl max-h-[75vh] overflow-hidden"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* Handle + Header */}
           <div className="pt-3">
             <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted" />
             <div className="px-4 pb-2 flex items-center justify-between">
@@ -820,40 +950,66 @@ export function RunnerClient(props: Props) {
             </div>
           </div>
 
-          <div className="px-4 pb-4 overflow-y-auto max-h-[calc(75vh-56px)]">
+          {/* Filter-Chips */}
+          <div className="px-4 pb-2 flex flex-wrap gap-2">
+            <Button size="sm" variant={filterMode === "all" ? "default" : "outline"} onClick={() => setFilterMode("all")}>
+              Alle ({counts.total})
+            </Button>
+            <Button size="sm" variant={filterMode === "open" ? "default" : "outline"} onClick={() => setFilterMode("open")}>
+              Offen ({counts.open})
+            </Button>
+            <Button size="sm" variant={filterMode === "flagged" ? "default" : "outline"} onClick={() => setFilterMode("flagged")}>
+              Markiert ({counts.flagged})
+            </Button>
+          </div>
+
+          {/* Inhalt */}
+          <div className="px-4 pb-4 overflow-y-auto max-h-[calc(75vh-88px)]">
             <div className="space-y-4">
-              {groups.map((g, gi) => (
-                <div key={`${g.id ?? "single"}-sheet-${gi}`} className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {g.id ? g.label : "Einzelfragen"}
+              {groups.map((g, gi) => {
+                const visible = g.indices.filter(matchFilter)
+                if (visible.length === 0) return null
+                return (
+                  <div key={`${g.id ?? "single"}-sheet-${gi}`} className="space-y-2">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {g.id ? g.label : "Einzelfragen"}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {visible.map((i) => {
+                        const n = i + 1
+                        const answered = !!answers[questions[i].id]
+                        const isCurrent = i === idx
+                        const isFlagged = !!flagged[questions[i].id]
+                        return (
+                          <button
+                            key={`sheet-btn-${i}`}
+                            onClick={() => { setIdx(i); setNavOpen(false) }}
+                            className={[
+                              "relative h-9 w-9 rounded-full border text-sm font-medium grid place-items-center",
+                              answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
+                              isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
+                            ].join(" ")}
+                            title={
+                              (isFlagged ? "⭐ " : "") +
+                              (answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`)
+                            }
+                          >
+                            {n}
+                            {isFlagged && <span className="absolute -top-1 -right-1 text-[11px] leading-none">★</span>}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    {g.indices.map((i) => {
-                      const n = i + 1
-                      const answered = !!answers[questions[i].id]
-                      const isCurrent = i === idx
-                      return (
-                        <button
-                          key={`sheet-btn-${i}`}
-                          onClick={() => { setIdx(i); setNavOpen(false) }}
-                          className={[
-                            "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center",
-                            answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
-                            isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
-                          ].join(" ")}
-                          title={answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`}
-                        >
-                          {n}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
 
             <div className="mt-6 text-xs text-muted-foreground">
-              Tipp: <kbd className="px-1 py-0.5 rounded border">F</kbd> öffnen/schließen.
+              Tipp:&nbsp;
+              <kbd className="px-1 py-0.5 rounded border">M</kbd> markieren,&nbsp;
+              <kbd className="px-1 py-0.5 rounded border">U</kbd> nächste&nbsp;
+              {filterMode === "flagged" ? "markierte" : "offene"}.
             </div>
           </div>
         </aside>
