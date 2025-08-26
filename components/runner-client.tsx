@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
+import type React from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 
@@ -74,14 +75,13 @@ export function RunnerClient(props: Props) {
     const v = raw ? parseInt(raw, 10) : 0
     return Number.isFinite(v) ? Math.max(0, v) : 0
   })()
-
   const [elapsed, setElapsed] = useState<number>(Math.max(initialElapsedSec, lsElapsedAtMount))
   const [running, setRunning] = useState(true)
 
   // Heartbeat-Steuerung
   const lastSentRef = useRef<number>(0)
   const sendingRef = useRef<boolean>(false)
-  const HEARTBEAT_MS = 10_000 // etwas häufiger, um Verluste zu minimieren
+  const HEARTBEAT_MS = 10_000
 
   function persistElapsedToLS(value: number) {
     try {
@@ -117,26 +117,22 @@ export function RunnerClient(props: Props) {
     if (!running) return
     const t = setInterval(() => setElapsed(v => {
       const nv = v + 1
-      // Sofort in LS spiegeln, damit SPA-Navigation nichts verliert
       persistElapsedToLS(nv)
       return nv
     }), 1000)
     return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running])
 
   // periodischer Heartbeat
   useEffect(() => {
     const t = setInterval(() => { if (running) sendHeartbeat() }, HEARTBEAT_MS)
     return () => clearInterval(t)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running, attemptId])
 
   // Sichtbarkeit / (Page)Unload
   useEffect(() => {
     function onVis() {
       if (document.hidden) {
-        // Beim Verstecken speichern + Heartbeat
         persistElapsedToLS(elapsed)
         sendHeartbeat(elapsed)
       }
@@ -158,7 +154,6 @@ export function RunnerClient(props: Props) {
         }
       } catch {}
     }
-    // „pagehide“ ist auf Mobilgeräten zuverlässiger
     function onPageHide() {
       persistElapsedToLS(elapsed)
       const val = Math.max(0, Math.floor(elapsed))
@@ -172,20 +167,17 @@ export function RunnerClient(props: Props) {
     window.addEventListener("beforeunload", onBeforeUnload)
     window.addEventListener("pagehide", onPageHide)
 
-    // WICHTIG: Heartbeat auch beim Unmount (SPA-Navigation)
     return () => {
       document.removeEventListener("visibilitychange", onVis)
-      window.removeEventListener("beforeunload", onBeforeUnload)
+      window.removeEventListener("beforeunload", onBeforeUnload as any)
       window.removeEventListener("pagehide", onPageHide)
       persistElapsedToLS(elapsed)
-      // Unmount-Heartbeat (best effort)
       try {
         const val = Math.max(0, Math.floor(elapsed))
         const data = new Blob([JSON.stringify({ elapsedSec: val })], { type: "application/json" })
         navigator.sendBeacon?.(`/api/attempts/${attemptId}/heartbeat`, data)
       } catch {}
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [elapsed, attemptId])
 
   // Prüfungsmodus (true = „kein Direktfeedback“)
@@ -200,6 +192,16 @@ export function RunnerClient(props: Props) {
   const [lightboxOpen, setLightboxOpen] = useState(false)
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const overlayRef = useRef<HTMLDivElement | null>(null)
+  const mediaNav = {
+    next: () => setLightboxIndex(i => (i + 1) % Math.max(1, media.length)),
+    prev: () => setLightboxIndex(i => (i - 1 + Math.max(1, media.length)) % Math.max(1, media.length)),
+    close: () => {
+      setLightboxOpen(false)
+      if (typeof document !== "undefined" && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {})
+      }
+    },
+  }
 
   // Laborwerte
   const [labOpen, setLabOpen] = useState(false)
@@ -211,10 +213,12 @@ export function RunnerClient(props: Props) {
   // Kommentare & Erklärungen
   const [tipOpen, setTipOpen] = useState(false)
   const [qExpOpen, setQExpOpen] = useState(false)
-  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({}) // pro Option
+  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
 
-  // Seitenleiste
+  // Seitenleiste (Mobile Bottom-Sheet)
   const [navOpen, setNavOpen] = useState(false)
+  const [sheetDragY, setSheetDragY] = useState(0)
+  const sheetStartYRef = useRef<number | null>(null)
 
   // Aktuelle Frage
   const q = questions[idx]
@@ -245,6 +249,59 @@ export function RunnerClient(props: Props) {
     })
   }, [questions])
 
+  // Gefilterte Laborwerte (Suchfeld)
+  const filteredLabs = useMemo(() => {
+    const t = labQuery.trim().toLowerCase()
+    if (!t) return labValues
+    return labValues.filter(lv =>
+      [lv.name, lv.unit, lv.refRange, lv.category]
+        .filter(Boolean)
+        .some(s => String(s).toLowerCase().includes(t))
+    )
+  }, [labValues, labQuery])
+
+  // Laborwerte lazy laden
+  useEffect(() => {
+    if (!labOpen || labLoading || labValues.length > 0) return
+    ;(async () => {
+      setLabLoading(true); setLabError(null)
+      try {
+        const res = await fetch("/api/labs")
+        const raw = await res.json().catch(() => null)
+
+        let arr: any[] = []
+        if (Array.isArray(raw)) {
+          arr = raw
+        } else if (raw && typeof raw === "object") {
+          arr =
+            raw.items ??
+            raw.labs ??
+            raw.labValues ??
+            raw.data ??
+            raw.results ??
+            raw.values ??
+            raw.records ??
+            []
+          if (!Array.isArray(arr)) arr = Object.values(raw)
+        }
+
+        const norm: LabValue[] = (arr || []).map((x: any, i: number) => ({
+          id: String(x.id ?? x.key ?? `${x.name ?? x.test ?? x.title ?? "?"}-${x.unit ?? ""}-${i}`),
+          name: String(x.name ?? x.test ?? x.title ?? ""),
+          unit: String(x.unit ?? x.units ?? ""),
+          refRange: String(x.refRange ?? x.ref_range ?? x.reference ?? x.range ?? ""),
+          category: String(x.category ?? x.group ?? x.panel ?? ""),
+        })).filter(v => v.name)
+
+        setLabValues(norm)
+      } catch {
+        setLabError("Laborwerte konnten nicht geladen werden.")
+      } finally {
+        setLabLoading(false)
+      }
+    })()
+  }, [labOpen, labLoading, labValues.length])
+
   // Aufklapper zurücksetzen bei Fragenwechsel
   useEffect(() => { setTipOpen(false); setQExpOpen(false); setOptOpen({}) }, [idx])
 
@@ -252,6 +309,7 @@ export function RunnerClient(props: Props) {
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_IDX, String(idx)) }, [idx])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_MODE, examMode ? "1" : "0") }, [examMode])
 
+  // Antwort wählen / speichern
   async function choose(optionId: string) {
     setSubmitting(true)
     try {
@@ -270,11 +328,11 @@ export function RunnerClient(props: Props) {
     }
   }
 
+  // Prüfung beenden
   async function finish() {
     if (!confirm("Prüfung wirklich beenden und auswerten?")) return
     setSubmitting(true)
     try {
-      // Vor dem Finish: letzten Stand sichern
       persistElapsedToLS(elapsed)
       await sendHeartbeat(elapsed)
       const res = await fetch(`/api/attempts/${attemptId}/finish`, {
@@ -285,7 +343,6 @@ export function RunnerClient(props: Props) {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Konnte nicht auswerten.")
-      // Aufräumen lokaler Keys nach erfolgreichem Abschluss
       try {
         window.localStorage.removeItem(LS_IDX)
         window.localStorage.removeItem(LS_MODE)
@@ -299,323 +356,309 @@ export function RunnerClient(props: Props) {
     }
   }
 
+  // Fortschritt
   const progress = useMemo(() => {
     const answered = Object.values(answers).filter(Boolean).length
     return `${answered}/${questions.length}`
   }, [answers, questions.length])
 
-  // Shortcuts
-  function openLightbox(i: number) { setLightboxIndex(i); setLightboxOpen(true) }
-  function closeLightbox() {
-    setLightboxOpen(false)
-    if (typeof document !== "undefined" && document.fullscreenElement) {
-      document.exitFullscreen().catch(() => {})
-    }
-  }
-  function nextImage() { if (media.length) setLightboxIndex(i => (i + 1) % media.length) }
-  function prevImage() { if (media.length) setLightboxIndex(i => (i - 1 + media.length) % media.length) }
-
+  // ---------- Globaler Keyboard-Handler ----------
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (lightboxOpen) {
-        if (e.key === "Escape") closeLightbox()
-        if (e.key === "ArrowRight") nextImage()
-        if (e.key === "ArrowLeft") prevImage()
-        return
+      const key = e.key
+      const k = key.toLowerCase()
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName
+      const isTyping =
+        !!target &&
+        (target.isContentEditable ||
+          tag === "INPUT" ||
+          tag === "TEXTAREA" ||
+          tag === "SELECT")
+
+      // Esc schließt Overlays immer
+      if (k === "escape") {
+        if (lightboxOpen) { e.preventDefault(); mediaNav.close(); return }
+        if (labOpen)      { e.preventDefault(); setLabOpen(false); return }
+        if (navOpen)      { e.preventDefault(); setNavOpen(false); return }
       }
-      if (e.key.toLowerCase() === "l") { e.preventDefault(); setLabOpen(true) }
-      if (labOpen && e.key === "Escape") setLabOpen(false)
-      if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r) }
-      if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v) }
+
+      // Lightbox Navigation nur wenn offen
+      if (!isTyping && lightboxOpen) {
+        if (key === "ArrowRight") { e.preventDefault(); mediaNav.next(); return }
+        if (key === "ArrowLeft")  { e.preventDefault(); mediaNav.prev(); return }
+      }
+
+      // Andere Shortcuts nicht während Tippen
+      if (isTyping) return
+
+      if (k === "f") { e.preventDefault(); setNavOpen(v => !v) }
+      if (k === "l") { e.preventDefault(); setLabOpen(true) }
+      if (k === "p") { e.preventDefault(); setRunning(r => !r) }
     }
+
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [lightboxOpen, labOpen])
+  }, [lightboxOpen, labOpen, navOpen])
 
-  useEffect(() => {
-    if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
-  }, [lightboxOpen])
-
-  // Laborwerte lazy laden
-  useEffect(() => {
-    if (!labOpen || labValues.length > 0 || labLoading) return
-    ;(async () => {
-      setLabLoading(true); setLabError(null)
-      try {
-        const res = await fetch("/api/labs")
-        const raw = await res.json().catch(() => null)
-        const arr = (Array.isArray(raw) ? raw : (raw?.items || raw?.labs || raw?.data || [])) as any[]
-        const norm: LabValue[] = (arr || []).map((x) => ({
-          id: String(x.id ?? `${x.name}-${x.unit}`),
-          name: String(x.name ?? ""),
-          unit: String(x.unit ?? ""),
-          refRange: String(x.refRange ?? x.ref_range ?? ""),
-          category: String(x.category ?? ""),
-        }))
-        setLabValues(norm)
-      } catch {
-        setLabError("Laborwerte konnten nicht geladen werden.")
-      } finally {
-        setLabLoading(false)
-      }
-    })()
-  }, [labOpen, labValues.length, labLoading])
-
-  const filteredLabs = useMemo(() => {
-    const t = labQuery.trim().toLowerCase()
-    if (!t) return labValues
-    return labValues.filter(lv =>
-      [lv.name, lv.unit, lv.refRange, lv.category].filter(Boolean).some(s => s.toLowerCase().includes(t))
-    )
-  }, [labValues, labQuery])
+  // ---------- Swipe-Gesten (mobile) ----------
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
+  function onTouchStart(e: React.TouchEvent) {
+    const t = e.touches[0]
+    touchStart.current = { x: t.clientX, y: t.clientY }
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    if (!touchStart.current) return
+    const t0 = touchStart.current
+    const t = e.changedTouches[0]
+    const dx = t.clientX - t0.x
+    const dy = t.clientY - t0.y
+    const absX = Math.abs(dx)
+    const absY = Math.abs(dy)
+    if (absX > 60 && absY < 40) {
+      if (dx < 0) setIdx(i => Math.min(questions.length - 1, i + 1))
+      else setIdx(i => Math.max(0, i - 1))
+    }
+    touchStart.current = null
+  }
 
   // -------- UI --------
   return (
-    <div className="relative">
-      {/* Kopfzeile */}
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)">
-            Fragenübersicht
-          </Button>
-          <span>Frage {idx + 1} / {questions.length} ({progress})</span>
+    <div className="relative lg:flex lg:items-start lg:gap-6">
+      {/* ---------- Desktop: Sticky Left-Rail (lg+) ---------- */}
+      <aside className="hidden lg:block sticky top-4 self-start lg:w-64 lg:flex-shrink-0 rounded border p-3 max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div className="mb-2 text-sm font-semibold">Fragen</div>
+        <div className="space-y-4">
+          {groups.map((g, gi) => (
+            <div key={`${g.id ?? "single"}-rail-${gi}`} className="space-y-2">
+              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                {g.id ? g.label : "Einzelfragen"}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {g.indices.map((i) => {
+                  const n = i + 1
+                  const answered = !!answers[questions[i].id]
+                  const isCurrent = i === idx
+                  return (
+                    <button
+                      key={`rail-btn-${i}`}
+                      onClick={() => setIdx(i)}
+                      className={[
+                        "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center transition",
+                        answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
+                        isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
+                      ].join(" ")}
+                      title={answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`}
+                    >
+                      {n}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={examMode}
-              onChange={(e) => setExamMode(e.target.checked)}
-            />
-            Prüfungsmodus
-          </label>
+        <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
+          <div>✓ Grün = beantwortet</div>
+          <div>• Ring = aktuell</div>
+        </div>
+      </aside>
 
-          <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
-            Laborwerte
-          </Button>
-
+      {/* ---------- Hauptbereich ---------- */}
+      <div className="relative lg:flex-1">
+        {/* Kopfzeile */}
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            <span>Zeit: {formatUp(elapsed)}</span>
+            {/* Mobile: Bottom-Sheet öffnen */}
             <Button
               variant="outline"
-              onClick={() => setRunning(r => !r)}
-              title="Timer pausieren/fortsetzen (P)"
+              onClick={() => setNavOpen(true)}
+              title="Fragenübersicht (F)"
+              className="lg:hidden"
             >
-              {running ? "Pause" : "Weiter"}
+              Fragen
+            </Button>
+            <span>Frage {idx + 1} / {questions.length} ({progress})</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={examMode}
+                onChange={(e) => setExamMode(e.target.checked)}
+              />
+              Prüfungsmodus
+            </label>
+
+            <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
+              Laborwerte
+            </Button>
+
+            <div className="flex items-center gap-2">
+              <span>Zeit: {formatUp(elapsed)}</span>
+              <Button
+                variant="outline"
+                onClick={() => setRunning(r => !r)}
+                title="Timer pausieren/fortsetzen (P)"
+              >
+                {running ? "Pause" : "Weiter"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Kartenbereich (mit Swipe-Gesten auf Mobile) */}
+        <div
+          className="card card-body space-y-4"
+          onTouchStart={onTouchStart}
+          onTouchEnd={onTouchEnd}
+        >
+          {/* Fallkopf (optional, aber bei Fragen mit Fall immer) */}
+          {(q.caseTitle || q.caseVignette) && (
+            <div className="rounded border bg-secondary/40 p-4 space-y-1">
+              <div className="font-semibold">{q.caseTitle || "Fall"}</div>
+              {q.caseVignette && (
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {q.caseVignette}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Frage */}
+          <p className="font-medium">{q.stem}</p>
+
+          {/* Oberarztkommentar */}
+          {hasTip && (
+            <div className="rounded border bg-secondary/40">
+              <button
+                type="button"
+                onClick={() => setTipOpen(o => !o)}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+                aria-expanded={tipOpen}
+                aria-controls="tip-content"
+              >
+                <span>Oberarztkommentar</span>
+                <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                </svg>
+              </button>
+              {tipOpen && (
+                <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                  {q.tip}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Medien */}
+          {media.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {media.map((m, i) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
+                  className="group relative rounded border overflow-hidden focus:outline-none focus:ring focus:ring-blue-500 cursor-zoom-in"
+                  title={m.alt || "Bild vergrößern"}
+                  aria-label="Bild vergrößern"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={m.url}
+                    alt={m.alt || ""}
+                    className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
+                    loading="lazy"
+                  />
+                  <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Optionen */}
+          <div className="space-y-2">
+            {q.options.map(o => {
+              const isSelected = given === o.id
+              const canExplain = showFeedback && !!given
+              const open = !!optOpen[o.id]
+              return (
+                <div key={o.id} className="rounded border">
+                  <button
+                    onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
+                    disabled={submitting}
+                    className={[
+                      "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
+                      isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
+                      "bg-transparent"
+                    ].join(" ")}
+                    aria-expanded={canExplain ? open : undefined}
+                    title={isSelected ? (o.isCorrect ? "Deine Antwort: richtig" : "Deine Antwort: falsch") : "Antwort auswählen"}
+                  >
+                    <span>
+                      {o.text}
+                      {showFeedback && isSelected && (
+                        <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
+                          {o.isCorrect ? "✓ richtig" : "✗ falsch"}
+                        </span>
+                      )}
+                    </span>
+                    {canExplain && (
+                      <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                      </svg>
+                    )}
+                  </button>
+                  {canExplain && open && o.explanation && (
+                    <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                      {o.explanation}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Frage-Gesamterklärung */}
+          {hasQExplanation && showFeedback && !!given && (
+            <div className="rounded border bg-secondary/40">
+              <button
+                type="button"
+                onClick={() => setQExpOpen(v => !v)}
+                className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+                aria-expanded={qExpOpen}
+              >
+                <span>Erklärung</span>
+                <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                </svg>
+              </button>
+              {qExpOpen && (
+                <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                  {q.explanation}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation unten */}
+        <div className="mt-4 flex items-center justify-between">
+          <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
+            Zurück
+          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}>
+              Weiter
+            </Button>
+            <Button variant="destructive" onClick={finish} disabled={submitting}>
+              Beenden & Auswerten
             </Button>
           </div>
         </div>
       </div>
-
-      {/* Kartenbereich */}
-      <div className="card card-body space-y-4">
-        {/* Fallkopf (immer bei Fragen mit Fall anzeigen) */}
-        {(q.caseTitle || q.caseVignette) && (
-          <div className="rounded border bg-secondary/40 p-4 space-y-1">
-            <div className="font-semibold">{q.caseTitle || "Fall"}</div>
-            {q.caseVignette && (
-              <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                {q.caseVignette}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Frage */}
-        <p className="font-medium">{q.stem}</p>
-
-        {/* Oberarztkommentar */}
-        {hasTip && (
-          <div className="rounded border bg-secondary/40">
-            <button
-              type="button"
-              onClick={() => setTipOpen(o => !o)}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-              aria-expanded={tipOpen}
-              aria-controls="tip-content"
-            >
-              <span>Oberarztkommentar</span>
-              <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-              </svg>
-            </button>
-            {tipOpen && (
-              <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                {q.tip}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Medien */}
-        {media.length > 0 && (
-          <div className="flex flex-wrap gap-3">
-            {media.map((m, i) => (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => openLightbox(i)}
-                className="group relative rounded border overflow-hidden focus:outline-none focus:ring focus:ring-blue-500 cursor-zoom-in"
-                title={m.alt || "Bild vergrößern"}
-                aria-label="Bild vergrößern"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={m.url}
-                  alt={m.alt || ""}
-                  className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
-                  loading="lazy"
-                />
-                <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                <svg
-                  className="pointer-events-none absolute right-2 top-2 h-5 w-5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-white drop-shadow"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
-                  <path d="M15.5 14h-.79l-.28-.27a6.471 6.471 0 0 0 1.57-4.23A6.5 6.5 0 1 0 9.5 16a6.471 6.471 0 0 0 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" />
-                </svg>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Optionen (aufklappbare Erklärungen, wenn Prüfungsmodus aus & eine Antwort gewählt) */}
-        <div className="space-y-2">
-          {q.options.map(o => {
-            const isSelected = given === o.id
-            const canExplain = showFeedback && !!given
-            const open = !!optOpen[o.id]
-            return (
-              <div key={o.id} className="rounded border">
-                <button
-                  onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
-                  disabled={submitting}
-                  className={[
-                    "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
-                    isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
-                    "bg-transparent"
-                  ].join(" ")}
-                  aria-expanded={canExplain ? open : undefined}
-                >
-                  <span>
-                    {o.text}
-                    {showFeedback && isSelected && (
-                      <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
-                        {o.isCorrect ? "✓ richtig" : "✗ falsch"}
-                      </span>
-                    )}
-                  </span>
-                  {canExplain && (
-                    <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                    </svg>
-                  )}
-                </button>
-                {canExplain && open && o.explanation && (
-                  <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {o.explanation}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-
-        {/* Frage-Gesamterklärung (aufklappbar, nur wenn Prüfungsmodus aus & Antwort gegeben) */}
-        {hasQExplanation && showFeedback && !!given && (
-          <div className="rounded border bg-secondary/40">
-            <button
-              type="button"
-              onClick={() => setQExpOpen(v => !v)}
-              className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-              aria-expanded={qExpOpen}
-            >
-              <span>Erklärung</span>
-              <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-              </svg>
-            </button>
-            {qExpOpen && (
-              <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                {q.explanation}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* Navigation unten */}
-      <div className="mt-4 flex items-center justify-between">
-        <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
-          Zurück
-        </Button>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}>
-            Weiter
-          </Button>
-          <Button variant="destructive" onClick={finish} disabled={submitting}>
-            Beenden & Auswerten
-          </Button>
-        </div>
-      </div>
-
-      {/* ------- Seitenleiste (Fragenübersicht) ------- */}
-      {navOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Fragenübersicht"
-          className="fixed inset-0 z-50 bg-black/40"
-          onClick={() => setNavOpen(false)}
-        >
-          <aside
-            className="absolute left-0 top-0 h-full w-[320px] bg-white dark:bg-card border-r shadow-xl p-4 overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <div className="font-semibold">Fragenübersicht</div>
-              <Button variant="outline" onClick={() => setNavOpen(false)}>Schließen</Button>
-            </div>
-
-            <div className="space-y-4">
-              {groups.map((g, gi) => (
-                <div key={`${g.id ?? "single"}-${gi}`} className="space-y-2">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {g.id ? g.label : "Einzelfragen"}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {g.indices.map((i) => {
-                      const n = i + 1
-                      const answered = !!answers[questions[i].id]
-                      const isCurrent = i === idx
-                      return (
-                        <button
-                          key={i}
-                          onClick={() => { setIdx(i); setNavOpen(false) }}
-                          className={[
-                            "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center",
-                            answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
-                            isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
-                          ].join(" ")}
-                          title={answered ? `Frage ${n} (beantwortet)` : `Frage ${n} (offen)`}
-                        >
-                          {n}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 text-xs text-muted-foreground">
-              Tipp: <kbd className="px-1 py-0.5 rounded border">F</kbd> öffnen/schließen.
-            </div>
-          </aside>
-        </div>
-      )}
 
       {/* ------- Lightbox ------- */}
       {lightboxOpen && media.length > 0 && (
@@ -625,11 +668,11 @@ export function RunnerClient(props: Props) {
           aria-modal="true"
           aria-label="Bildanzeige"
           className="fixed inset-0 z-50 bg-black/80 grid place-items-center p-4"
-          onClick={closeLightbox}
+          onClick={mediaNav.close}
         >
           <div className="relative max-w-[95vw] max-h-[95vh]" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={closeLightbox}
+              onClick={mediaNav.close}
               className="absolute -top-2 -right-2 h-10 w-10 rounded-full bg-white/90 text-black text-xl leading-none grid place-items-center shadow"
               aria-label="Schließen"
             >
@@ -639,14 +682,14 @@ export function RunnerClient(props: Props) {
             {media.length > 1 && (
               <>
                 <button
-                  onClick={prevImage}
+                  onClick={mediaNav.prev}
                   className="absolute left-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-r bg-white/80 text-black shadow"
                   aria-label="Vorheriges Bild"
                 >
                   ‹
                 </button>
                 <button
-                  onClick={nextImage}
+                  onClick={mediaNav.next}
                   className="absolute right-0 top-1/2 -translate-y-1/2 h-10 px-3 rounded-l bg-white/80 text-black shadow"
                   aria-label="Nächstes Bild"
                 >
@@ -689,7 +732,7 @@ export function RunnerClient(props: Props) {
                   onChange={(e) => setLabQuery(e.target.value)}
                   autoFocus
                 />
-                <Button variant="outline" onClick={() => setLabOpen(false)}>Schließen</Button>
+                <Button variant="outline" onClick={() => setLabOpen(false)}>Schließen (Esc)</Button>
               </div>
             </div>
 
@@ -731,12 +774,90 @@ export function RunnerClient(props: Props) {
                 </div>
               )}
               <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen, <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter, <kbd className="px-1 py-0.5 rounded border">F</kbd> Fragenübersicht.
+                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen (außer im Suchfeld), <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen, <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* ------- Mobile Bottom-Sheet (Fragenübersicht) ------- */}
+      {navOpen && <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setNavOpen(false)} />}
+
+      <div
+        className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden transform transition-transform ${navOpen ? "translate-y-0" : "translate-y-full"}`}
+        style={{ transform: `translateY(${navOpen ? sheetDragY : 0}px)` }}
+        onTouchStart={(e) => {
+          if (!navOpen) return
+          setSheetDragY(0)
+          sheetStartYRef.current = e.touches[0]?.clientY ?? null
+          ;(e.target as HTMLElement).closest("[data-sheet]") && e.stopPropagation()
+        }}
+        onTouchMove={(e) => {
+          if (!navOpen || sheetStartYRef.current == null) return
+          const y = e.touches[0]?.clientY ?? sheetStartYRef.current
+          const dy = Math.max(0, y - sheetStartYRef.current)
+          setSheetDragY(dy)
+        }}
+        onTouchEnd={() => {
+          if (!navOpen) return
+          if (sheetDragY > 100) { setNavOpen(false) }
+          setSheetDragY(0)
+          sheetStartYRef.current = null
+        }}
+        aria-hidden={!navOpen}
+      >
+        <aside
+          data-sheet
+          className="rounded-t-xl border-t bg-white dark:bg-card shadow-xl max-h-[75vh] overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="pt-3">
+            <div className="mx-auto mb-2 h-1.5 w-10 rounded-full bg-muted" />
+            <div className="px-4 pb-2 flex items-center justify-between">
+              <div className="font-semibold">Fragenübersicht</div>
+              <Button variant="outline" size="sm" onClick={() => setNavOpen(false)}>Schließen</Button>
+            </div>
+          </div>
+
+          <div className="px-4 pb-4 overflow-y-auto max-h-[calc(75vh-56px)]">
+            <div className="space-y-4">
+              {groups.map((g, gi) => (
+                <div key={`${g.id ?? "single"}-sheet-${gi}`} className="space-y-2">
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {g.id ? g.label : "Einzelfragen"}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {g.indices.map((i) => {
+                      const n = i + 1
+                      const answered = !!answers[questions[i].id]
+                      const isCurrent = i === idx
+                      return (
+                        <button
+                          key={`sheet-btn-${i}`}
+                          onClick={() => { setIdx(i); setNavOpen(false) }}
+                          className={[
+                            "h-9 w-9 rounded-full border text-sm font-medium grid place-items-center",
+                            answered ? "bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:text-green-300" : "bg-muted/40",
+                            isCurrent ? "ring-2 ring-blue-500" : "hover:shadow-sm",
+                          ].join(" ")}
+                          title={answered ? `Frage ${n} – beantwortet` : `Frage ${n} – offen`}
+                        >
+                          {n}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 text-xs text-muted-foreground">
+              Tipp: <kbd className="px-1 py-0.5 rounded border">F</kbd> öffnen/schließen.
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
   )
 }
