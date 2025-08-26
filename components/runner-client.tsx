@@ -563,7 +563,7 @@ export function RunnerClient(props: Props) {
       </aside>
 
       {/* ---------- Hauptbereich ---------- */}
-      <div className="relative min-w-0">
+      <div className="relative lg:flex-1 lg:min-w-0">
         {/* Kopfzeile */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
