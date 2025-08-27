@@ -1,4 +1,3 @@
-// app/exams/[slug]/page.tsx
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/db";
@@ -20,7 +19,7 @@ function formatPrice(cents: number) {
 }
 
 export default async function ExamPage({ params }: PageProps) {
-  const { slug } = await params; // ⬅️ fix
+  const { slug } = await params; // ⬅️ korrekt für Next 15
 
   const session = await getServerSession(authOptions);
 
@@ -109,7 +108,17 @@ export default async function ExamPage({ params }: PageProps) {
         ) : (
           <div className="space-y-2">
             {/* ⬇️ Start braucht die examId */}
-            <StartExamButton examId={exam.id} />
+            <div className="flex flex-wrap gap-2">
+              <StartExamButton examId={exam.id} />
+              {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Kauf */}
+              <Link
+                href={`/practice/${exam.id}`}
+                className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
+              >
+                Üben
+              </Link>
+            </div>
+
             <p className="text-sm text-muted-foreground">
               Deine Versuche findest du unter{" "}
               <Link href="/dashboard/history" className="underline">

@@ -17,6 +17,8 @@ function formatDuration(ms: number) {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
 }
 
+export const dynamic = "force-dynamic"
+
 export default async function HistoryDetailPage({ params }: Props) {
   const { attemptId } = await params
 
@@ -55,7 +57,7 @@ export default async function HistoryDetailPage({ params }: Props) {
   const percent =
     attempt.scorePercent ?? (total > 0 ? Math.round((correctCount / total) * 100) : 0)
 
-  // Dauer: bevorzugt persisted elapsedSec, sonst (finishedAt - startedAt)
+  // Dauer: bevorzugt persisted elapsedSec (Sekunden), sonst (finishedAt - startedAt)
   const durationMs =
     typeof (attempt as any).elapsedSec === "number"
       ? Math.max(0, ((attempt as any).elapsedSec as number) * 1000)
@@ -65,9 +67,15 @@ export default async function HistoryDetailPage({ params }: Props) {
 
   return (
     <main className="container mx-auto max-w-3xl py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Ergebnis: {attempt.exam.title}</h1>
-        <Link href="/dashboard/history" className="btn btn-outline">Zurück</Link>
+        <div className="flex items-center gap-2">
+          {/* ✅ Neu: direkter Practice-Einstieg aus dem Ergebnis */}
+          <Link href={`/practice/${attempt.exam.id}`} className="btn btn-outline">
+            Diese Prüfung üben
+          </Link>
+          <Link href="/dashboard/history" className="btn btn-outline">Zurück</Link>
+        </div>
       </div>
 
       <div className="rounded border p-4 text-sm">

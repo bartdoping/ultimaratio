@@ -1,3 +1,4 @@
+// app/exam-run/[attemptId]/page.tsx
 import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -14,20 +15,25 @@ export default async function ExamRunPage({ params }: Props) {
   // Session & User
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) redirect("/login")
+
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
     select: { id: true },
   })
   if (!me) redirect("/login")
 
-  // Attempt laden (Ownership prüfen) + bisherige Zeit
+  // Attempt (Ownership) + bisherige Zeit
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    select: { id: true, userId: true, examId: true, elapsedSec: true },
+    select: { id: true, userId: true, examId: true, elapsedSec: true, finishedAt: true },
   })
   if (!attempt || attempt.userId !== me.id) notFound()
+  if (attempt.finishedAt) {
+    // Bereits beendet → Ergebnis anzeigen
+    redirect(`/dashboard/history/${attempt.id}`)
+  }
 
-  // Exam + Fragen + Optionen + MEDIA + CASE laden
+  // Exam + Fragen + Optionen + MEDIA + CASE
   const exam = await prisma.exam.findUnique({
     where: { id: attempt.examId },
     select: {
@@ -40,16 +46,12 @@ export default async function ExamRunPage({ params }: Props) {
           id: true,
           stem: true,
           tip: true,
-          // @ts-ignore (Altbestand)
           explanation: true,
           options: {
             orderBy: { id: "asc" },
             select: { id: true, text: true, isCorrect: true, explanation: true },
           },
-          media: {
-            orderBy: { order: "asc" },
-            include: { media: true },
-          },
+          media: { orderBy: { order: "asc" }, include: { media: true } },
           case: { select: { id: true, title: true, vignette: true, order: true } },
         },
       },
@@ -57,26 +59,26 @@ export default async function ExamRunPage({ params }: Props) {
   })
   if (!exam) notFound()
 
-  // gegebene Antworten laden
+  // Gegebene Antworten
   const given = await prisma.attemptAnswer.findMany({
     where: { attemptId: attempt.id },
     select: { questionId: true, answerOptionId: true },
   })
   const initialAnswers = Object.fromEntries(
-    given.map(g => [g.questionId, g.answerOptionId] as const)
+    given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
 
   // Client-Shape
   const questions = exam.questions.map((q) => ({
     id: q.id,
     stem: q.stem,
-    tip: (q as any).tip ?? (q as any).explanation ?? null,
-    explanation: (q as any).explanation ?? null,
+    tip: q.tip ?? null,
+    explanation: q.explanation ?? null,
     options: q.options.map((o) => ({
       id: o.id,
       text: o.text,
       isCorrect: o.isCorrect,
-      explanation: (o as any).explanation ?? null,
+      explanation: o.explanation ?? null,
     })),
     media:
       q.media?.map((m) => ({
@@ -100,7 +102,7 @@ export default async function ExamRunPage({ params }: Props) {
         allowImmediateFeedback={exam.allowImmediateFeedback}
         questions={questions}
         initialAnswers={initialAnswers}
-        initialElapsedSec={attempt.elapsedSec ?? 0} // ← wichtig fürs Fortsetzen
+        initialElapsedSec={attempt.elapsedSec ?? 0}  // Fortsetzen ohne Zeitverlust
       />
     </div>
   )

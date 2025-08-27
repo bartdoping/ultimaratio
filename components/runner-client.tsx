@@ -27,6 +27,8 @@ type LabValue = {
   category: string
 }
 
+type FilterMode = "all" | "open" | "flagged" | "wrong"
+
 type Props = {
   attemptId: string
   examId: string
@@ -36,6 +38,12 @@ type Props = {
   initialAnswers: Record<string, string | undefined>
   /** vom Server übergebene, bisher akkumulierte Sekunden */
   initialElapsedSec?: number
+  /** "exam" = Prüfungssimulation, "practice" = Üben */
+  mode?: "exam" | "practice"
+  /** Startfilter beim Mount (z. B. "wrong") */
+  initialFilterMode?: FilterMode
+  /** Neuer Prop: Startzustand des Prüfungsmodus (true = Sofort-Feedback AUS) */
+  initialExamMode?: boolean
 }
 
 // Zeitformat: mm:ss / hh:mm:ss
@@ -48,10 +56,17 @@ function formatUp(totalSeconds: number) {
     : `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
 }
 
-type FilterMode = "all" | "open" | "flagged"
-
 export function RunnerClient(props: Props) {
-  const { attemptId, allowImmediateFeedback, questions, initialAnswers, initialElapsedSec = 0 } = props
+  const {
+    attemptId,
+    allowImmediateFeedback,
+    questions,
+    initialAnswers,
+    initialElapsedSec = 0,
+    mode = "exam",
+    initialFilterMode,
+    initialExamMode,
+  } = props
   const router = useRouter()
 
   // Lokale Persistenz Keys
@@ -189,10 +204,13 @@ export function RunnerClient(props: Props) {
   }, [elapsed, attemptId])
 
   // Prüfungsmodus (true = „kein Direktfeedback“)
+  // Init-Priorität: localStorage → initialExamMode-Prop → Modus-Default (Practice & Exam standardmäßig true)
   const [examMode, setExamMode] = useState<boolean>(() => {
-    if (typeof window === "undefined") return true
-    const raw = window.localStorage.getItem(LS_MODE)
-    return raw == null ? true : raw === "1"
+    const fromLs = typeof window !== "undefined" ? window.localStorage.getItem(LS_MODE) : null
+    if (fromLs != null) return fromLs === "1"
+    if (typeof initialExamMode === "boolean") return initialExamMode
+    // Default: Start im Prüfungsmodus (Sofort-Feedback AUS), auch im Practice-Modus um Leaks zu vermeiden
+    return true
   })
   const showFeedback = allowImmediateFeedback && !examMode
 
@@ -228,10 +246,13 @@ export function RunnerClient(props: Props) {
       return raw ? (JSON.parse(raw) as Record<string, boolean>) : {}
     } catch { return {} }
   })
+
+  // Filter-Init: aus LS > Prop > "all"
   const [filterMode, setFilterMode] = useState<FilterMode>(() => {
-    if (typeof window === "undefined") return "all"
+    if (typeof window === "undefined") return initialFilterMode ?? "all"
     const raw = window.localStorage.getItem(LS_FILTER)
-    return raw === "open" || raw === "flagged" ? raw : "all"
+    if (raw === "all" || raw === "open" || raw === "flagged" || raw === "wrong") return raw
+    return initialFilterMode ?? "all"
   })
 
   // Seitenleiste (Mobile Bottom-Sheet)
@@ -277,11 +298,22 @@ export function RunnerClient(props: Props) {
     () => questions.map((_, i) => i).filter(i => !!flagged[questions[i].id]),
     [flagged, questions]
   )
+  // "wrong" = in der aktuellen Session falsch beantwortet
+  const wrongIndices = useMemo(() => {
+    return questions.map((q, i) => {
+      const aid = answers[q.id]
+      if (!aid) return -1
+      const opt = q.options.find(o => o.id === aid)
+      return opt && !opt.isCorrect ? i : -1
+    }).filter(i => i >= 0)
+  }, [answers, questions])
+
   const counts = useMemo(() => ({
     total: questions.length,
     open: openIndices.length,
     flagged: flaggedIndices.length,
-  }), [questions.length, openIndices.length, flaggedIndices.length])
+    wrong: wrongIndices.length,
+  }), [questions.length, openIndices.length, flaggedIndices.length, wrongIndices.length])
 
   // Filter-Persistenz
   useEffect(() => {
@@ -302,11 +334,25 @@ export function RunnerClient(props: Props) {
   function matchFilter(i: number) {
     if (filterMode === "open") return !answers[questions[i].id]
     if (filterMode === "flagged") return !!flagged[questions[i].id]
+    if (filterMode === "wrong") {
+      const aid = answers[questions[i].id]
+      if (!aid) return false
+      const opt = questions[i].options.find(o => o.id === aid)
+      return !!opt && !opt.isCorrect
+    }
     return true
   }
 
+  function currentTargetList(): number[] {
+    if (filterMode === "flagged") return flaggedIndices
+    if (filterMode === "wrong") return wrongIndices
+    if (filterMode === "open") return openIndices
+    // Fallback: bei "all" macht "Nächste ..." am meisten Sinn für "open"
+    return openIndices
+  }
+
   function nextTargetIndex(): number {
-    const list = filterMode === "flagged" ? flaggedIndices : openIndices
+    const list = currentTargetList()
     if (list.length === 0) return -1
     const after = list.find(x => x > idx)
     return typeof after === "number" ? after : list[0]
@@ -400,7 +446,7 @@ export function RunnerClient(props: Props) {
       }
       if (labOpen) {
         if (e.key === "Escape") setLabOpen(false)
-        // Beim Tippen in der Suche: keine weiteren Shortcuts
+        // Suche hat Focus → keine weiteren Shortcuts
         return
       }
 
@@ -408,7 +454,6 @@ export function RunnerClient(props: Props) {
       if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r); return }
       if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v); return }
       if (e.key.toLowerCase() === "l") {
-        // Nicht öffnen, wenn der Nutzer in einem Eingabefeld ist (Konflikt mit "L" tippen)
         if (!isTyping()) { e.preventDefault(); setLabOpen(true) }
         return
       }
@@ -417,7 +462,7 @@ export function RunnerClient(props: Props) {
 
       // Markieren (M)
       if (e.key.toLowerCase() === "m") { e.preventDefault(); toggleFlagCurrent(); return }
-      // Nächste offene/markierte (U)
+      // Nächste offene/markierte/falsche (U)
       if (e.key.toLowerCase() === "u") { e.preventDefault(); goNextTarget(); return }
       // Enter → Weiter
       if (e.key === "Enter") {
@@ -470,7 +515,7 @@ export function RunnerClient(props: Props) {
     })()
   }, [labOpen, labValues.length, labLoading])
 
-  // ---------- Swipe-Gesten (mobile) für Prev/Next ----------
+  // ---------- Swipe-Gesten (mobile) ----------
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   function onTouchStart(e: any) {
     const t = e.touches[0]
@@ -492,8 +537,17 @@ export function RunnerClient(props: Props) {
   }
 
   // -------- UI --------
-  const primaryJumpLabel = filterMode === "flagged" ? "Nächste markierte" : "Nächste offene"
-  const hasPrimaryJump = (filterMode === "flagged" ? flaggedIndices.length : openIndices.length) > 0
+  const primaryJumpLabel =
+    filterMode === "flagged" ? "Nächste markierte"
+    : filterMode === "wrong" ? "Nächste falsche"
+    : "Nächste offene"
+
+  const hasPrimaryJump = currentTargetList().length > 0
+
+  // „Falsch“-Chip nur zeigen, wenn keine Lösung geleakt wird:
+  // - im Practice-Modus (ok) ODER
+  // - wenn Sofort-Feedback aktiv ist (ok)
+  const canShowWrongChip = mode === "practice" || showFeedback
 
   return (
     <div className="relative block lg:flex lg:items-start lg:gap-6">
@@ -512,6 +566,11 @@ export function RunnerClient(props: Props) {
           <Button size="sm" variant={filterMode === "flagged" ? "default" : "outline"} onClick={() => setFilterMode("flagged")}>
             Markiert ({counts.flagged})
           </Button>
+          {canShowWrongChip && (
+            <Button size="sm" variant={filterMode === "wrong" ? "default" : "outline"} onClick={() => setFilterMode("wrong")}>
+              Falsch ({counts.wrong})
+            </Button>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -616,13 +675,13 @@ export function RunnerClient(props: Props) {
           </div>
         </div>
 
-        {/* Kartenbereich (mit Swipe-Gesten auf Mobile) */}
+        {/* Kartenbereich */}
         <div
           className="card card-body space-y-4"
           onTouchStart={onTouchStart}
           onTouchEnd={onTouchEnd}
         >
-          {/* Fallkopf (immer bei Fragen mit Fall anzeigen) */}
+          {/* Fallkopf */}
           {(q.caseTitle || q.caseVignette) && (
             <div className="rounded border bg-secondary/40 p-4 space-y-1">
               <div className="font-semibold">{q.caseTitle || "Fall"}</div>
@@ -685,7 +744,7 @@ export function RunnerClient(props: Props) {
             </div>
           )}
 
-          {/* Optionen (aufklappbare Erklärungen, wenn Prüfungsmodus aus & eine Antwort gewählt) */}
+          {/* Optionen */}
           <div className="space-y-2">
             {q.options.map(o => {
               const isSelected = given === o.id
@@ -728,7 +787,7 @@ export function RunnerClient(props: Props) {
             })}
           </div>
 
-          {/* Frage-Gesamterklärung (aufklappbar, nur wenn Prüfungsmodus aus & Antwort gegeben) */}
+          {/* Frage-Gesamterklärung */}
           {hasQExplanation && showFeedback && !!given && (
             <div className="rounded border bg-secondary/40">
               <button
@@ -767,13 +826,24 @@ export function RunnerClient(props: Props) {
               variant="outline"
               onClick={goNextTarget}
               disabled={!hasPrimaryJump}
-              title={filterMode === "flagged" ? "Zur nächsten markierten Frage springen (U)" : "Zur nächsten offenen Frage springen (U)"}
+              title={
+                filterMode === "flagged"
+                  ? "Zur nächsten markierten Frage springen (U)"
+                  : filterMode === "wrong"
+                  ? "Zur nächsten falschen Frage springen (U)"
+                  : "Zur nächsten offenen Frage springen (U)"
+              }
             >
               {primaryJumpLabel}
             </Button>
-            <Button variant="destructive" onClick={finish} disabled={submitting}>
-              Beenden & Auswerten
-            </Button>
+
+            {/* Im echten Prüfungsmodus gibt es „Beenden & Auswerten“;
+                im Practice-Modus bleibt das weg (kein Score in Historie). */}
+            {mode === "exam" && (
+              <Button variant="destructive" onClick={finish} disabled={submitting}>
+                Beenden & Auswerten
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -912,10 +982,8 @@ export function RunnerClient(props: Props) {
       )}
 
       {/* ------- Mobile Bottom-Sheet (Fragenübersicht) ------- */}
-      {/* Hintergrund */}
       {navOpen && <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setNavOpen(false)} />}
 
-      {/* Sheet */}
       <div
         className={`fixed bottom-0 left-0 right-0 z-[60] lg:hidden transform transition-transform ${navOpen ? "translate-y-0" : "translate-y-full"}`}
         style={{ transform: `translateY(${navOpen ? sheetDragY : 0}px)` }}
@@ -950,7 +1018,7 @@ export function RunnerClient(props: Props) {
             </div>
           </div>
 
-          {/* Filter-Chips */}
+          {/* Filter-Chips (mobil) */}
           <div className="px-4 pb-2 flex flex-wrap gap-2">
             <Button size="sm" variant={filterMode === "all" ? "default" : "outline"} onClick={() => setFilterMode("all")}>
               Alle ({counts.total})
@@ -961,6 +1029,11 @@ export function RunnerClient(props: Props) {
             <Button size="sm" variant={filterMode === "flagged" ? "default" : "outline"} onClick={() => setFilterMode("flagged")}>
               Markiert ({counts.flagged})
             </Button>
+            {canShowWrongChip && (
+              <Button size="sm" variant={filterMode === "wrong" ? "default" : "outline"} onClick={() => setFilterMode("wrong")}>
+                Falsch ({counts.wrong})
+              </Button>
+            )}
           </div>
 
           {/* Inhalt */}
@@ -1009,7 +1082,7 @@ export function RunnerClient(props: Props) {
               Tipp:&nbsp;
               <kbd className="px-1 py-0.5 rounded border">M</kbd> markieren,&nbsp;
               <kbd className="px-1 py-0.5 rounded border">U</kbd> nächste&nbsp;
-              {filterMode === "flagged" ? "markierte" : "offene"}.
+              {filterMode === "flagged" ? "markierte" : filterMode === "wrong" ? "falsche" : "offene"}.
             </div>
           </div>
         </aside>
