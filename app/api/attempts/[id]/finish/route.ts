@@ -1,19 +1,18 @@
-import { NextRequest, NextResponse } from "next/server"
+// app/api/attempts/[id]/finish/route.ts
+import { NextResponse } from "next/server"
 import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
-export const runtime = "nodejs"
-
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: Request, ctx: any) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    if (!session?.user?.id) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const attemptId = params.id
+    const attemptId: string | undefined = ctx?.params?.id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
@@ -22,23 +21,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const Parsed = z.object({ elapsedSec: z.number().int().nonnegative().optional() }).safeParse(body)
     const elapsedFromClient = Parsed.success ? Parsed.data.elapsedSec : undefined
 
-    // Nutzer ermitteln
-    const me = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    })
-    if (!me) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
-
-    // Attempt + Ownership
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       select: { id: true, userId: true, examId: true, startedAt: true, finishedAt: true },
     })
-    if (!attempt || attempt.userId !== me.id) {
+    if (!attempt || attempt.userId !== (session.user as any).id) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
     }
 
-    // Exam-Infos
     const exam = await prisma.exam.findUnique({
       where: { id: attempt.examId },
       select: { passPercent: true, _count: { select: { questions: true } } },
@@ -47,7 +37,6 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
       return NextResponse.json({ ok: false, error: "Exam not found" }, { status: 404 })
     }
 
-    // Antworten laden (für Score & Stats)
     const answers = await prisma.attemptAnswer.findMany({
       where: { attemptId },
       select: { questionId: true, isCorrect: true },
@@ -58,22 +47,14 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
     const passed = scorePercent >= exam.passPercent
 
-    // Zeit ermitteln
     const derivedElapsed = Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000))
     const finalElapsed = typeof elapsedFromClient === "number" ? elapsedFromClient : derivedElapsed
 
-    // Attempt abschließen
     await prisma.attempt.update({
       where: { id: attemptId },
-      data: {
-        finishedAt: new Date(),
-        scorePercent,
-        passed,
-        elapsedSec: finalElapsed,
-      },
+      data: { finishedAt: new Date(), scorePercent, passed, elapsedSec: finalElapsed },
     })
 
-    // UserQuestionStat updaten (Aggregation pro Frage)
     const now = new Date()
     const grouped = new Map<string, { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }>()
     for (const a of answers) {
