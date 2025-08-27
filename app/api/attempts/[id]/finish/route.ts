@@ -1,25 +1,19 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ id: string }>|{ id: string } }
-) {
+export const runtime = "nodejs"
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    // <- Next.js 14: params awaiten!
-    const { id } = "then" in (ctx.params as any)
-      ? await (ctx.params as Promise<{ id: string }>)
-      : (ctx.params as { id: string })
-
-    const attemptId = id
+    const attemptId = params.id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
@@ -28,12 +22,19 @@ export async function POST(
     const Parsed = z.object({ elapsedSec: z.number().int().nonnegative().optional() }).safeParse(body)
     const elapsedFromClient = Parsed.success ? Parsed.data.elapsedSec : undefined
 
+    // Nutzer ermitteln
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    })
+    if (!me) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+
     // Attempt + Ownership
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
       select: { id: true, userId: true, examId: true, startedAt: true, finishedAt: true },
     })
-    if (!attempt || attempt.userId !== (session.user as any).id) {
+    if (!attempt || attempt.userId !== me.id) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
     }
 
@@ -54,13 +55,11 @@ export async function POST(
 
     const correctCount = answers.filter(a => a.isCorrect).length
     const totalQuestions = exam._count.questions || 0
-    const scorePercent =
-      totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
+    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
     const passed = scorePercent >= exam.passPercent
 
     // Zeit ermitteln
-    const derivedElapsed =
-      Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000))
+    const derivedElapsed = Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000))
     const finalElapsed = typeof elapsedFromClient === "number" ? elapsedFromClient : derivedElapsed
 
     // Attempt abschließen
@@ -70,23 +69,18 @@ export async function POST(
         finishedAt: new Date(),
         scorePercent,
         passed,
-        elapsedSec: finalElapsed, // <- falls Feld schon existiert; sonst kannst du es einfach ignorieren
+        elapsedSec: finalElapsed,
       },
     })
 
-    // --- UserQuestionStat updaten ---
-    // Aggregation pro Frage
+    // UserQuestionStat updaten (Aggregation pro Frage)
     const now = new Date()
     const grouped = new Map<string, { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }>()
     for (const a of answers) {
       const g = grouped.get(a.questionId) || { seen: 0, wrong: 0 }
       g.seen += 1
-      if (a.isCorrect) {
-        g.lastCorrectAt = now
-      } else {
-        g.wrong += 1
-        g.lastWrongAt = now
-      }
+      if (a.isCorrect) g.lastCorrectAt = now
+      else { g.wrong += 1; g.lastWrongAt = now }
       grouped.set(a.questionId, g)
     }
 

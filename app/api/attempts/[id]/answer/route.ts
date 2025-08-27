@@ -5,11 +5,8 @@ import prisma from "@/lib/db"
 
 export const runtime = "nodejs"
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const { id } = params
 
   // Auth
   const session = await getServerSession(authOptions)
@@ -35,47 +32,39 @@ export async function POST(
     return NextResponse.json({ error: "missing fields" }, { status: 400 })
   }
 
-  // Attempt offen & gehört dem Nutzer?
+  // Attempt offen & Ownership
   const attempt = await prisma.attempt.findFirst({
     where: { id, userId: me.id, finishedAt: null },
     select: { id: true, examId: true },
   })
-  if (!attempt) {
-    return NextResponse.json({ error: "attempt not found" }, { status: 404 })
-  }
+  if (!attempt) return NextResponse.json({ error: "attempt not found" }, { status: 404 })
 
-  // Frage muss zu diesem Exam gehören
+  // Frage gehört zum Exam?
   const question = await prisma.question.findFirst({
     where: { id: questionId, examId: attempt.examId },
     select: { id: true },
   })
-  if (!question) {
-    return NextResponse.json({ error: "question not in exam" }, { status: 400 })
-  }
+  if (!question) return NextResponse.json({ error: "question not in exam" }, { status: 400 })
 
-  // Option validieren (muss zur Frage gehören)
+  // Option gehört zur Frage?
   const option = await prisma.answerOption.findFirst({
     where: { id: answerOptionId, questionId },
     select: { isCorrect: true, questionId: true },
   })
-  if (!option) {
-    return NextResponse.json({ error: "bad option" }, { status: 400 })
-  }
+  if (!option) return NextResponse.json({ error: "bad option" }, { status: 400 })
 
-  // Antwort + Lernstatistik in einer Transaktion
+  // Antwort + Lernstatistik in einer TX
   await prisma.$transaction(async (tx) => {
-    // Upsert Antwort (unique (attemptId, questionId))
     await tx.attemptAnswer.upsert({
       where: { attemptId_questionId: { attemptId: attempt.id, questionId } },
       update: { answerOptionId, isCorrect: option.isCorrect },
       create: { attemptId: attempt.id, questionId, answerOptionId, isCorrect: option.isCorrect },
     })
 
-    // Lernstatistik des Nutzers pflegen
     const now = new Date()
     const stat = await tx.userQuestionStat.findUnique({
       where: { userId_questionId: { userId: me.id, questionId } },
-      select: { seenCount: true, wrongCount: true, lastWrongAt: true, lastCorrectAt: true },
+      select: { seenCount: true, wrongCount: true },
     })
 
     if (!stat) {
@@ -93,19 +82,11 @@ export async function POST(
       await tx.userQuestionStat.update({
         where: { userId_questionId: { userId: me.id, questionId } },
         data: option.isCorrect
-          ? {
-              seenCount: { increment: 1 },
-              lastCorrectAt: now,
-            }
-          : {
-              seenCount: { increment: 1 },
-              wrongCount: { increment: 1 },
-              lastWrongAt: now,
-            },
+          ? { seenCount: { increment: 1 }, lastCorrectAt: now }
+          : { seenCount: { increment: 1 }, wrongCount: { increment: 1 }, lastWrongAt: now },
       })
     }
   })
 
-  // Optional könnte man isCorrect zurückgeben; UI benötigt es aktuell nicht zwingend
   return NextResponse.json({ ok: true })
 }

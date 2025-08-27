@@ -1,23 +1,20 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
+export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export async function POST(
-  req: Request,
-  ctx: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    if (!session?.user?.email) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = await ctx.params
-    const attemptId = id
+    const attemptId = params.id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
@@ -26,19 +23,23 @@ export async function POST(
     const Parsed = z.object({ elapsedSec: z.number().int().nonnegative().optional() }).safeParse(body)
     const clientElapsed = Parsed.success ? Parsed.data.elapsedSec : undefined
 
-    // Attempt + Ownership prüfen
-    const attempt = await prisma.attempt.findUnique({
-      where: { id: attemptId },
-      select: { userId: true, finishedAt: true, elapsedSec: true },
+    // Nutzer ermitteln
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
     })
-    if (!attempt || attempt.userId !== (session.user as any).id) {
-      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
-    }
-    if (attempt.finishedAt) {
+    if (!me) return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
+
+    // Attempt prüfen (offen, gehört Nutzer)
+    const attempt = await prisma.attempt.findFirst({
+      where: { id: attemptId, userId: me.id, finishedAt: null },
+      select: { id: true, elapsedSec: true },
+    })
+    if (!attempt) {
+      // still ok → sendBeacon soll nicht rot werden
       return NextResponse.json({ ok: true, skipped: true })
     }
 
-    // NEW: nur Client/DB vertrauen – keine Ableitung aus startedAt mehr
     const nextElapsed =
       typeof clientElapsed === "number"
         ? Math.max(attempt.elapsedSec ?? 0, clientElapsed)
@@ -49,7 +50,7 @@ export async function POST(
     }
 
     await prisma.attempt.update({
-      where: { id: attemptId },
+      where: { id: attempt.id },
       data: { elapsedSec: nextElapsed },
     })
 
