@@ -5,7 +5,8 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 type Tag = { id?: string; slug: string; name: string; parentId?: string | null }
-type Item = {
+
+type DeckItemRow = {
   questionId: string
   order: number
   stem: string
@@ -14,23 +15,35 @@ type Item = {
   tags: { slug: string; name: string }[]
 }
 
+type SearchHit = {
+  questionId: string
+  stem: string
+  examTitle: string
+  caseId: string | null
+  caseTitle: string | null
+  caseQuestionCount: number
+  tags: { slug: string; name: string }[]
+  matchIn: ("stem" | "case_title" | "case_vignette" | "option")[]
+  excerpts?: Record<string, string | null>
+}
+
 export default function DeckEditorClient(props: {
   deckId: string
   initialTitle: string
   initialDescription: string
-  initialItems: Item[]
+  initialItems: DeckItemRow[]
   availableTags: Tag[]
 }) {
   const { deckId, initialTitle, initialDescription, initialItems, availableTags } = props
   const [title, setTitle] = useState(initialTitle)
   const [description, setDescription] = useState(initialDescription)
-  const [items, setItems] = useState<Item[]>(initialItems)
+  const [items, setItems] = useState<DeckItemRow[]>(initialItems)
   const [saving, setSaving] = useState(false)
 
   // Suche
   const [q, setQ] = useState("")
   const [selectedTagSlugs, setSelectedTagSlugs] = useState<string[]>([])
-  const [results, setResults] = useState<Item[]>([])
+  const [results, setResults] = useState<SearchHit[]>([])
   const [searching, setSearching] = useState(false)
 
   const selectedSet = useMemo(() => new Set(items.map(i => i.questionId)), [items])
@@ -63,14 +76,18 @@ export default function DeckEditorClient(props: {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Suche fehlgeschlagen.")
+
       const arr = (j?.items || []) as any[]
-      const norm: Item[] = arr.map((x: any, idx: number) => ({
+      const norm: SearchHit[] = arr.map((x: any) => ({
         questionId: String(x.id),
-        order: idx,
         stem: String(x.stem || ""),
-        caseTitle: x.caseTitle ?? null,
         examTitle: String(x.examTitle || ""),
+        caseId: x.caseId ?? null,
+        caseTitle: x.caseTitle ?? null,
+        caseQuestionCount: Number(x.caseQuestionCount || 0),
         tags: (x.tags || []).map((t: any) => ({ slug: t.slug, name: t.name })),
+        matchIn: Array.isArray(x.matchIn) ? x.matchIn : [],
+        excerpts: x.excerpts || {},
       }))
       setResults(norm)
     } catch (e) {
@@ -91,8 +108,33 @@ export default function DeckEditorClient(props: {
       if (!res.ok) throw new Error(j?.error || "Konnte Frage nicht hinzufügen.")
       const r = results.find(r => r.questionId === qid)
       if (r) {
-        setItems(prev => [...prev, { ...r, order: prev.length }])
+        setItems(prev => [...prev, {
+          questionId: r.questionId,
+          order: prev.length,
+          stem: r.stem,
+          caseTitle: r.caseTitle,
+          examTitle: r.examTitle,
+          tags: r.tags,
+        }])
       }
+    } catch (e) {
+      alert((e as Error).message)
+    }
+  }
+
+  async function addCase(caseId: string) {
+    try {
+      const res = await fetch(`/api/decks/${deckId}/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(j?.error || "Konnte Fall nicht hinzufügen.")
+
+      // Nach dem Hinzufügen: UI minimal aktualisieren – in einer echten App
+      // könnte man neu laden. Hier genügt ein Hinweis.
+      alert(j.added > 0 ? `Fall hinzugefügt (${j.added} Fragen).` : "Fall war bereits vollständig im Deck.")
     } catch (e) {
       alert((e as Error).message)
     }
@@ -136,11 +178,11 @@ export default function DeckEditorClient(props: {
 
       {/* Suche */}
       <section className="rounded border p-4 space-y-3">
-        <div className="text-sm text-muted-foreground">Fragen suchen & hinzufügen</div>
+        <div className="text-sm text-muted-foreground">Fragen/Fälle suchen & hinzufügen</div>
         <div className="flex flex-wrap items-center gap-2">
           <input
             className="input h-9 w-80"
-            placeholder="Suchbegriff (z. B. 'Fraktur', 'Herz')"
+            placeholder="Suchbegriff – matcht Frage, Fall (Titel/Vignette) & Antwortoptionen"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -175,21 +217,56 @@ export default function DeckEditorClient(props: {
             <div className="space-y-2">
               {results.map(r => {
                 const already = selectedSet.has(r.questionId)
+                const showsCaseAdd = !!r.caseId && r.caseQuestionCount > 0 && (r.matchIn.includes("case_title") || r.matchIn.includes("case_vignette"))
+
                 return (
                   <div key={r.questionId} className="rounded border p-3">
                     <div className="text-sm">
                       <span className="font-medium">{r.stem}</span>
-                      <span className="ml-2 text-muted-foreground">({r.examTitle}{r.caseTitle ? ` · ${r.caseTitle}` : ""})</span>
+                      <span className="ml-2 text-muted-foreground">
+                        ({r.examTitle}{r.caseTitle ? ` · ${r.caseTitle}` : ""})
+                      </span>
                     </div>
+
+                    {/* Match-Labels + Excerpts */}
+                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
+                      {r.matchIn.includes("stem") && (
+                        <span className="rounded bg-green-100 dark:bg-green-900/30 px-2 py-0.5">
+                          Treffer: Frage{r.excerpts?.stem ? ` — ${r.excerpts.stem}` : ""}
+                        </span>
+                      )}
+                      {r.matchIn.includes("case_title") && (
+                        <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
+                          Treffer: Falltitel{r.excerpts?.case_title ? ` — ${r.excerpts.case_title}` : ""}
+                        </span>
+                      )}
+                      {r.matchIn.includes("case_vignette") && (
+                        <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
+                          Treffer: Fallvignette{r.excerpts?.case_vignette ? ` — ${r.excerpts.case_vignette}` : ""}
+                        </span>
+                      )}
+                      {r.matchIn.includes("option") && !r.matchIn.includes("stem") && !r.matchIn.includes("case_title") && !r.matchIn.includes("case_vignette") && (
+                        <span className="rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5">
+                          Treffer in Antwortoption{r.excerpts?.option ? ` — ${r.excerpts.option}` : ""}
+                        </span>
+                      )}
+                    </div>
+
                     {r.tags.length > 0 && (
                       <div className="mt-1 text-xs text-muted-foreground">
                         Tags: {r.tags.map(t => t.name).join(", ")}
                       </div>
                     )}
-                    <div className="mt-2">
+
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <Button onClick={() => addQuestion(r.questionId)} disabled={already}>
                         {already ? "Schon im Deck" : "Hinzufügen"}
                       </Button>
+                      {showsCaseAdd && r.caseId && (
+                        <Button variant="outline" onClick={() => addCase(r.caseId!)}>
+                          Gesamten Fall hinzufügen ({r.caseQuestionCount})
+                        </Button>
+                      )}
                     </div>
                   </div>
                 )
