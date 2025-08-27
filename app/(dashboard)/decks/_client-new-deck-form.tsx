@@ -1,6 +1,7 @@
+// app/(dashboard)/decks/_client-new-deck-form.tsx
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 
 export default function NewDeckForm() {
@@ -8,6 +9,17 @@ export default function NewDeckForm() {
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // Auto-open, wenn die Seite mit #new-deck aufgerufen wurde
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#new-deck") {
+      setOpen(true)
+      // optional: zum Formular scrollen
+      setTimeout(() => {
+        document.getElementById("new-deck")?.scrollIntoView({ behavior: "smooth", block: "start" })
+      }, 0)
+    }
+  }, [])
 
   async function submit() {
     if (!title.trim()) return

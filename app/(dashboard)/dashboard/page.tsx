@@ -74,7 +74,8 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
           <div className="flex gap-2">
-            <Link href="/decks/new">
+            {/* WICHTIG: zur Deck-Seite mit Anker, Formular öffnet automatisch */}
+            <Link href="/decks#new-deck">
               <Button size="sm" variant="outline">Neues Deck</Button>
             </Link>
             <Link href="/decks">
@@ -92,7 +93,7 @@ export default async function DashboardPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Link href="/decks/new">
+              <Link href="/decks#new-deck">
                 <Button>Neues Deck anlegen</Button>
               </Link>
             </CardContent>
@@ -117,8 +118,8 @@ export default async function DashboardPage() {
                     <Link href={`/decks/${d.id}`}>
                       <Button size="sm" variant="outline">Öffnen</Button>
                     </Link>
-                    {/* Neu: Direktes Training-CTA */}
-                    <Link href={`/decks/${d.id}`}>
+                    {/* Training/Üben öffnet Practice-Runner für das Deck */}
+                    <Link href={`/practice/deck/${d.id}`}>
                       <Button size="sm">Training starten</Button>
                     </Link>
                   </div>

@@ -50,8 +50,8 @@ export default async function DecksPage() {
         </Link>
       </div>
 
-      {/* Neues Deck anlegen */}
-      <Card>
+      {/* Neues Deck anlegen (Anker für Direktlink) */}
+      <Card id="new-deck">
         <CardHeader>
           <CardTitle>Neues Deck erstellen</CardTitle>
         </CardHeader>
@@ -88,12 +88,12 @@ export default async function DecksPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                  {/* ➜ NEU: „Üben“-Button für dieses Deck */}
+                  {/* Üben */}
                   <Link href={`/practice/deck/${d.id}`}>
                     <Button>Üben</Button>
                   </Link>
 
-                  {/* Bearbeiten / verwalten */}
+                  {/* Bearbeiten */}
                   <Link href={`/decks/${d.id}`}>
                     <Button variant="outline">Bearbeiten</Button>
                   </Link>

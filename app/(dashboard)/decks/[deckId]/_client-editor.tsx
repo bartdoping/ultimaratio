@@ -1,3 +1,4 @@
+// app/(dashboard)/decks/[deckId]/_client-editor.tsx
 "use client"
 
 import { useMemo, useState } from "react"
@@ -62,9 +63,8 @@ export default function DeckEditorClient(props: {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Suche fehlgeschlagen.")
-      // normalisieren auf Item-ähnliches Shape
       const arr = (j?.items || []) as any[]
-      const norm: Item[] = arr.map((x, idx) => ({
+      const norm: Item[] = arr.map((x: any, idx: number) => ({
         questionId: String(x.id),
         order: idx,
         stem: String(x.stem || ""),
