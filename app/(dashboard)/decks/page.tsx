@@ -6,6 +6,7 @@ import prisma from "@/lib/db"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import NewDeckForm from "./_client-new-deck-form"
+import DeckActions from "./_client-deck-actions"
 
 export const runtime = "nodejs"
 
@@ -87,17 +88,8 @@ export default async function DecksPage() {
                   {d._count.items} Frage{d._count.items === 1 ? "" : "n"}
                 </div>
 
-                <div className="flex flex-wrap gap-2">
-                  {/* Üben */}
-                  <Link href={`/practice/deck/${d.id}`}>
-                    <Button>Üben</Button>
-                  </Link>
-
-                  {/* Bearbeiten */}
-                  <Link href={`/decks/${d.id}`}>
-                    <Button variant="outline">Bearbeiten</Button>
-                  </Link>
-                </div>
+                {/* Aktionen: Üben / Bearbeiten / Löschen */}
+                <DeckActions deckId={d.id} />
               </CardContent>
             </Card>
           ))}
