@@ -1,5 +1,5 @@
 // app/api/decks/[id]/items/route.ts
-import { NextRequest, NextResponse } from "next/server"
+import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
@@ -10,11 +10,11 @@ type PostBody =
   | { questionId: string; caseId?: undefined }
   | { caseId: string; questionId?: undefined }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: deckId } = await params
+export async function POST(req: Request, ctx: any) {
+  // params kann je nach Next-Version ein Promise ODER ein Objekt sein
+  const { id: deckId } =
+    "then" in (ctx?.params ?? {}) ? await ctx.params : (ctx?.params ?? {})
+
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
@@ -119,10 +119,10 @@ export async function POST(
       deckId,
       questionId,
       order: nextOrder++,
+      // nur drin lassen, wenn dein Schema das Feld hat
       addedAt: new Date(),
     }))
 
-    // @ts-expect-error: createMany accepts our fields
     await prisma.deckItem.createMany({ data, skipDuplicates: true })
 
     return NextResponse.json({ ok: true, added: toAdd.length })
@@ -131,11 +131,10 @@ export async function POST(
   return NextResponse.json({ error: "missing questionId or caseId" }, { status: 400 })
 }
 
-export async function DELETE(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id: deckId } = await params
+export async function DELETE(req: Request, ctx: any) {
+  const { id: deckId } =
+    "then" in (ctx?.params ?? {}) ? await ctx.params : (ctx?.params ?? {})
+
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
