@@ -6,7 +6,7 @@ import prisma from "@/lib/db"
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // ✅ korrekte Signatur
+  context: { params: Promise<{ id: string }> } // ← asynchroner params-Context
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -15,7 +15,8 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const attemptId = params.id
+    const { id } = await context.params
+    const attemptId = id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
@@ -54,7 +55,9 @@ export async function POST(
     const passed = scorePercent >= exam.passPercent
 
     const derivedElapsed =
-      attempt.startedAt ? Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000)) : (attempt.elapsedSec ?? 0)
+      attempt.startedAt
+        ? Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000))
+        : (attempt.elapsedSec ?? 0)
     const finalElapsed = typeof elapsedFromClient === "number" ? elapsedFromClient : derivedElapsed
 
     await prisma.attempt.update({
@@ -62,7 +65,7 @@ export async function POST(
       data: { finishedAt: new Date(), scorePercent, passed, elapsedSec: finalElapsed },
     })
 
-    // Lernstatistik aus den Antworten aggregieren
+    // Lernstatistik aggregieren
     const now = new Date()
     const grouped = new Map<
       string,

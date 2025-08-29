@@ -9,15 +9,16 @@ type Body = { questionId?: string; answerOptionId?: string }
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // ✅ korrekte RouteContext-Signatur
+  context: { params: Promise<{ id: string }> } // ← asynchroner params-Context
 ) {
   try {
-    const attemptId = params.id
+    const { id } = await context.params
+    const attemptId = id
     if (!attemptId) {
       return NextResponse.json({ error: "missing attempt id" }, { status: 400 })
     }
 
-    // Falls versehentlich Practice-Attempt hier landet: noop (defensiv)
+    // Falls versehentlich Practice-Attempt hier landet: noop
     if (attemptId.startsWith("practice:")) {
       return NextResponse.json({ ok: true, skipped: true })
     }
@@ -59,7 +60,6 @@ export async function POST(
       return NextResponse.json({ error: "question not in attempt exam" }, { status: 400 })
     }
 
-    // Achtung: Dein Model heißt offenbar "AnswerOption" -> Client-API "answerOption"
     const option = await prisma.answerOption.findFirst({
       where: { id: answerOptionId, questionId },
       select: { id: true, isCorrect: true },
@@ -77,12 +77,12 @@ export async function POST(
 
     // (Optional) Lernstatistik aktualisieren
     const now = new Date()
-    const currentStat = await prisma.userQuestionStat.findUnique({
+    const existing = await prisma.userQuestionStat.findUnique({
       where: { userId_questionId: { userId, questionId } },
       select: { userId: true, questionId: true },
     })
 
-    if (!currentStat) {
+    if (!existing) {
       await prisma.userQuestionStat.create({
         data: {
           userId,

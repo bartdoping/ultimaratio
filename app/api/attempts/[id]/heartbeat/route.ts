@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 
 export async function POST(
   req: Request,
-  { params }: { params: { id: string } } // ✅ korrekte Signatur
+  context: { params: Promise<{ id: string }> } // ← asynchroner params-Context
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -17,7 +17,8 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const attemptId = params.id
+    const { id } = await context.params
+    const attemptId = id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
