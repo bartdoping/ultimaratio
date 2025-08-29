@@ -1,4 +1,3 @@
-// app/api/attempts/[id]/answer/route.ts
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -6,39 +5,32 @@ import prisma from "@/lib/db"
 
 export const runtime = "nodejs"
 
-type Ctx =
-  | { params: Promise<{ id: string }> }
-  | { params: { id: string } }
+type Body = { questionId?: string; answerOptionId?: string }
 
-export async function POST(req: Request, ctx: Ctx) {
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } } // ✅ korrekte RouteContext-Signatur
+) {
   try {
-    // params sicher auslesen (Promise oder Sync)
-    const { id } =
-      "then" in (ctx.params as any)
-        ? await (ctx.params as Promise<{ id: string }>)
-        : (ctx.params as { id: string })
-
-    const attemptId = id
+    const attemptId = params.id
     if (!attemptId) {
       return NextResponse.json({ error: "missing attempt id" }, { status: 400 })
     }
 
-    // Falls versehentlich Practice-Attempt hier landet: noop
+    // Falls versehentlich Practice-Attempt hier landet: noop (defensiv)
     if (attemptId.startsWith("practice:")) {
       return NextResponse.json({ ok: true, skipped: true })
     }
 
     // Auth
     const session = await getServerSession(authOptions)
-    const userId = session?.user?.id as string | undefined
+    const userId = (session?.user as any)?.id as string | undefined
     if (!userId) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
     }
 
     // Body
-    const body = await req.json().catch(() => ({} as any))
-    const questionId: string | undefined = body?.questionId
-    const answerOptionId: string | undefined = body?.answerOptionId
+    const { questionId, answerOptionId } = (await req.json().catch(() => ({}))) as Body
     if (!questionId || !answerOptionId) {
       return NextResponse.json({ error: "missing fields" }, { status: 400 })
     }
@@ -67,6 +59,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "question not in attempt exam" }, { status: 400 })
     }
 
+    // Achtung: Dein Model heißt offenbar "AnswerOption" -> Client-API "answerOption"
     const option = await prisma.answerOption.findFirst({
       where: { id: answerOptionId, questionId },
       select: { id: true, isCorrect: true },
@@ -75,7 +68,7 @@ export async function POST(req: Request, ctx: Ctx) {
       return NextResponse.json({ error: "invalid answer option" }, { status: 400 })
     }
 
-    // Antwort speichern (upsert pro Frage) – isCorrect mitgeben!
+    // Antwort speichern (Upsert pro Frage) – isCorrect MUSS gesetzt werden
     await prisma.attemptAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId } },
       create: { attemptId, questionId, answerOptionId, isCorrect: option.isCorrect },
@@ -84,11 +77,12 @@ export async function POST(req: Request, ctx: Ctx) {
 
     // (Optional) Lernstatistik aktualisieren
     const now = new Date()
-    const stat = await prisma.userQuestionStat.findUnique({
+    const currentStat = await prisma.userQuestionStat.findUnique({
       where: { userId_questionId: { userId, questionId } },
       select: { userId: true, questionId: true },
     })
-    if (!stat) {
+
+    if (!currentStat) {
       await prisma.userQuestionStat.create({
         data: {
           userId,

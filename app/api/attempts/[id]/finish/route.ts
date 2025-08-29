@@ -1,18 +1,21 @@
-// app/api/attempts/[id]/finish/route.ts
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
-export async function POST(req: Request, ctx: any) {
+export async function POST(
+  req: Request,
+  { params }: { params: { id: string } } // ✅ korrekte Signatur
+) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = (session?.user as any)?.id as string | undefined
+    if (!userId) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const attemptId: string | undefined = ctx?.params?.id
+    const attemptId = params.id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
@@ -23,10 +26,13 @@ export async function POST(req: Request, ctx: any) {
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      select: { id: true, userId: true, examId: true, startedAt: true, finishedAt: true },
+      select: { id: true, userId: true, examId: true, startedAt: true, finishedAt: true, elapsedSec: true },
     })
-    if (!attempt || attempt.userId !== (session.user as any).id) {
+    if (!attempt || attempt.userId !== userId) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
+    }
+    if (attempt.finishedAt) {
+      return NextResponse.json({ ok: false, error: "already finished" }, { status: 400 })
     }
 
     const exam = await prisma.exam.findUnique({
@@ -47,7 +53,8 @@ export async function POST(req: Request, ctx: any) {
     const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
     const passed = scorePercent >= exam.passPercent
 
-    const derivedElapsed = Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000))
+    const derivedElapsed =
+      attempt.startedAt ? Math.max(0, Math.round((Date.now() - attempt.startedAt.getTime()) / 1000)) : (attempt.elapsedSec ?? 0)
     const finalElapsed = typeof elapsedFromClient === "number" ? elapsedFromClient : derivedElapsed
 
     await prisma.attempt.update({
@@ -55,8 +62,12 @@ export async function POST(req: Request, ctx: any) {
       data: { finishedAt: new Date(), scorePercent, passed, elapsedSec: finalElapsed },
     })
 
+    // Lernstatistik aus den Antworten aggregieren
     const now = new Date()
-    const grouped = new Map<string, { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }>()
+    const grouped = new Map<
+      string,
+      { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }
+    >()
     for (const a of answers) {
       const g = grouped.get(a.questionId) || { seen: 0, wrong: 0 }
       g.seen += 1

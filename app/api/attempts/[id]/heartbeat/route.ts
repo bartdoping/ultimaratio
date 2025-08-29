@@ -8,24 +8,21 @@ export const dynamic = "force-dynamic"
 
 export async function POST(
   req: Request,
-  ctx: { params: Promise<{ id: string }> | { id: string } }
+  { params }: { params: { id: string } } // ✅ korrekte Signatur
 ) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.id) {
+    const userId = (session?.user as any)?.id as string | undefined
+    if (!userId) {
       return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 })
     }
 
-    const { id } = "then" in (ctx.params as any)
-      ? await (ctx.params as Promise<{ id: string }>)
-      : (ctx.params as { id: string })
-
-    const attemptId = id
+    const attemptId = params.id
     if (!attemptId) {
       return NextResponse.json({ ok: false, error: "Missing attempt id" }, { status: 400 })
     }
 
-    // Falls versehentlich Practice-IDs hier landen: no-op
+    // Falls Practice-IDs hier landen: no-op (defensiv)
     if (attemptId.startsWith("practice:")) {
       const body = await req.json().catch(() => ({}))
       const Parsed = z.object({ elapsedSec: z.number().int().nonnegative().optional() }).safeParse(body)
@@ -41,7 +38,7 @@ export async function POST(
       where: { id: attemptId },
       select: { userId: true, finishedAt: true, elapsedSec: true },
     })
-    if (!attempt || attempt.userId !== (session.user as any).id) {
+    if (!attempt || attempt.userId !== userId) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
     }
     if (attempt.finishedAt) {
