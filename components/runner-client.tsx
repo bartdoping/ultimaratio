@@ -42,7 +42,7 @@ type Props = {
   mode?: "exam" | "practice"
   /** Startfilter beim Mount (z. B. "wrong") */
   initialFilterMode?: FilterMode
-  /** Neuer Prop: Startzustand des Prüfungsmodus (true = Sofort-Feedback AUS) */
+  /** Startzustand des Prüfungsmodus (true = Sofort-Feedback AUS) */
   initialExamMode?: boolean
 }
 
@@ -100,7 +100,7 @@ export function RunnerClient(props: Props) {
   // Heartbeat-Steuerung
   const lastSentRef = useRef<number>(0)
   const sendingRef = useRef<boolean>(false)
-  const HEARTBEAT_MS = 10_000 // etwas häufiger, um Verluste zu minimieren
+  const HEARTBEAT_MS = 10_000
 
   function persistElapsedToLS(value: number) {
     try {
@@ -136,7 +136,6 @@ export function RunnerClient(props: Props) {
     if (!running) return
     const t = setInterval(() => setElapsed(v => {
       const nv = v + 1
-      // Sofort in LS spiegeln, damit SPA-Navigation nichts verliert
       persistElapsedToLS(nv)
       return nv
     }), 1000)
@@ -204,12 +203,10 @@ export function RunnerClient(props: Props) {
   }, [elapsed, attemptId])
 
   // Prüfungsmodus (true = „kein Direktfeedback“)
-  // Init-Priorität: localStorage → initialExamMode-Prop → Modus-Default (Practice & Exam standardmäßig true)
   const [examMode, setExamMode] = useState<boolean>(() => {
     const fromLs = typeof window !== "undefined" ? window.localStorage.getItem(LS_MODE) : null
     if (fromLs != null) return fromLs === "1"
     if (typeof initialExamMode === "boolean") return initialExamMode
-    // Default: Start im Prüfungsmodus (Sofort-Feedback AUS), auch im Practice-Modus um Leaks zu vermeiden
     return true
   })
   const showFeedback = allowImmediateFeedback && !examMode
@@ -236,7 +233,7 @@ export function RunnerClient(props: Props) {
   // Kommentare & Erklärungen
   const [tipOpen, setTipOpen] = useState(false)
   const [qExpOpen, setQExpOpen] = useState(false)
-  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({}) // pro Option
+  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
 
   // Markierungen & Filter
   const [flagged, setFlagged] = useState<Record<string, boolean>>(() => {
@@ -259,7 +256,7 @@ export function RunnerClient(props: Props) {
   const [navOpen, setNavOpen] = useState(false)
   const [sheetDragY, setSheetDragY] = useState(0)
 
-  // Aktuelle Frage
+  // Aktuelle Frage (safe, da questions immer >=1 im Practice-Entry)
   const q = questions[idx]
   const given = answers[q.id]
   const isCurrentFlagged = !!flagged[q.id]
@@ -298,7 +295,6 @@ export function RunnerClient(props: Props) {
     () => questions.map((_, i) => i).filter(i => !!flagged[questions[i].id]),
     [flagged, questions]
   )
-  // "wrong" = in der aktuellen Session falsch beantwortet
   const wrongIndices = useMemo(() => {
     return questions.map((q, i) => {
       const aid = answers[q.id]
@@ -315,22 +311,75 @@ export function RunnerClient(props: Props) {
     wrong: wrongIndices.length,
   }), [questions.length, openIndices.length, flaggedIndices.length, wrongIndices.length])
 
-  // Filter-Persistenz
+  // --- Sichtbare Fragen gemäß aktivem Filter ---
+  const filteredIndices = useMemo(() => {
+    if (filterMode === "flagged") return flaggedIndices
+    if (filterMode === "wrong")   return wrongIndices
+    if (filterMode === "open")    return openIndices
+    return questions.map((_, i) => i) // "all"
+  }, [filterMode, flaggedIndices, wrongIndices, openIndices, questions])
+
+  // Beim Filterwechsel, falls aktuelle Frage nicht passt → erste passende
+  useEffect(() => {
+    if (filteredIndices.length === 0) return
+    if (!filteredIndices.includes(idx)) {
+      setIdx(filteredIndices[0])
+    }
+  }, [filteredIndices, idx])
+
+  // Leerzustandstext
+  const noResultsMessage = useMemo(() => {
+    switch (filterMode) {
+      case "open":    return "Keine offene Frage."
+      case "flagged": return "Keine markierte Frage."
+      case "wrong":   return "Keine falsche Frage."
+      default:        return ""
+    }
+  }, [filterMode])
+
+  // Navigation innerhalb der gefilterten Liste
+  const filteredPos = useMemo(() => filteredIndices.indexOf(idx), [filteredIndices, idx])
+  const atStart     = filteredIndices.length === 0 || filteredPos <= 0
+  const atEnd       = filteredIndices.length === 0 || filteredPos >= filteredIndices.length - 1
+
+  function nextInFiltered(dir: 1 | -1) {
+    if (filteredIndices.length === 0) return
+    const pos = filteredIndices.indexOf(idx)
+    if (pos === -1) {
+      setIdx(filteredIndices[0])
+      return
+    }
+    const nextPos = Math.min(Math.max(pos + dir, 0), filteredIndices.length - 1)
+    setIdx(filteredIndices[nextPos])
+  }
+
+  // Persistenzen
   useEffect(() => {
     try { window.localStorage.setItem(LS_FILTER, filterMode) } catch {}
   }, [filterMode])
   useEffect(() => {
     try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(flagged)) } catch {}
   }, [flagged])
-
-  // Aufklapper zurücksetzen bei Fragenwechsel
-  useEffect(() => { setTipOpen(false); setQExpOpen(false); setOptOpen({}) }, [idx])
-
-  // idx / mode in localStorage spiegeln
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_IDX, String(idx)) }, [idx])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_MODE, examMode ? "1" : "0") }, [examMode])
 
-  // Helpers
+  // Practice: Session beenden (ohne Bewertung)
+  function endPractice() {
+    if (!confirm("Session beenden? Es gibt keine Auswertung; lokale Fortschritte werden verworfen.")) return
+    try {
+      persistElapsedToLS(elapsed)
+    } catch {}
+    try {
+      window.localStorage.removeItem(LS_IDX)
+      window.localStorage.removeItem(LS_MODE)
+      window.localStorage.removeItem(LS_ELAPSED)
+      window.localStorage.removeItem(LS_FLAGGED)
+      window.localStorage.removeItem(LS_FILTER)
+    } catch {}
+    router.push("/decks")
+  }
+
+  // Filter-Matching (für Rail / Sheet)
   function matchFilter(i: number) {
     if (filterMode === "open") return !answers[questions[i].id]
     if (filterMode === "flagged") return !!flagged[questions[i].id]
@@ -347,8 +396,7 @@ export function RunnerClient(props: Props) {
     if (filterMode === "flagged") return flaggedIndices
     if (filterMode === "wrong") return wrongIndices
     if (filterMode === "open") return openIndices
-    // Fallback: bei "all" macht "Nächste ..." am meisten Sinn für "open"
-    return openIndices
+    return openIndices // bei "all" macht open i.d.R. mehr Sinn
   }
 
   function nextTargetIndex(): number {
@@ -373,6 +421,7 @@ export function RunnerClient(props: Props) {
     })
   }
 
+  // Antwort wählen
   async function choose(optionId: string) {
     setSubmitting(true)
     try {
@@ -391,11 +440,11 @@ export function RunnerClient(props: Props) {
     }
   }
 
+  // Exam-Finish
   async function finish() {
     if (!confirm("Prüfung wirklich beenden und auswerten?")) return
     setSubmitting(true)
     try {
-      // Vor dem Finish: letzten Stand sichern
       persistElapsedToLS(elapsed)
       await sendHeartbeat(elapsed)
       const res = await fetch(`/api/attempts/${attemptId}/finish`, {
@@ -406,7 +455,6 @@ export function RunnerClient(props: Props) {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Konnte nicht auswerten.")
-      // Aufräumen lokaler Keys nach erfolgreichem Abschluss
       try {
         window.localStorage.removeItem(LS_IDX)
         window.localStorage.removeItem(LS_MODE)
@@ -446,11 +494,9 @@ export function RunnerClient(props: Props) {
       }
       if (labOpen) {
         if (e.key === "Escape") setLabOpen(false)
-        // Suche hat Focus → keine weiteren Shortcuts
         return
       }
 
-      // global
       if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r); return }
       if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v); return }
       if (e.key.toLowerCase() === "l") {
@@ -460,16 +506,16 @@ export function RunnerClient(props: Props) {
 
       if (isTyping()) return
 
-      // Markieren (M)
       if (e.key.toLowerCase() === "m") { e.preventDefault(); toggleFlagCurrent(); return }
-      // Nächste offene/markierte/falsche (U)
       if (e.key.toLowerCase() === "u") { e.preventDefault(); goNextTarget(); return }
-      // Enter → Weiter
+
+      // Enter → weiter innerhalb der gefilterten Liste
       if (e.key === "Enter") {
         e.preventDefault()
-        setIdx(i => Math.min(questions.length - 1, i + 1))
+        nextInFiltered(1)
         return
       }
+
       // 1–4 → Option wählen
       if (/^[1-4]$/.test(e.key)) {
         const n = Number(e.key) - 1
@@ -484,7 +530,7 @@ export function RunnerClient(props: Props) {
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lightboxOpen, labOpen, media.length, q.options, answers, idx, filterMode, flagged])
+  }, [lightboxOpen, labOpen, media.length, q.options, answers, idx, filterMode, flagged, filteredIndices])
 
   useEffect(() => {
     if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
@@ -530,8 +576,8 @@ export function RunnerClient(props: Props) {
     const absX = Math.abs(dx)
     const absY = Math.abs(dy)
     if (absX > 60 && absY < 40) {
-      if (dx < 0) setIdx(i => Math.min(questions.length - 1, i + 1))
-      else setIdx(i => Math.max(0, i - 1))
+      if (dx < 0) nextInFiltered(1)
+      else nextInFiltered(-1)
     }
     touchStart.current = null
   }
@@ -543,10 +589,6 @@ export function RunnerClient(props: Props) {
     : "Nächste offene"
 
   const hasPrimaryJump = currentTargetList().length > 0
-
-  // „Falsch“-Chip nur zeigen, wenn keine Lösung geleakt wird:
-  // - im Practice-Modus (ok) ODER
-  // - wenn Sofort-Feedback aktiv ist (ok)
   const canShowWrongChip = mode === "practice" || showFeedback
 
   return (
@@ -639,14 +681,20 @@ export function RunnerClient(props: Props) {
           </div>
 
           <div className="flex items-center gap-2">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={examMode}
-                onChange={(e) => setExamMode(e.target.checked)}
-              />
-              Prüfungsmodus
-            </label>
+            {mode === "practice" && (
+              <label className="flex items-center gap-2" title="Wenn an: sofort zeigen, ob richtig/falsch">
+                <input
+                  type="checkbox"
+                  checked={!examMode}
+                  onChange={(e) => setExamMode(!e.target.checked)}
+                />
+                Sofort-Feedback
+              </label>
+            )}
+
+            {mode === "exam" && (
+              <span className="text-xs text-muted-foreground">Prüfungsmodus aktiv</span>
+            )}
 
             {/* Markieren */}
             <Button
@@ -676,147 +724,151 @@ export function RunnerClient(props: Props) {
         </div>
 
         {/* Kartenbereich */}
-        <div
-          className="card card-body space-y-4"
-          onTouchStart={onTouchStart}
-          onTouchEnd={onTouchEnd}
-        >
-          {/* Fallkopf */}
-          {(q.caseTitle || q.caseVignette) && (
-            <div className="rounded border bg-secondary/40 p-4 space-y-1">
-              <div className="font-semibold">{q.caseTitle || "Fall"}</div>
-              {q.caseVignette && (
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {q.caseVignette}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Frage */}
-          <p className="font-medium">{q.stem}</p>
-
-          {/* Oberarztkommentar */}
-          {hasTip && (
-            <div className="rounded border bg-secondary/40">
-              <button
-                type="button"
-                onClick={() => setTipOpen(o => !o)}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-                aria-expanded={tipOpen}
-                aria-controls="tip-content"
-              >
-                <span>Oberarztkommentar</span>
-                <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                </svg>
-              </button>
-              {tipOpen && (
-                <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                  {q.tip}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Medien */}
-          {media.length > 0 && (
-            <div className="flex flex-wrap gap-3">
-              {media.map((m, i) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
-                  className="group relative rounded border overflow-hidden focus:outline-none focus:ring focus:ring-blue-500 cursor-zoom-in"
-                  title={m.alt || "Bild vergrößern"}
-                  aria-label="Bild vergrößern"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={m.url}
-                    alt={m.alt || ""}
-                    className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
-                    loading="lazy"
-                  />
-                  <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Optionen */}
-          <div className="space-y-2">
-            {q.options.map(o => {
-              const isSelected = given === o.id
-              const canExplain = showFeedback && !!given
-              const open = !!optOpen[o.id]
-              return (
-                <div key={o.id} className="rounded border">
-                  <button
-                    onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
-                    disabled={submitting}
-                    className={[
-                      "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
-                      isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
-                      "bg-transparent"
-                    ].join(" ")}
-                    aria-expanded={canExplain ? open : undefined}
-                    title={isSelected ? (o.isCorrect ? "Deine Antwort: richtig" : "Deine Antwort: falsch") : "Antwort auswählen"}
-                  >
-                    <span>
-                      {o.text}
-                      {showFeedback && isSelected && (
-                        <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
-                          {o.isCorrect ? "✓ richtig" : "✗ falsch"}
-                        </span>
-                      )}
-                    </span>
-                    {canExplain && (
-                      <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                        <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                      </svg>
-                    )}
-                  </button>
-                  {canExplain && open && o.explanation && (
-                    <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                      {o.explanation}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
+        {filteredIndices.length === 0 ? (
+          <div className="rounded border bg-secondary/40 p-6 text-sm text-muted-foreground">
+            {noResultsMessage}
           </div>
+        ) : (
+          <div
+            className="card card-body space-y-4"
+            onTouchStart={onTouchStart}
+            onTouchEnd={onTouchEnd}
+          >
+            {(q.caseTitle || q.caseVignette) && (
+              <div className="rounded border bg-secondary/40 p-4 space-y-1">
+                <div className="font-semibold">{q.caseTitle || "Fall"}</div>
+                {q.caseVignette && (
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
+                    {q.caseVignette}
+                  </div>
+                )}
+              </div>
+            )}
 
-          {/* Frage-Gesamterklärung */}
-          {hasQExplanation && showFeedback && !!given && (
-            <div className="rounded border bg-secondary/40">
-              <button
-                type="button"
-                onClick={() => setQExpOpen(v => !v)}
-                className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-                aria-expanded={qExpOpen}
-              >
-                <span>Erklärung</span>
-                <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                </svg>
-              </button>
-              {qExpOpen && (
-                <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                  {q.explanation}
-                </div>
-              )}
+            <p className="font-medium">{q.stem}</p>
+
+            {/* Oberarztkommentar */}
+            {hasTip && (
+              <div className="rounded border bg-secondary/40">
+                <button
+                  type="button"
+                  onClick={() => setTipOpen(o => !o)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+                  aria-expanded={tipOpen}
+                  aria-controls="tip-content"
+                >
+                  <span>Oberarztkommentar</span>
+                  <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                  </svg>
+                </button>
+                {tipOpen && (
+                  <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {q.tip}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Medien */}
+            {media.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {media.map((m, i) => (
+                  <button
+                    key={m.id}
+                    type="button"
+                    onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
+                    className="group relative rounded border overflow-hidden focus:outline-none focus:ring focus:ring-blue-500 cursor-zoom-in"
+                    title={m.alt || "Bild vergrößern"}
+                    aria-label="Bild vergrößern"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={m.url}
+                      alt={m.alt || ""}
+                      className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Optionen */}
+            <div className="space-y-2">
+              {q.options.map(o => {
+                const isSelected = given === o.id
+                const canExplain = showFeedback && !!given
+                const open = !!optOpen[o.id]
+                return (
+                  <div key={o.id} className="rounded border">
+                    <button
+                      onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
+                      disabled={submitting}
+                      className={[
+                        "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
+                        isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
+                        "bg-transparent"
+                      ].join(" ")}
+                      aria-expanded={canExplain ? open : undefined}
+                      title={isSelected ? (o.isCorrect ? "Deine Antwort: richtig" : "Deine Antwort: falsch") : "Antwort auswählen"}
+                    >
+                      <span>
+                        {o.text}
+                        {showFeedback && isSelected && (
+                          <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
+                            {o.isCorrect ? "✓ richtig" : "✗ falsch"}
+                          </span>
+                        )}
+                      </span>
+                      {canExplain && (
+                        <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                          <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                        </svg>
+                      )}
+                    </button>
+                    {canExplain && open && o.explanation && (
+                      <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                        {o.explanation}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          )}
-        </div>
+
+            {/* Frage-Gesamterklärung */}
+            {hasQExplanation && showFeedback && !!given && (
+              <div className="rounded border bg-secondary/40">
+                <button
+                  type="button"
+                  onClick={() => setQExpOpen(v => !v)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
+                  aria-expanded={qExpOpen}
+                >
+                  <span>Erklärung</span>
+                  <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                  </svg>
+                </button>
+                {qExpOpen && (
+                  <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+                    {q.explanation}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Navigation unten */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => setIdx(i => Math.max(0, i - 1))} disabled={idx === 0}>
+            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart}>
               Zurück
             </Button>
-            <Button variant="outline" onClick={() => setIdx(i => Math.min(questions.length - 1, i + 1))} disabled={idx === questions.length - 1}>
+            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd}>
               Weiter
             </Button>
           </div>
@@ -837,11 +889,13 @@ export function RunnerClient(props: Props) {
               {primaryJumpLabel}
             </Button>
 
-            {/* Im echten Prüfungsmodus gibt es „Beenden & Auswerten“;
-                im Practice-Modus bleibt das weg (kein Score in Historie). */}
-            {mode === "exam" && (
+            {mode === "exam" ? (
               <Button variant="destructive" onClick={finish} disabled={submitting}>
                 Beenden & Auswerten
+              </Button>
+            ) : (
+              <Button variant="secondary" onClick={endPractice}>
+                Session beenden
               </Button>
             )}
           </div>

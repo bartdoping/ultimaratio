@@ -36,28 +36,18 @@ export default async function DeckPracticePage({ params }: Props) {
     }
   })
   if (!deck) notFound()
+
   const qs = deck.items.map(it => it.question)
   if (qs.length === 0) return <div className="p-6">Dieses Deck ist leer.</div>
 
+  // Für den Client: irgendeine Exam-ID mitschicken (wird im Practice nicht serverseitig verwendet)
   const firstExamId = qs[0].examId
 
-  // Attempt (Training) anlegen/holen (offen)
-  let attempt = await prisma.attempt.findFirst({
-    where: { userId: me.id, examId: firstExamId, finishedAt: null },
-    select: { id: true, elapsedSec: true }
-  })
-  if (!attempt) {
-    attempt = await prisma.attempt.create({
-      data: { userId: me.id, examId: firstExamId },
-      select: { id: true, elapsedSec: true }
-    })
-  }
+  // Practice nutzt KEINE Attempts. Wir geben nur einen stabilen LocalStorage-Key:
+  const practiceAttemptId = `practice:${deck.id}:${me.id}`
 
-  const initialAnswersArr = await prisma.attemptAnswer.findMany({
-    where: { attemptId: attempt.id, questionId: { in: qs.map(q => q.id) } },
-    select: { questionId: true, answerOptionId: true }
-  })
-  const initialAnswers = Object.fromEntries(initialAnswersArr.map(a => [a.questionId, a.answerOptionId] as const))
+  // Im Practice haben wir keine initial gespeicherten Antworten
+  const initialAnswers: Record<string, string | undefined> = {}
 
   const clientQuestions = qs.map(q => ({
     id: q.id,
@@ -75,13 +65,13 @@ export default async function DeckPracticePage({ params }: Props) {
   return (
     <main className="max-w-5xl mx-auto p-6">
       <RunnerClient
-        attemptId={attempt.id}
+        attemptId={practiceAttemptId}      // nur für LocalStorage-Keys
         examId={firstExamId}
         passPercent={0}
         allowImmediateFeedback={true}
         questions={clientQuestions}
         initialAnswers={initialAnswers}
-        initialElapsedSec={attempt.elapsedSec ?? 0}
+        initialElapsedSec={0}
         mode="practice"
         initialExamMode={true} // Sofort-Feedback standardmäßig AUS (umschaltbar)
       />
