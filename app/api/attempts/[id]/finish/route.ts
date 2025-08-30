@@ -4,9 +4,11 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
+export const runtime = "nodejs"
+
 export async function POST(
   req: Request,
-  context: { params: Promise<{ id: string }> } // ← asynchroner params-Context
+  context: { params: Promise<{ id: string }> } // Next 15: params async
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -60,28 +62,29 @@ export async function POST(
         : (attempt.elapsedSec ?? 0)
     const finalElapsed = typeof elapsedFromClient === "number" ? elapsedFromClient : derivedElapsed
 
-    await prisma.attempt.update({
-      where: { id: attemptId },
-      data: { finishedAt: new Date(), scorePercent, passed, elapsedSec: finalElapsed },
-    })
+    // Update Attempt + Lernstatistik + Auto-Deck "Falsch beantwortet" in EINER TX
+    await prisma.$transaction(async (tx) => {
+      await tx.attempt.update({
+        where: { id: attemptId },
+        data: { finishedAt: new Date(), scorePercent, passed, elapsedSec: finalElapsed },
+      })
 
-    // Lernstatistik aggregieren
-    const now = new Date()
-    const grouped = new Map<
-      string,
-      { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }
-    >()
-    for (const a of answers) {
-      const g = grouped.get(a.questionId) || { seen: 0, wrong: 0 }
-      g.seen += 1
-      if (a.isCorrect) g.lastCorrectAt = now
-      else { g.wrong += 1; g.lastWrongAt = now }
-      grouped.set(a.questionId, g)
-    }
+      // Lernstatistik
+      const now = new Date()
+      const grouped = new Map<
+        string,
+        { seen: number; wrong: number; lastWrongAt?: Date; lastCorrectAt?: Date }
+      >()
+      for (const a of answers) {
+        const g = grouped.get(a.questionId) || { seen: 0, wrong: 0 }
+        g.seen += 1
+        if (a.isCorrect) g.lastCorrectAt = now
+        else { g.wrong += 1; g.lastWrongAt = now }
+        grouped.set(a.questionId, g)
+      }
 
-    await prisma.$transaction(
-      Array.from(grouped.entries()).map(([questionId, agg]) =>
-        prisma.userQuestionStat.upsert({
+      for (const [questionId, agg] of grouped.entries()) {
+        await tx.userQuestionStat.upsert({
           where: { userId_questionId: { userId: attempt.userId, questionId } },
           update: {
             seenCount: { increment: agg.seen },
@@ -98,8 +101,33 @@ export async function POST(
             lastCorrectAt: agg.lastCorrectAt ?? null,
           },
         })
-      )
-    )
+      }
+
+      // Auto-Deck "Falsch beantwortet" (ENUM bewusst NICHT verwenden)
+      const wrong = answers.filter(a => !a.isCorrect).map(a => a.questionId)
+      if (wrong.length > 0) {
+        const auto = await tx.deck.findFirst({
+          where: { userId: attempt.userId, isAuto: true, title: "Falsch beantwortet" },
+          select: { id: true },
+        })
+        const deckId =
+          auto?.id ??
+          (await tx.deck.create({
+            data: { userId: attempt.userId, title: "Falsch beantwortet", isAuto: true },
+            select: { id: true },
+          })).id
+
+        for (const questionId of wrong) {
+          const agg = await tx.deckItem.aggregate({ where: { deckId }, _max: { order: true } })
+          const nextOrder = (agg._max.order ?? 0) + 1
+          await tx.deckItem.upsert({
+            where: { deckId_questionId: { deckId, questionId } },
+            update: {},
+            create: { deckId, questionId, order: nextOrder },
+          })
+        }
+      }
+    })
 
     return NextResponse.json({ ok: true, scorePercent, passed, elapsedSec: finalElapsed })
   } catch (e) {

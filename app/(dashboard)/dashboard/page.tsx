@@ -1,4 +1,3 @@
-// app/(dashboard)/dashboard/page.tsx
 import Link from "next/link"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -30,22 +29,27 @@ export default async function DashboardPage() {
     return <p className="text-red-600">Benutzerkonto nicht gefunden.</p>
   }
 
-  // Eigene Decks (kleine Vorschau)
+  // Eigene (nicht-automatische) Decks
   const decks = await prisma.deck.findMany({
-    where: { userId: me.id },
+    where: { userId: me.id, isAuto: false },
     orderBy: { updatedAt: "desc" },
     take: 4,
     include: { _count: { select: { items: true } } },
   })
 
-  // Alle Käufe inkl. Exam
+  // Auto-Decks separat (nur wenn vorhanden)
+  const autoDecks = await prisma.deck.findMany({
+    where: { userId: me.id, isAuto: true },
+    orderBy: { updatedAt: "desc" },
+    include: { _count: { select: { items: true } } },
+  })
+
   const purchases = await prisma.purchase.findMany({
     where: { userId: me.id },
     include: { exam: { select: { id: true, title: true, slug: true, description: true } } },
     orderBy: { createdAt: "desc" },
   })
 
-  // Offene Versuche
   const openAttempts = await prisma.attempt.findMany({
     where: { userId: me.id, finishedAt: null },
     select: { id: true, examId: true },
@@ -74,7 +78,6 @@ export default async function DashboardPage() {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
           <div className="flex gap-2">
-            {/* WICHTIG: zur Deck-Seite mit Anker, Formular öffnet automatisch */}
             <Link href="/decks#new-deck">
               <Button size="sm" variant="outline">Neues Deck</Button>
             </Link>
@@ -118,7 +121,6 @@ export default async function DashboardPage() {
                     <Link href={`/decks/${d.id}`}>
                       <Button size="sm" variant="outline">Öffnen</Button>
                     </Link>
-                    {/* Training/Üben öffnet Practice-Runner für das Deck */}
                     <Link href={`/practice/deck/${d.id}`}>
                       <Button size="sm">Training starten</Button>
                     </Link>
@@ -130,10 +132,39 @@ export default async function DashboardPage() {
         )}
       </section>
 
+      {/* Automatische Decks */}
+      {autoDecks.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Automatische Decks</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {autoDecks.map((d) => (
+              <Card key={d.id} className="border-dashed">
+                <CardHeader>
+                  <CardTitle className="text-base">{d.title}</CardTitle>
+                  <CardDescription>Wird automatisch befüllt (nicht löschbar).</CardDescription>
+                </CardHeader>
+                <CardContent className="flex items-center justify-between gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {d._count.items} Frage{d._count.items === 1 ? "" : "n"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Link href={`/decks/${d.id}`}>
+                      <Button size="sm" variant="outline">Öffnen</Button>
+                    </Link>
+                    <Link href={`/practice/deck/${d.id}`}>
+                      <Button size="sm">Training starten</Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Erworbene Prüfungen */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Erworbene Prüfungen</h2>
-
         {purchases.length === 0 ? (
           <Card>
             <CardHeader>
@@ -159,20 +190,16 @@ export default async function DashboardPage() {
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {e.description && <p className="text-sm text-muted-foreground">{e.description}</p>}
-
                     {openAttemptId ? (
                       <div className="flex items-center gap-3">
                         <Link href={`/exam-run/${openAttemptId}`}>
                           <Button>Weiter</Button>
                         </Link>
-                        <span className="text-sm text-muted-foreground">
-                          Du hast einen offenen Versuch.
-                        </span>
+                        <span className="text-sm text-muted-foreground">Du hast einen offenen Versuch.</span>
                       </div>
                     ) : (
                       <StartExamButton examId={e.id} />
                     )}
-
                     <div className="text-xs text-muted-foreground">
                       <Link href={`/exams/${e.slug}`} className="underline">Details</Link>
                     </div>

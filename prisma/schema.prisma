@@ -47,7 +47,7 @@ model User {
   questionStats UserQuestionStat[]
   questionStars QuestionStar[]
 
-  // NEU / wichtig: Gegenrelationen
+  // Gegenrelationen
   flags   UserQuestionFlag[]
   decks   Deck[]
   reviews ReviewItem[]
@@ -288,7 +288,6 @@ model QuestionStar {
 /**
  * ============ Tags ============
  */
-
 model Tag {
   id       String  @id @default(cuid())
   name     String
@@ -314,9 +313,8 @@ model QuestionTag {
 }
 
 /**
- * ============ Decks (nur explizite Pivot) ============
+ * ============ Decks (explizite Pivot) ============
  */
-
 model Deck {
   id          String   @id @default(cuid())
   userId      String
@@ -331,6 +329,7 @@ model Deck {
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items DeckItem[]
 
+  // genau 1 Deck pro (userId, autoType); mehrere mit NULL (normale Decks) sind erlaubt
   @@unique([userId, autoType])
   @@index([userId])
 }
@@ -344,6 +343,7 @@ model DeckItem {
   deck     Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
+  // sorgt dafür, dass upsert({ where: { deckId_questionId: {…}}}) funktioniert
   @@id([deckId, questionId])
   @@index([questionId])
 }
@@ -351,7 +351,6 @@ model DeckItem {
 /**
  * ======= Spaced Repetition =======
  */
-
 model ReviewItem {
   id         String   @id @default(cuid())
   userId     String
