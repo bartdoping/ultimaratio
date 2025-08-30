@@ -22,6 +22,14 @@ enum MediaKind {
   image
 }
 
+/**
+ * Autodecks
+ */
+enum DeckAutoType {
+  FLAGGED
+  WRONG
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -39,7 +47,8 @@ model User {
   questionStats UserQuestionStat[]
   questionStars QuestionStar[]
 
-  // NEU: Back-Relations
+  // NEU / wichtig: Gegenrelationen
+  flags   UserQuestionFlag[]
   decks   Deck[]
   reviews ReviewItem[]
 }
@@ -55,7 +64,6 @@ model Exam {
   allowImmediateFeedback Boolean  @default(false)
   createdAt              DateTime @default(now())
 
-  // Stripe-Verknüpfung
   stripeProductId String? @unique
   stripePriceId   String? @unique
 
@@ -101,7 +109,8 @@ model Question {
   userStats UserQuestionStat[]
   stars     QuestionStar[]
 
-  // NEU: Back-Relations
+  // Gegenrelationen
+  flags       UserQuestionFlag[]
   tags        QuestionTag[]
   deckItems   DeckItem[]
   reviewItems ReviewItem[]
@@ -252,6 +261,18 @@ model UserQuestionStat {
   @@index([lastWrongAt])
 }
 
+model UserQuestionFlag {
+  userId     String
+  questionId String
+  flaggedAt  DateTime @default(now())
+
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([userId, questionId])
+  @@index([questionId])
+}
+
 model QuestionStar {
   userId     String
   questionId String
@@ -293,7 +314,7 @@ model QuestionTag {
 }
 
 /**
- * ============ Decks ============
+ * ============ Decks (nur explizite Pivot) ============
  */
 
 model Deck {
@@ -304,9 +325,13 @@ model Deck {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  isAuto   Boolean       @default(false)
+  autoType DeckAutoType?
+
   user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   items DeckItem[]
 
+  @@unique([userId, autoType])
   @@index([userId])
 }
 
@@ -332,7 +357,7 @@ model ReviewItem {
   userId     String
   questionId String
   dueAt      DateTime
-  interval   Int      @default(1) // Tage
+  interval   Int      @default(1)
   ease       Float    @default(2.5)
   lapses     Int      @default(0)
   suspended  Boolean  @default(false)

@@ -1,61 +1,69 @@
-import { NextRequest, NextResponse } from "next/server"
+// app/api/practice/answer/route.ts
+import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { z } from "zod"
 
 export const runtime = "nodejs"
 
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-  }
+const BodySchema = z.object({
+  questionId: z.string().min(1),
+  answerOptionId: z.string().min(1),
+})
 
-  const me = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  })
-  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
-
-  let body: any
+export async function POST(req: Request) {
   try {
-    body = await req.json()
-  } catch {
-    return NextResponse.json({ error: "invalid json" }, { status: 400 })
-  }
-  const { questionId, answerOptionId } = body ?? {}
-  if (typeof questionId !== "string" || typeof answerOptionId !== "string") {
-    return NextResponse.json({ error: "missing fields" }, { status: 400 })
-  }
+    // Auth
+    const session = await getServerSession(authOptions)
+    const userId = session?.user?.id as string | undefined
+    if (!userId) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    }
 
-  const question = await prisma.question.findUnique({
-    where: { id: questionId },
-    select: { id: true, examId: true },
-  })
-  if (!question) return NextResponse.json({ error: "question not found" }, { status: 404 })
+    // Body validieren
+    const parsed = BodySchema.safeParse(await req.json().catch(() => ({})))
+    if (!parsed.success) {
+      return NextResponse.json({ error: "missing fields" }, { status: 400 })
+    }
+    const { questionId, answerOptionId } = parsed.data
 
-  const purchase = await prisma.purchase.findFirst({
-    where: { userId: me.id, examId: question.examId },
-    select: { id: true },
-  })
-  if (!purchase) return NextResponse.json({ error: "no access to exam" }, { status: 403 })
+    // Frage prüfen
+    const question = await prisma.question.findUnique({
+      where: { id: questionId },
+      select: { id: true, examId: true },
+    })
+    if (!question) {
+      return NextResponse.json({ error: "question not found" }, { status: 404 })
+    }
 
-  const option = await prisma.answerOption.findFirst({
-    where: { id: answerOptionId, questionId },
-    select: { isCorrect: true },
-  })
-  if (!option) return NextResponse.json({ error: "bad option" }, { status: 400 })
+    // Zugriff prüfen (Kauf vorhanden?)
+    const purchase = await prisma.purchase.findFirst({
+      where: { userId, examId: question.examId },
+      select: { id: true },
+    })
+    if (!purchase) {
+      return NextResponse.json({ error: "no access to exam" }, { status: 403 })
+    }
 
-  const now = new Date()
-  const stat = await prisma.userQuestionStat.findUnique({
-    where: { userId_questionId: { userId: me.id, questionId } },
-    select: { userId: true, questionId: true },
-  })
+    // Option prüfen (muss zur Frage gehören)
+    const option = await prisma.answerOption.findFirst({
+      where: { id: answerOptionId, questionId },
+      select: { isCorrect: true },
+    })
+    if (!option) {
+      return NextResponse.json({ error: "bad option" }, { status: 400 })
+    }
 
-  if (!stat) {
-    await prisma.userQuestionStat.create({
-      data: {
-        userId: me.id,
+    // Lernstatistik aktualisieren (upsert)
+    const now = new Date()
+    await prisma.userQuestionStat.upsert({
+      where: { userId_questionId: { userId, questionId } },
+      update: option.isCorrect
+        ? { seenCount: { increment: 1 }, lastCorrectAt: now }
+        : { seenCount: { increment: 1 }, wrongCount: { increment: 1 }, lastWrongAt: now },
+      create: {
+        userId,
         questionId,
         seenCount: 1,
         wrongCount: option.isCorrect ? 0 : 1,
@@ -63,14 +71,10 @@ export async function POST(req: NextRequest) {
         lastWrongAt: option.isCorrect ? null : now,
       },
     })
-  } else {
-    await prisma.userQuestionStat.update({
-      where: { userId_questionId: { userId: me.id, questionId } },
-      data: option.isCorrect
-        ? { seenCount: { increment: 1 }, lastCorrectAt: now }
-        : { seenCount: { increment: 1 }, wrongCount: { increment: 1 }, lastWrongAt: now },
-    })
-  }
 
-  return NextResponse.json({ ok: true, isCorrect: option.isCorrect })
+    return NextResponse.json({ ok: true, isCorrect: option.isCorrect })
+  } catch (e) {
+    console.error("practice answer failed:", e)
+    return NextResponse.json({ error: "server error" }, { status: 500 })
+  }
 }

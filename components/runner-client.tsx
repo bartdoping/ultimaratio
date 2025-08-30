@@ -1,3 +1,4 @@
+// components/runner-client.tsx
 "use client"
 
 import { useEffect, useMemo, useRef, useState } from "react"
@@ -12,11 +13,11 @@ type Question = {
   explanation?: string | null
   options: Option[]
   media?: { id: string; url: string; alt: string; order: number }[]
-  // Case (optional)
   caseId?: string | null
   caseTitle?: string | null
   caseVignette?: string | null
   caseOrder?: number | null
+  examId?: string | null
 }
 
 type LabValue = {
@@ -36,13 +37,9 @@ type Props = {
   allowImmediateFeedback: boolean
   questions: Question[]
   initialAnswers: Record<string, string | undefined>
-  /** vom Server übergebene, bisher akkumulierte Sekunden */
   initialElapsedSec?: number
-  /** "exam" = Prüfungssimulation, "practice" = Üben */
   mode?: "exam" | "practice"
-  /** Startfilter beim Mount (z. B. "wrong") */
   initialFilterMode?: FilterMode
-  /** Startzustand des Prüfungsmodus (true = Sofort-Feedback AUS) */
   initialExamMode?: boolean
 }
 
@@ -86,14 +83,13 @@ export function RunnerClient(props: Props) {
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
 
-  // Timer (robust gegen Tab-Wechsel & SPA-Navigation)
+  // Timer
   const lsElapsedAtMount = (() => {
     if (typeof window === "undefined") return 0
     const raw = window.localStorage.getItem(LS_ELAPSED)
     const v = raw ? parseInt(raw, 10) : 0
     return Number.isFinite(v) ? Math.max(0, v) : 0
   })()
-
   const [elapsed, setElapsed] = useState<number>(Math.max(initialElapsedSec, lsElapsedAtMount))
   const [running, setRunning] = useState(true)
 
@@ -111,6 +107,7 @@ export function RunnerClient(props: Props) {
   }
 
   async function sendHeartbeat(nowSec?: number) {
+    if (mode === "practice") return
     try {
       const value = typeof nowSec === "number" ? nowSec : elapsed
       persistElapsedToLS(value)
@@ -125,7 +122,6 @@ export function RunnerClient(props: Props) {
       })
       lastSentRef.current = Date.now()
     } catch {
-      // still – wir versuchen später erneut
     } finally {
       sendingRef.current = false
     }
@@ -143,15 +139,17 @@ export function RunnerClient(props: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [running])
 
-  // periodischer Heartbeat
+  // periodischer Heartbeat (nur Exam)
   useEffect(() => {
+    if (mode === "practice") return
     const t = setInterval(() => { if (running) sendHeartbeat() }, HEARTBEAT_MS)
     return () => clearInterval(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, attemptId])
+  }, [running, attemptId, mode])
 
-  // Sichtbarkeit / (Page)Unload
+  // Sichtbarkeit / (Page)Unload – nur Exam
   useEffect(() => {
+    if (mode === "practice") return
     function onVis() {
       if (document.hidden) {
         persistElapsedToLS(elapsed)
@@ -183,11 +181,9 @@ export function RunnerClient(props: Props) {
         navigator.sendBeacon?.(`/api/attempts/${attemptId}/heartbeat`, data)
       } catch {}
     }
-
     document.addEventListener("visibilitychange", onVis)
     window.addEventListener("beforeunload", onBeforeUnload as any)
     window.addEventListener("pagehide", onPageHide)
-
     return () => {
       document.removeEventListener("visibilitychange", onVis)
       window.removeEventListener("beforeunload", onBeforeUnload as any)
@@ -200,9 +196,9 @@ export function RunnerClient(props: Props) {
       } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [elapsed, attemptId])
+  }, [elapsed, attemptId, mode])
 
-  // Prüfungsmodus (true = „kein Direktfeedback“)
+  // Prüfungsmodus / Sofort-Feedback
   const [examMode, setExamMode] = useState<boolean>(() => {
     const fromLs = typeof window !== "undefined" ? window.localStorage.getItem(LS_MODE) : null
     if (fromLs != null) return fromLs === "1"
@@ -244,7 +240,29 @@ export function RunnerClient(props: Props) {
     } catch { return {} }
   })
 
-  // Filter-Init: aus LS > Prop > "all"
+  // Initiale Flags vom Server ziehen (einmalig)
+  useEffect(() => {
+    if (questions.length === 0) return
+    const ids = questions.map(q => q.id).join(",")
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/questions/flags?ids=${encodeURIComponent(ids)}`)
+        const j = await res.json().catch(() => null)
+        const serverFlags = (j?.flags || {}) as Record<string, boolean>
+        if (serverFlags && typeof serverFlags === "object") {
+          setFlagged(prev => {
+            const merged = { ...prev }
+            for (const [qid, v] of Object.entries(serverFlags)) merged[qid] = !!v
+            try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(merged)) } catch {}
+            return merged
+          })
+        }
+      } catch {}
+    })()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Filter-Init
   const [filterMode, setFilterMode] = useState<FilterMode>(() => {
     if (typeof window === "undefined") return initialFilterMode ?? "all"
     const raw = window.localStorage.getItem(LS_FILTER)
@@ -256,7 +274,7 @@ export function RunnerClient(props: Props) {
   const [navOpen, setNavOpen] = useState(false)
   const [sheetDragY, setSheetDragY] = useState(0)
 
-  // Aktuelle Frage (safe, da questions immer >=1 im Practice-Entry)
+  // Aktuelle Frage
   const q = questions[idx]
   const given = answers[q.id]
   const isCurrentFlagged = !!flagged[q.id]
@@ -264,7 +282,7 @@ export function RunnerClient(props: Props) {
   const hasTip = !!(q.tip && q.tip.trim().length)
   const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
 
-  // Gruppen für Seitenleiste
+  // Gruppen
   const groups = useMemo(() => {
     const res: { id: string | null; label: string; indices: number[]; order: number }[] = []
     const byId = new Map<string | null, number>()
@@ -311,23 +329,20 @@ export function RunnerClient(props: Props) {
     wrong: wrongIndices.length,
   }), [questions.length, openIndices.length, flaggedIndices.length, wrongIndices.length])
 
-  // --- Sichtbare Fragen gemäß aktivem Filter ---
+  // Sichtbare Indizes je Filter
   const filteredIndices = useMemo(() => {
     if (filterMode === "flagged") return flaggedIndices
     if (filterMode === "wrong")   return wrongIndices
     if (filterMode === "open")    return openIndices
-    return questions.map((_, i) => i) // "all"
+    return questions.map((_, i) => i)
   }, [filterMode, flaggedIndices, wrongIndices, openIndices, questions])
 
-  // Beim Filterwechsel, falls aktuelle Frage nicht passt → erste passende
+  // Beim Filterwechsel ggf. springen
   useEffect(() => {
     if (filteredIndices.length === 0) return
-    if (!filteredIndices.includes(idx)) {
-      setIdx(filteredIndices[0])
-    }
+    if (!filteredIndices.includes(idx)) setIdx(filteredIndices[0])
   }, [filteredIndices, idx])
 
-  // Leerzustandstext
   const noResultsMessage = useMemo(() => {
     switch (filterMode) {
       case "open":    return "Keine offene Frage."
@@ -337,7 +352,6 @@ export function RunnerClient(props: Props) {
     }
   }, [filterMode])
 
-  // Navigation innerhalb der gefilterten Liste
   const filteredPos = useMemo(() => filteredIndices.indexOf(idx), [filteredIndices, idx])
   const atStart     = filteredIndices.length === 0 || filteredPos <= 0
   const atEnd       = filteredIndices.length === 0 || filteredPos >= filteredIndices.length - 1
@@ -345,30 +359,21 @@ export function RunnerClient(props: Props) {
   function nextInFiltered(dir: 1 | -1) {
     if (filteredIndices.length === 0) return
     const pos = filteredIndices.indexOf(idx)
-    if (pos === -1) {
-      setIdx(filteredIndices[0])
-      return
-    }
+    if (pos === -1) { setIdx(filteredIndices[0]); return }
     const nextPos = Math.min(Math.max(pos + dir, 0), filteredIndices.length - 1)
     setIdx(filteredIndices[nextPos])
   }
 
   // Persistenzen
-  useEffect(() => {
-    try { window.localStorage.setItem(LS_FILTER, filterMode) } catch {}
-  }, [filterMode])
-  useEffect(() => {
-    try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(flagged)) } catch {}
-  }, [flagged])
+  useEffect(() => { try { window.localStorage.setItem(LS_FILTER, filterMode) } catch {} }, [filterMode])
+  useEffect(() => { try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(flagged)) } catch {} }, [flagged])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_IDX, String(idx)) }, [idx])
   useEffect(() => { if (typeof window !== "undefined") window.localStorage.setItem(LS_MODE, examMode ? "1" : "0") }, [examMode])
 
-  // Practice: Session beenden (ohne Bewertung)
+  // Practice: Session beenden
   function endPractice() {
     if (!confirm("Session beenden? Es gibt keine Auswertung; lokale Fortschritte werden verworfen.")) return
-    try {
-      persistElapsedToLS(elapsed)
-    } catch {}
+    try { persistElapsedToLS(elapsed) } catch {}
     try {
       window.localStorage.removeItem(LS_IDX)
       window.localStorage.removeItem(LS_MODE)
@@ -396,7 +401,7 @@ export function RunnerClient(props: Props) {
     if (filterMode === "flagged") return flaggedIndices
     if (filterMode === "wrong") return wrongIndices
     if (filterMode === "open") return openIndices
-    return openIndices // bei "all" macht open i.d.R. mehr Sinn
+    return openIndices
   }
 
   function nextTargetIndex(): number {
@@ -411,28 +416,43 @@ export function RunnerClient(props: Props) {
     if (ni >= 0) setIdx(ni)
   }
 
+  // Markieren mit Server-Persistenz
   function toggleFlagCurrent() {
     const id = q.id
+    const willBe = !flagged[id]
     setFlagged(f => {
-      const v = !f[id]
-      const nf = { ...f, [id]: v }
+      const nf = { ...f, [id]: willBe }
       try { window.localStorage.setItem(LS_FLAGGED, JSON.stringify(nf)) } catch {}
       return nf
     })
+    fetch(`/api/questions/${id}/flag`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ flagged: willBe }),
+    }).catch(() => {})
   }
 
   // Antwort wählen
   async function choose(optionId: string) {
     setSubmitting(true)
     try {
-      const res = await fetch(`/api/attempts/${attemptId}/answer`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
-      })
-      const j = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
-      setAnswers(a => ({ ...a, [q.id]: optionId }))
+      if (mode === "practice") {
+        await fetch(`/api/practice/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
+        }).catch(() => {})
+        setAnswers(a => ({ ...a, [q.id]: optionId }))
+      } else {
+        const res = await fetch(`/api/attempts/${attemptId}/answer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
+        })
+        const j = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
+        setAnswers(a => ({ ...a, [q.id]: optionId }))
+      }
     } catch (e) {
       alert((e as Error).message)
     } finally {
@@ -442,6 +462,7 @@ export function RunnerClient(props: Props) {
 
   // Exam-Finish
   async function finish() {
+    if (mode === "practice") return
     if (!confirm("Prüfung wirklich beenden und auswerten?")) return
     setSubmitting(true)
     try {
@@ -475,6 +496,68 @@ export function RunnerClient(props: Props) {
     return `${answered}/${questions.length}`
   }, [answers, questions.length])
 
+  // ---------- Deck-Speichern ----------
+  type MyDeck = { id: string; title: string }
+  const [saveOpen, setSaveOpen] = useState(false)
+  const [decksLoading, setDecksLoading] = useState(false)
+  const [decksError, setDecksError] = useState<string | null>(null)
+  const [myDecks, setMyDecks] = useState<MyDeck[]>([])
+  const [selectedDeckIds, setSelectedDeckIds] = useState<Record<string, boolean>>({})
+  const [saveBusy, setSaveBusy] = useState(false)
+
+  function toggleDeck(id: string) {
+    setSelectedDeckIds(prev => ({ ...prev, [id]: !prev[id] }))
+  }
+
+  async function openSaveModal() {
+    setSaveOpen(true)
+    if (myDecks.length > 0 || decksLoading) return
+    setDecksLoading(true)
+    setDecksError(null)
+    try {
+      const res = await fetch("/api/decks/mine", { cache: "no-store" })
+      const j = await res.json().catch(() => null)
+      if (!res.ok || !j?.ok) throw new Error(j?.error || "Konnte Decks nicht laden.")
+      const items = Array.isArray(j?.items) ? j.items : []
+      const normalized: MyDeck[] = items.map((d: any) => ({
+        id: String(d.id),
+        title: String(d.title ?? d.name ?? "Deck"),
+      }))
+      setMyDecks(normalized)
+    } catch (e) {
+      setDecksError((e as Error).message || "Decks konnten nicht geladen werden.")
+    } finally {
+      setDecksLoading(false)
+    }
+  }
+
+  async function saveToDecks() {
+    const ids = Object.keys(selectedDeckIds).filter(k => selectedDeckIds[k])
+    if (ids.length === 0) {
+      alert("Bitte wähle mindestens ein Deck aus.")
+      return
+    }
+    setSaveBusy(true)
+    try {
+      const res = await fetch("/api/decks/add-question", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questionId: q.id, deckIds: ids }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j?.ok) {
+        throw new Error(j?.error || "Konnte die Frage nicht speichern.")
+      }
+      setSaveOpen(false)
+      setSelectedDeckIds({})
+      alert("Gespeichert.")
+    } catch (e) {
+      alert((e as Error).message)
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
   // ---------- Shortcuts ----------
   useEffect(() => {
     function isTyping() {
@@ -483,50 +566,32 @@ export function RunnerClient(props: Props) {
       const tag = ae.tagName.toLowerCase()
       return tag === "input" || tag === "textarea" || ae.isContentEditable
     }
-
     function onKey(e: KeyboardEvent) {
-      // Modals: Lightbox/Lab priorisieren
       if (lightboxOpen) {
         if (e.key === "Escape") { setLightboxOpen(false); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}) }
         if (e.key === "ArrowRight") setLightboxIndex(i => (i + 1) % Math.max(1, media.length))
         if (e.key === "ArrowLeft") setLightboxIndex(i => (i - 1 + Math.max(1, media.length)) % Math.max(1, media.length))
         return
       }
-      if (labOpen) {
-        if (e.key === "Escape") setLabOpen(false)
-        return
-      }
+      if (labOpen) { if (e.key === "Escape") setLabOpen(false); return }
 
       if (e.key.toLowerCase() === "p") { e.preventDefault(); setRunning(r => !r); return }
       if (e.key.toLowerCase() === "f") { e.preventDefault(); setNavOpen(v => !v); return }
-      if (e.key.toLowerCase() === "l") {
-        if (!isTyping()) { e.preventDefault(); setLabOpen(true) }
-        return
-      }
+      if (e.key.toLowerCase() === "l") { if (!isTyping()) { e.preventDefault(); setLabOpen(true) } return }
 
       if (isTyping()) return
 
       if (e.key.toLowerCase() === "m") { e.preventDefault(); toggleFlagCurrent(); return }
       if (e.key.toLowerCase() === "u") { e.preventDefault(); goNextTarget(); return }
 
-      // Enter → weiter innerhalb der gefilterten Liste
-      if (e.key === "Enter") {
-        e.preventDefault()
-        nextInFiltered(1)
-        return
-      }
+      if (e.key === "Enter") { e.preventDefault(); nextInFiltered(1); return }
 
-      // 1–4 → Option wählen
       if (/^[1-4]$/.test(e.key)) {
         const n = Number(e.key) - 1
         const opt = q.options[n]
-        if (opt) {
-          e.preventDefault()
-          choose(opt.id)
-        }
+        if (opt) { e.preventDefault(); choose(opt.id) }
       }
     }
-
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -561,7 +626,7 @@ export function RunnerClient(props: Props) {
     })()
   }, [labOpen, labValues.length, labLoading])
 
-  // ---------- Swipe-Gesten (mobile) ----------
+  // Swipe (mobil)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   function onTouchStart(e: any) {
     const t = e.touches[0]
@@ -582,7 +647,7 @@ export function RunnerClient(props: Props) {
     touchStart.current = null
   }
 
-  // -------- UI --------
+  // UI
   const primaryJumpLabel =
     filterMode === "flagged" ? "Nächste markierte"
     : filterMode === "wrong" ? "Nächste falsche"
@@ -593,7 +658,7 @@ export function RunnerClient(props: Props) {
 
   return (
     <div className="relative block lg:flex lg:items-start lg:gap-6">
-      {/* ---------- Desktop: Sticky Left-Rail (lg+) ---------- */}
+      {/* Left-Rail */}
       <aside className="hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[16rem] lg:flex-none rounded border p-3 overflow-y-auto">
         <div className="mb-2 text-sm font-semibold">Fragen</div>
 
@@ -655,7 +720,6 @@ export function RunnerClient(props: Props) {
           })}
         </div>
 
-        {/* Legende */}
         <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
           <div>✓ Grün = beantwortet</div>
           <div>• Ring = aktuell</div>
@@ -663,25 +727,20 @@ export function RunnerClient(props: Props) {
         </div>
       </aside>
 
-      {/* ---------- Hauptbereich ---------- */}
+      {/* Hauptbereich */}
       <div className="relative lg:flex-1 lg:min-w-0">
         {/* Kopfzeile */}
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
-            {/* Mobile: Bottom-Sheet öffnen */}
-            <Button
-              variant="outline"
-              onClick={() => setNavOpen(true)}
-              title="Fragenübersicht (F)"
-              className="lg:hidden"
-            >
+            <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden">
               Fragen
             </Button>
             <span>Frage {idx + 1} / {questions.length} ({progress})</span>
           </div>
 
           <div className="flex items-center gap-2">
-            {mode === "practice" && (
+            {/* Sofort-Feedback: in beiden Modi sichtbar, wenn erlaubt */}
+            {allowImmediateFeedback && (
               <label className="flex items-center gap-2" title="Wenn an: sofort zeigen, ob richtig/falsch">
                 <input
                   type="checkbox"
@@ -693,7 +752,9 @@ export function RunnerClient(props: Props) {
             )}
 
             {mode === "exam" && (
-              <span className="text-xs text-muted-foreground">Prüfungsmodus aktiv</span>
+              <span className="text-xs text-muted-foreground">
+                {examMode ? "Prüfungsmodus aktiv (kein Direktfeedback)" : "Prüfungsmodus: Direktfeedback an"}
+              </span>
             )}
 
             {/* Markieren */}
@@ -706,17 +767,16 @@ export function RunnerClient(props: Props) {
               {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
             </Button>
 
-            <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
-              Laborwerte
+            {/* In Decks speichern */}
+            <Button variant="outline" onClick={openSaveModal} title="Diese Frage in eigene Decks ablegen">
+              In Decks speichern
             </Button>
+
+            <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">Laborwerte</Button>
 
             <div className="flex items-center gap-2">
               <span>Zeit: {formatUp(elapsed)}</span>
-              <Button
-                variant="outline"
-                onClick={() => setRunning(r => !r)}
-                title="Timer pausieren/fortsetzen (P)"
-              >
+              <Button variant="outline" onClick={() => setRunning(r => !r)} title="Timer pausieren/fortsetzen (P)">
                 {running ? "Pause" : "Weiter"}
               </Button>
             </div>
@@ -725,23 +785,13 @@ export function RunnerClient(props: Props) {
 
         {/* Kartenbereich */}
         {filteredIndices.length === 0 ? (
-          <div className="rounded border bg-secondary/40 p-6 text-sm text-muted-foreground">
-            {noResultsMessage}
-          </div>
+          <div className="rounded border bg-secondary/40 p-6 text-sm text-muted-foreground">{noResultsMessage}</div>
         ) : (
-          <div
-            className="card card-body space-y-4"
-            onTouchStart={onTouchStart}
-            onTouchEnd={onTouchEnd}
-          >
+          <div className="card card-body space-y-4" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             {(q.caseTitle || q.caseVignette) && (
               <div className="rounded border bg-secondary/40 p-4 space-y-1">
                 <div className="font-semibold">{q.caseTitle || "Fall"}</div>
-                {q.caseVignette && (
-                  <div className="text-sm text-muted-foreground whitespace-pre-wrap">
-                    {q.caseVignette}
-                  </div>
-                )}
+                {q.caseVignette && <div className="text-sm text-muted-foreground whitespace-pre-wrap">{q.caseVignette}</div>}
               </div>
             )}
 
@@ -865,12 +915,8 @@ export function RunnerClient(props: Props) {
         {/* Navigation unten */}
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart}>
-              Zurück
-            </Button>
-            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd}>
-              Weiter
-            </Button>
+            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart}>Zurück</Button>
+            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd}>Weiter</Button>
           </div>
 
           <div className="flex items-center gap-2">
@@ -890,19 +936,15 @@ export function RunnerClient(props: Props) {
             </Button>
 
             {mode === "exam" ? (
-              <Button variant="destructive" onClick={finish} disabled={submitting}>
-                Beenden & Auswerten
-              </Button>
+              <Button variant="destructive" onClick={finish} disabled={submitting}>Beenden & Auswerten</Button>
             ) : (
-              <Button variant="secondary" onClick={endPractice}>
-                Session beenden
-              </Button>
+              <Button variant="secondary" onClick={endPractice}>Session beenden</Button>
             )}
           </div>
         </div>
       </div>
 
-      {/* ------- Lightbox ------- */}
+      {/* Lightbox */}
       {lightboxOpen && media.length > 0 && (
         <div
           ref={overlayRef}
@@ -963,17 +1005,8 @@ export function RunnerClient(props: Props) {
 
       {/* ------- Laborwerte ------- */}
       {labOpen && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Laborwerte"
-          className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4"
-          onClick={() => setLabOpen(false)}
-        >
-          <div
-            className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-lg border bg-white dark:bg-card shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div role="dialog" aria-modal="true" aria-label="Laborwerte" className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={() => setLabOpen(false)}>
+          <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-lg border bg-white dark:bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b px-4 py-3">
               <h2 className="font-semibold">Laborwerte</h2>
               <div className="flex items-center gap-2">
@@ -1035,7 +1068,7 @@ export function RunnerClient(props: Props) {
         </div>
       )}
 
-      {/* ------- Mobile Bottom-Sheet (Fragenübersicht) ------- */}
+      {/* ------- Mobile Bottom-Sheet ------- */}
       {navOpen && <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setNavOpen(false)} />}
 
       <div
@@ -1136,11 +1169,71 @@ export function RunnerClient(props: Props) {
               Tipp:&nbsp;
               <kbd className="px-1 py-0.5 rounded border">M</kbd> markieren,&nbsp;
               <kbd className="px-1 py-0.5 rounded border">U</kbd> nächste&nbsp;
-              {filterMode === "flagged" ? "markierte" : filterMode === "wrong" ? "falsche" : "offene"}.
+              {filterMode === "flagged" ? "markierte" : filterMode === "wrong" ? "falsche" : "offene"}
             </div>
           </div>
         </aside>
       </div>
+
+      {/* ------- „In Decks speichern“ Modal ------- */}
+      {saveOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="In Decks speichern"
+          className="fixed inset-0 z-[70] bg-black/60 grid place-items-center p-4"
+          onClick={() => setSaveOpen(false)}
+        >
+          <div
+            className="w-full max-w-lg max-h-[85vh] overflow-hidden rounded-lg border bg-white dark:bg-card shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b px-4 py-3">
+              <h2 className="font-semibold">In Decks speichern</h2>
+              <Button variant="outline" size="sm" onClick={() => setSaveOpen(false)}>Schließen</Button>
+            </div>
+
+            <div className="p-4 space-y-3">
+              {decksLoading && <div className="text-sm text-muted-foreground">Lade Decks…</div>}
+              {decksError && <div className="text-sm text-red-600">{decksError}</div>}
+
+              {!decksLoading && !decksError && (
+                <>
+                  {myDecks.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">
+                      Du hast noch keine eigenen Decks.
+                    </div>
+                  ) : (
+                    <div className="max-h-[50vh] overflow-auto border rounded">
+                      <ul className="divide-y">
+                        {myDecks.map(d => (
+                          <li key={d.id} className="flex items-center gap-3 px-3 py-2">
+                            <input
+                              id={`deck-${d.id}`}
+                              type="checkbox"
+                              className="h-4 w-4"
+                              checked={!!selectedDeckIds[d.id]}
+                              onChange={() => toggleDeck(d.id)}
+                            />
+                            <label htmlFor={`deck-${d.id}`} className="cursor-pointer text-sm">{d.title}</label>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-end gap-2 pt-2">
+                    <Button variant="outline" onClick={() => setSaveOpen(false)}>Abbrechen</Button>
+                    <Button onClick={saveToDecks} disabled={saveBusy || myDecks.length === 0}>
+                      {saveBusy ? "Speichere…" : "Bestätigen"}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
