@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
+import AssistantWidget from "@/components/ai/assistant-widget"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -281,6 +282,34 @@ export function RunnerClient(props: Props) {
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasTip = !!(q.tip && q.tip.trim().length)
   const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
+
+  // --- KI-Tutor Kontext ---
+const aiContext = useMemo(() => {
+  // Dürfen wir die korrekte Antwort offenlegen?
+  // Regel:
+  //   - Im Exam-Modus: niemals spoilern
+  //   - Im Practice-Modus: wenn eine Antwort gewählt wurde -> ja
+  const inExam = mode === "exam"
+  const alreadyChosen = !!given
+  const canRevealCorrect = !inExam && alreadyChosen
+
+  // Optionen inkl. isCorrect (der Bot „kennt“ die Lösung – Spoiler-Guard steuert Ausgabe)
+  const opts = q.options.map(o => ({
+    id: o.id,
+    text: o.text,
+    isCorrect: !!o.isCorrect,
+  }))
+
+  return {
+    questionId: q.id,
+    examTitle: q.examId ? undefined : undefined, // optional: falls du einen Titel in den Props hast
+    caseTitle: q.caseTitle ?? null,
+    caseVignette: q.caseVignette ?? null,
+    stem: q.stem,
+    options: opts,
+    canRevealCorrect,
+  }
+}, [mode, given, q])
 
   // Gruppen
   const groups = useMemo(() => {
@@ -1234,6 +1263,8 @@ export function RunnerClient(props: Props) {
           </div>
         </div>
       )}
+      {/* KI-Tutor (floating, bottom-right) */}
+      <AssistantWidget context={aiContext} />
     </div>
   )
 }

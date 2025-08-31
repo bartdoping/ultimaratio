@@ -59,6 +59,9 @@ importers:
       nodemailer:
         specifier: ^7.0.5
         version: 7.0.5
+      openai:
+        specifier: ^5.16.0
+        version: 5.16.0(zod@4.0.17)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -2897,6 +2900,18 @@ packages:
   oidc-token-hash@5.1.1:
     resolution: {integrity: sha512-D7EmwxJV6DsEB6vOFLrBM2OzsVgQzgPWyHlV2OOAVj772n+WTXpudC9e9u5BVKQnYwaD30Ivhi9b+4UeBcGu9g==}
     engines: {node: ^10.13.0 || >=12.0.0}
+
+  openai@5.16.0:
+    resolution: {integrity: sha512-hoEH8ZNvg1HXjU9mp88L/ZH8O082Z8r6FHCXGiWAzVRrEv443aI57qhch4snu07yQydj+AUAWLenAiBXhu89Tw==}
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.23.8
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
 
   openid-client@5.7.1:
     resolution: {integrity: sha512-jDBPgSVfTnkIh71Hg9pRvtJc6wTwqjRkN88+gCFtYWrlP4Yx2Dsrow8uPi3qLr/aeymPF3o2+dS+wOpglK04ew==}
@@ -6692,6 +6707,10 @@ snapshots:
   ohash@2.0.11: {}
 
   oidc-token-hash@5.1.1: {}
+
+  openai@5.16.0(zod@4.0.17):
+    optionalDependencies:
+      zod: 4.0.17
 
   openid-client@5.7.1:
     dependencies:
