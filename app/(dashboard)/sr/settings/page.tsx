@@ -13,7 +13,70 @@ import { Badge } from "@/components/ui/badge"
 
 export const runtime = "nodejs"
 
-// ---- helpers ----
+/* ---------- schnelle, einheitliche Tooltips ---------- */
+function InfoBadge({ text }: { text: string }) {
+  return (
+    <span className="relative inline-flex items-center align-middle ml-2 group">
+      {/* „i“-Icon */}
+      <span
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[11px] leading-none cursor-help select-none"
+        aria-label="Info"
+        tabIndex={0}
+      >
+        i
+      </span>
+
+      {/* Container für Transition & Positionierung */}
+      <span
+        className={[
+          "pointer-events-none absolute left-1/2 top-full mt-2 -translate-x-1/2 z-50",
+          "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100",
+          "transition-opacity duration-75 ease-out",
+        ].join(" ")}
+        role="tooltip"
+      >
+        {/* Tooltip-Box: feste, einheitliche Breite */}
+        <span
+          className={[
+            "relative block w-80 sm:w-96 rounded-md border bg-popover text-popover-foreground",
+            "p-3 text-xs leading-relaxed shadow-lg whitespace-normal",
+          ].join(" ")}
+        >
+          {/* Pfeil */}
+          <span
+            className={[
+              "pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2",
+              "h-2 w-2 rotate-45 bg-popover",
+              "border-l border-t",
+            ].join(" ")}
+          />
+          {text}
+        </span>
+      </span>
+    </span>
+  )
+}
+
+function FieldLabel({
+  htmlFor,
+  children,
+  info,
+}: {
+  htmlFor?: string
+  children: React.ReactNode
+  info: string
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <Label htmlFor={htmlFor} className="font-medium">
+        {children}
+      </Label>
+      <InfoBadge text={info} />
+    </div>
+  )
+}
+
+/* ---------- helpers ---------- */
 async function ensureSrTables() {
   await prisma.$executeRawUnsafe(`
     CREATE TABLE IF NOT EXISTS "SRUserSetting" (
@@ -38,7 +101,7 @@ async function ensureSrTables() {
   `)
 }
 
-// ---- actions ----
+/* ---------- actions ---------- */
 async function saveGlobalAction(formData: FormData) {
   "use server"
   const session = await getServerSession(authOptions)
@@ -100,7 +163,7 @@ async function toggleDeckAction(formData: FormData) {
   redirect("/sr/settings")
 }
 
-// ---- page ----
+/* ---------- page ---------- */
 export default async function SRSettingsPage() {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) redirect("/login")
@@ -109,7 +172,7 @@ export default async function SRSettingsPage() {
 
   await ensureSrTables()
 
-  // load global
+  // global
   const globalRows = await prisma.$queryRaw<
     { srEnabled: boolean; dailyNewLimit: number; maxReviewsPerDay: number; easeFactorStart: number; intervalMinDays: number; lapsePenalty: number }[]
   >`SELECT "srEnabled","dailyNewLimit","maxReviewsPerDay","easeFactorStart","intervalMinDays","lapsePenalty" FROM "SRUserSetting" WHERE "userId"=${me.id}`
@@ -123,7 +186,7 @@ export default async function SRSettingsPage() {
     lapsePenalty: 0.5,
   }
 
-  // all decks (own + auto)
+  // decks
   const decks = await prisma.deck.findMany({
     where: { userId: me.id },
     orderBy: { updatedAt: "desc" },
@@ -139,7 +202,7 @@ export default async function SRSettingsPage() {
     : []
   const srEnabledMap = new Map(deckFlags.map(r => [r.deckId, r.srEnabled]))
 
-  // due totals (nur Decks, die SR-enabled sind)
+  // due totals (nur SR-Decks)
   const enabledDeckIds = deckFlags.filter(r => r.srEnabled).map(r => r.deckId)
   let dueTotal = 0
   let perDeckDue = new Map<string, number>()
@@ -180,39 +243,80 @@ export default async function SRSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Global</CardTitle>
-          <CardDescription>Gilt für alle SR-Decks (Limits & Algorithmen-Parameter).</CardDescription>
+          <CardDescription>Gilt für alle SR-Decks (Limits & Parameter des Algorithmus).</CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={saveGlobalAction} className="grid gap-3 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label className="flex items-center gap-2">
-                <input type="checkbox" name="srEnabled" defaultChecked={global.srEnabled} />
-                SR global aktivieren
-              </label>
+          <form action={saveGlobalAction} className="space-y-6">
+            {/* Global aktiv */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Label className="font-medium">SR global aktivieren</Label>
+                <InfoBadge text="Wenn deaktiviert, ist Spaced Repetition für dein Konto komplett aus – auch wenn einzelne Decks als aktiv markiert sind." />
+              </div>
+              <input
+                type="checkbox"
+                name="srEnabled"
+                defaultChecked={global.srEnabled}
+                className="h-5 w-5 accent-current"
+                aria-label="SR global aktivieren"
+              />
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-5">
+              <div className="space-y-1">
+                <FieldLabel
+                  htmlFor="dailyNewLimit"
+                  info="Max. Anzahl neuer Karten pro Tag. Höhere Werte beschleunigen den Aufbau, erhöhen aber die Folgetags-Last."
+                >
+                  Neue Karten pro Tag
+                </FieldLabel>
+                <Input id="dailyNewLimit" name="dailyNewLimit" type="number" min={0} defaultValue={global.dailyNewLimit} />
+              </div>
+
+              <div className="space-y-1">
+                <FieldLabel
+                  htmlFor="maxReviewsPerDay"
+                  info="Obergrenze der Wiederholungen pro Tag. Darüber hinaus fällige Karten rutschen auf Folgetage."
+                >
+                  Max. Reviews pro Tag
+                </FieldLabel>
+                <Input id="maxReviewsPerDay" name="maxReviewsPerDay" type="number" min={0} defaultValue={global.maxReviewsPerDay} />
+              </div>
+
+              <div className="space-y-1">
+                <FieldLabel
+                  htmlFor="easeFactorStart"
+                  info="Start-Leichtigkeitsfaktor (z. B. 2.5). Höher = Intervalle wachsen schneller."
+                >
+                  Start-Ease-Faktor
+                </FieldLabel>
+                <Input id="easeFactorStart" name="easeFactorStart" type="number" step="0.05" min={1.3} defaultValue={global.easeFactorStart} />
+              </div>
+
+              <div className="space-y-1">
+                <FieldLabel
+                  htmlFor="intervalMinDays"
+                  info="Untergrenze des Wiederholungsabstands in Tagen. Verhindert zu kurze Intervalle."
+                >
+                  Minimum-Intervall (Tage)
+                </FieldLabel>
+                <Input id="intervalMinDays" name="intervalMinDays" type="number" min={1} defaultValue={global.intervalMinDays} />
+              </div>
+
+              <div className="space-y-1 sm:col-span-2">
+                <FieldLabel
+                  htmlFor="lapsePenalty"
+                  info="Straf-Faktor bei Fehlern (0.2–1.0). Multipliziert das alte Intervall, z. B. 0.5 halbiert es."
+                >
+                  Lapse-Penalty
+                </FieldLabel>
+                <Input id="lapsePenalty" name="lapsePenalty" type="number" step="0.05" min={0.2} max={1} defaultValue={global.lapsePenalty} />
+              </div>
             </div>
 
             <div>
-              <Label>Tägliches Limit neue Karten</Label>
-              <Input name="dailyNewLimit" type="number" defaultValue={global.dailyNewLimit} />
-            </div>
-            <div>
-              <Label>Max. Reviews / Tag</Label>
-              <Input name="maxReviewsPerDay" type="number" defaultValue={global.maxReviewsPerDay} />
-            </div>
-            <div>
-              <Label>Start-Ease-Faktor</Label>
-              <Input name="easeFactorStart" type="number" step="0.05" defaultValue={global.easeFactorStart} />
-            </div>
-            <div>
-              <Label>Minimal-Intervall (Tage)</Label>
-              <Input name="intervalMinDays" type="number" defaultValue={global.intervalMinDays} />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Lapse-Penalty (0.2–1.0)</Label>
-              <Input name="lapsePenalty" type="number" step="0.05" defaultValue={global.lapsePenalty} />
-            </div>
-            <div className="sm:col-span-2">
-              <Button type="submit">Speichern</Button>
+              <Button type="submit">Einstellungen speichern</Button>
+              <span className="ml-3 text-xs text-muted-foreground">Wirkt auf zukünftige Berechnungen.</span>
             </div>
           </form>
         </CardContent>
@@ -257,7 +361,9 @@ export default async function SRSettingsPage() {
                             <Button size="sm">SR üben</Button>
                           </Link>
                         ) : (
-                          <Button size="sm" variant="outline" disabled>SR üben</Button>
+                          <Button size="sm" variant="outline" disabled title="Aktiviere SR für dieses Deck, um hier zu üben.">
+                            SR üben
+                          </Button>
                         )}
                         <form action={toggleDeckAction}>
                           <input type="hidden" name="deckId" value={d.id} />
