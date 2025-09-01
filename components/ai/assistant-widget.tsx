@@ -2,13 +2,14 @@
 "use client"
 
 import * as React from "react"
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 
-type ChatMsg = { role: "user" | "assistant"; content: string }
+type Role = "user" | "assistant"
+type ChatMsg = { role: Role; content: string }
 type AnswerStyle = "concise" | "detailed"
 
 export default function AssistantWidget(props: {
@@ -23,24 +24,27 @@ export default function AssistantWidget(props: {
   const [input, setInput] = useState("")
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Stil (Kurz/Ausführlich) – persistiert in localStorage
   const [style, setStyle] = useState<AnswerStyle>(() => {
     if (typeof window === "undefined") return "concise"
-    return (localStorage.getItem("ai:answerStyle") as AnswerStyle) || "concise"
+    const v = window.localStorage.getItem("ai:answerStyle")
+    return v === "detailed" ? "detailed" : "concise"
   })
   useEffect(() => {
     try { localStorage.setItem("ai:answerStyle", style) } catch {}
   }, [style])
 
-  // Chat-Verlauf (pro Frage)
+  // Chat-Verlauf (pro Frage neu)
   const [messages, setMessages] = useState<ChatMsg[]>([
     {
       role: "assistant",
       content:
-        "Hi! Ich bin dein KI-Tutor. Frag mich alles zur aktuellen Frage – ich gebe Denkanstöße, Erklärungen und Merkhilfen. (Keine Spoiler, solange du noch nicht geantwortet hast.)\n\nTipp: Oben rechts kannst du zwischen „Kurz“ und „Ausführlich“ wechseln.",
+        "Hi! Ich bin dein KI-Tutor. Frag mich alles zur aktuellen Frage – ich gebe Denkanstöße, Erklärungen und Merkhilfen. (Keine Spoiler, solange du noch nicht geantwortet hast.)\n\nTipp: Rechts oben kannst du zwischen „Kurz“ und „Ausführlich“ wählen.",
     },
   ])
 
-  // Bei neuem Kontext (z. B. Frage gewechselt) Verlauf zurücksetzen
+  // Bei neuem Kontext (z. B. Wechsel der Frage) Verlauf zurücksetzen
   const questionId = String(context?.questionId || "")
   useEffect(() => {
     setMessages([
@@ -60,9 +64,61 @@ export default function AssistantWidget(props: {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" })
   }, [messages, busy, open])
 
-  // ——— Thinking-Indicator ———
+  // ——— Senden ———
+  async function send(text?: string) {
+    const content = (text ?? input).trim()
+    if (!content || busy) return
+    setError(null)
+    setBusy(true)
+
+    const nextMsgs = [...messages, { role: "user" as const, content }]
+    setMessages(nextMsgs)
+    setInput("")
+
+    try {
+      const res = await fetch("/api/ai/assistant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ context, messages: nextMsgs, answerStyle: style }),
+      })
+
+      const j = await res.json().catch(() => null)
+
+      if (!res.ok || !j) {
+        throw new Error("Fehler bei der KI-Antwort (Netzwerk/Server).")
+      }
+
+      if (j.ok && typeof j.text === "string" && j.text.trim().length > 0) {
+        setMessages((m) => [...m, { role: "assistant", content: String(j.text).trim() }])
+      } else {
+        // Server hat ok:false oder leeren Text zurückgegeben → nutzerfreundliche Fallbacks
+        const fallback =
+          style === "concise"
+            ? "Konnte gerade keine knappe Antwort erzeugen. Bitte erneut senden."
+            : "Konnte gerade keine ausführliche Antwort erzeugen. Bitte erneut senden."
+        setMessages((m) => [...m, { role: "assistant", content: fallback }])
+        if (j?.error) setError(j.error)
+      }
+    } catch (e) {
+      const msg = (e as Error).message || "Unerwarteter Fehler."
+      setError(msg)
+      setMessages((m) => [
+        ...m,
+        { role: "assistant", content: "Uups, da ging etwas schief. Bitte nochmal senden." },
+      ])
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // ——— Quick-Prompts ———
+  function quickAsk(s: string) {
+    void send(s)
+  }
+
+  // ——— Thinking-Indicator (Header + Bubble) ———
   const ThinkingDots = () => (
-    <div className="flex items-center gap-1">
+    <div className="flex items-center gap-1" aria-hidden="true">
       <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.2s]" />
       <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce [animation-delay:-0.1s]" />
       <span className="h-1.5 w-1.5 rounded-full bg-current animate-bounce" />
@@ -77,78 +133,9 @@ export default function AssistantWidget(props: {
   // Badge für Spoiler-Guard
   const spoilerOn = !(context?.canRevealCorrect === true)
 
-  // ——— Senden (robust, ohne Seed-Assistant im Payload) ———
-  async function send(text?: string) {
-    const content = (text ?? input).trim()
-    if (!content || busy) return
-    setError(null)
-    setBusy(true)
-
-    // UI-Chat aktualisieren
-    const nextMsgs = [...messages, { role: "user" as const, content }]
-    setMessages(nextMsgs)
-    setInput("")
-
-    // 1) Seed-/Reset-Assistentenblasen NICHT ans Backend schicken
-    const payloadMessages = nextMsgs.filter((m, idx) => {
-      if (m.role !== "assistant") return true
-      // Erste Begrüßung (index 0) ausfiltern
-      if (idx === 0) return false
-      // Reset- oder „Neue Frage“-System-ähnliche Blasen ausfiltern
-      const t = m.content.trim().toLowerCase()
-      if (t.startsWith("chat zurückgesetzt")) return false
-      if (t.startsWith("neue frage erkannt")) return false
-      return true
-    })
-
-    // 2) Verlauf begrenzen (optional, reduziert Prompt-Rauschen)
-    const MAX_TURNS = 8
-    const trimmedPayload =
-      payloadMessages.length > MAX_TURNS
-        ? payloadMessages.slice(-MAX_TURNS)
-        : payloadMessages
-
-    try {
-      const res = await fetch("/api/ai/assistant", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          context,
-          messages: trimmedPayload,
-          answerStyle: style, // "concise" | "detailed" (Server wählt Model & Prompt)
-        }),
-      })
-      const j = await res.json().catch(() => null)
-
-      if (!res.ok || !j?.ok) {
-        throw new Error(j?.error || "Fehler bei der KI-Antwort.")
-      }
-
-      let text = String(j.text || "").trim()
-      if (!text) {
-        text = style === "concise"
-          ? "Konnte gerade keine knappe Antwort erzeugen. Bitte erneut senden."
-          : "Konnte gerade keine ausführliche Antwort erzeugen. Bitte erneut senden."
-      }
-
-      setMessages((m) => [...m, { role: "assistant", content: text }])
-    } catch (e) {
-      setError((e as Error).message || "Unerwarteter Fehler.")
-      setMessages((m) => [
-        ...m,
-        { role: "assistant", content: "Uups, da ging etwas schief. Bitte nochmal senden." },
-      ])
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  // ——— Quick-Prompts ———
-  function quickAsk(s: string) { void send(s) }
-
   return (
     <>
-      {/* FAB */}
+      {/* Floating Action Button */}
       <button
         aria-label="KI-Tutor öffnen"
         className={cn(
@@ -207,9 +194,9 @@ export default function AssistantWidget(props: {
             </div>
           </div>
 
-          {/* Stil-Schalter */}
+          {/* Stil-Schalter + Controls */}
           <div className="flex items-center gap-2">
-            <div className="hidden sm:flex items-center gap-1 rounded bg-muted p-0.5 border">
+            <div className="hidden sm:flex items-center gap-1 rounded bg-muted p-0.5 border" role="tablist" aria-label="Antwortstil">
               <button
                 className={cn(
                   "px-2 py-1 text-xs rounded",
@@ -217,6 +204,8 @@ export default function AssistantWidget(props: {
                 )}
                 onClick={() => setStyle("concise")}
                 disabled={busy}
+                role="tab"
+                aria-selected={style === "concise"}
                 title="Kurze, prägnante Antwort"
               >
                 Kurz
@@ -228,6 +217,8 @@ export default function AssistantWidget(props: {
                 )}
                 onClick={() => setStyle("detailed")}
                 disabled={busy}
+                role="tab"
+                aria-selected={style === "detailed"}
                 title="Ausführliche, schrittweise Erklärung"
               >
                 Ausführlich
@@ -252,7 +243,7 @@ export default function AssistantWidget(props: {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {/* Kontexthinweis */}
+          {/* Kontext-Hinweis */}
           {context?.stem && (
             <div className="text-xs text-muted-foreground border rounded p-2 bg-muted/30">
               <div className="font-medium">Aktuelle Frage</div>
@@ -302,7 +293,7 @@ export default function AssistantWidget(props: {
             <div className="flex gap-2 justify-start">
               <div className="h-7 w-7 flex-none rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M9 7a3 3 0 1 1 6 0v1h2a 2 2 0 0 1 2 2v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V10a2 2 0 0 1 2-2h2V7z" />
+                  <path d="M9 7a3 3 0 1 1 6 0v1h2a2 2 0 0 1 2 2v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V10a2 2 0 0 1 2-2h2V7z" />
                 </svg>
               </div>
               <div className="max-w-[80%] rounded-2xl px-3 py-2 text-sm bg-muted text-foreground rounded-bl-sm">
