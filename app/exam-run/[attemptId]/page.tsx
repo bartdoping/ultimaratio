@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { RunnerClient } from "@/components/runner-client"
+import FilteredExamRunner from "@/components/filtered-exam-runner"
 
 type Props = { params: Promise<{ attemptId: string }> }
 
@@ -95,12 +95,12 @@ export default async function ExamRunPage({ params }: Props) {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <RunnerClient
+      <FilteredExamRunner
         attemptId={attempt.id}
         examId={exam.id}
         passPercent={exam.passPercent}
         allowImmediateFeedback={exam.allowImmediateFeedback}
-        questions={questions}
+        allQuestions={questions}
         initialAnswers={initialAnswers}
         initialElapsedSec={attempt.elapsedSec ?? 0}  // Fortsetzen ohne Zeitverlust
       />

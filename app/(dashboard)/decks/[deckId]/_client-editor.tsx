@@ -3,6 +3,7 @@
 
 import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
+import BulkAddSection from "@/components/decks/bulk-add-section"
 
 type Tag = { id?: string; slug: string; name: string; parentId?: string | null }
 
@@ -47,6 +48,11 @@ export default function DeckEditorClient(props: {
   const [searching, setSearching] = useState(false)
 
   const selectedSet = useMemo(() => new Set(items.map(i => i.questionId)), [items])
+
+  const handleBulkAddSuccess = (added: number, total: number, alreadyExists: number) => {
+    // Nach erfolgreichem Bulk-Add die Seite neu laden um die neuen Items zu zeigen
+    window.location.reload()
+  }
 
   async function saveMeta() {
     setSaving(true)
@@ -299,6 +305,13 @@ export default function DeckEditorClient(props: {
           </div>
         )}
       </section>
+
+      {/* Bulk-Add Sektion */}
+      <BulkAddSection
+        deckId={deckId}
+        onItemsAdded={handleBulkAddSuccess}
+        className="mt-6"
+      />
     </div>
   )
 }

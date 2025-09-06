@@ -2,10 +2,13 @@
 import prisma from "@/lib/db"
 import { requireAdmin } from "@/lib/authz"
 import { redirect, notFound } from "next/navigation"
+import { applyGlobalTagsToAllQuestions } from "@/lib/apply-global-tags"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import QuestionShelf from "@/components/admin/question-shelf"
+import QuestionEditorTags from "@/components/admin/question-editor-tags"
+import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import Link from "next/link"
 
 /**
@@ -80,6 +83,21 @@ async function addQuestionAction(formData: FormData) {
         }))._max.order ?? 0 + 1,
     },
   })
+
+  // Automatisch globale Tags hinzufügen
+  const globalTags = await prisma.examGlobalTag.findMany({
+    where: { examId },
+    select: { tagId: true }
+  })
+
+  if (globalTags.length > 0) {
+    await prisma.questionTag.createMany({
+      data: globalTags.map(gt => ({
+        questionId: q.id,
+        tagId: gt.tagId
+      }))
+    })
+  }
 
   // 5 Optionen
   const options = [0, 1, 2, 3, 4].map((i) => ({
@@ -435,6 +453,21 @@ async function bulkImportAction(formData: FormData) {
       }
       await tx.answerOption.createMany({ data: norm })
 
+      // Automatisch globale Tags hinzufügen
+      const globalTags = await tx.examGlobalTag.findMany({
+        where: { examId },
+        select: { tagId: true }
+      })
+
+      if (globalTags.length > 0) {
+        await tx.questionTag.createMany({
+          data: globalTags.map(gt => ({
+            questionId: created.id,
+            tagId: gt.tagId
+          }))
+        })
+      }
+
       // Bilder
       const images: Array<any> = Array.isArray(q?.images) ? q.images : []
       if (images.length) {
@@ -544,6 +577,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               <button className="btn btn-sm" type="submit">Zuordnen</button>
             </form>
 
+            {/* Tag-Editor */}
+            <QuestionEditorTags questionId={editingValid.id} />
+
             {/* Frage-Meta */}
             <form action={updateQuestionMetaAction} className="grid gap-2">
               <input type="hidden" name="examId" value={id} />
@@ -651,6 +687,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
           </section>
         )}
+
+        {/* Globale Tags */}
+        <ExamGlobalTags examId={exam.id} />
 
         {/* Exam-Metadaten */}
         <form action={updateExamAction} className="space-y-3 rounded border p-3">

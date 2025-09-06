@@ -73,6 +73,7 @@ model Exam {
   purchases Purchase[]
   attempts  Attempt[]
   cases     QuestionCase[]
+  globalTags ExamGlobalTag[] // Globale Tags für alle Fragen dieses Examens
 }
 
 model Section {
@@ -245,6 +246,19 @@ model QuestionCase {
   @@index([examId, order])
 }
 
+model ExamGlobalTag {
+  id     String @id @default(cuid())
+  examId String
+  tagId  String
+
+  exam Exam @relation(fields: [examId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, tagId])
+  @@index([examId])
+  @@index([tagId])
+}
+
 model UserQuestionStat {
   userId        String
   questionId    String
@@ -298,6 +312,7 @@ model Tag {
   children Tag[]   @relation("TagHierarchy")
 
   questionLinks QuestionTag[]
+  examGlobalTags ExamGlobalTag[]
 
   @@index([parentId])
 }

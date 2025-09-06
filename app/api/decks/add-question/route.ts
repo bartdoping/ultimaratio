@@ -1,4 +1,3 @@
-// app/api/decks/add-question/route.ts
 import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -67,7 +66,6 @@ export async function POST(req: Request) {
           })
           out.push({ deckId: d.id, created: true })
         } catch (e: any) {
-          // Falls ein Unique-Constraint (z. B. @@unique([deckId, questionId])) greift:
           if (e?.code === "P2002") {
             out.push({ deckId: d.id, created: false })
           } else {
