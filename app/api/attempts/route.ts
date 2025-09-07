@@ -76,6 +76,9 @@ export async function POST(req: Request) {
   let questionIds: string[] = []
   
   if (tagIds.length > 0 || superTagIds.length > 0) {
+    // Debug-Log
+    console.log("API Debug - Received:", { tagIds, superTagIds, requireAnd })
+    
     // Effektive Tag-IDs: gewählte Tags + Supertags selbst + alle Kinder der gewählten Supertags
     let effectiveTagIds = [...tagIds, ...superTagIds]
     
@@ -92,30 +95,67 @@ export async function POST(req: Request) {
       ]))
     }
 
-    // WHERE-Bedingungen
-    const whereBase: any = { examId }
-    
-    if (effectiveTagIds.length > 0) {
-      if (requireAnd && effectiveTagIds.length > 1) {
-        // UND-Logik: Frage muss alle Tags haben (nur wenn mehr als ein Tag)
-        whereBase.AND = effectiveTagIds.map(tagId => ({
-          tags: { some: { tagId } }
-        }))
-      } else {
-        // ODER-Logik: Frage muss mindestens einen Tag haben
-        // (auch bei UND wenn nur ein Tag, da UND mit einem Tag = ODER)
-        whereBase.OR = effectiveTagIds.map(tagId => ({
-          tags: { some: { tagId } }
-        }))
-      }
-    }
+    // Fragen finden - direkte Prisma-Abfrage
+    let questions: Array<{ id: string; caseId: string | null }> = []
 
-    // Fragen finden
-    const questions = await prisma.question.findMany({
-      where: whereBase,
-      select: { id: true, caseId: true },
-      orderBy: { id: "asc" }
-    })
+    if (effectiveTagIds.length > 0) {
+      // UND-Logik nur anwenden wenn mehr als ein Tag gewählt ist
+      const shouldUseAndLogic = requireAnd && effectiveTagIds.length > 1
+      
+      console.log("API Debug - Effective Tags:", { 
+        effectiveTagIds, 
+        shouldUseAndLogic, 
+        requireAnd, 
+        effectiveTagIdsLength: effectiveTagIds.length 
+      })
+      
+      if (shouldUseAndLogic) {
+        // UND-Logik: Finde Fragen, die ALLE gewählten Tags haben
+        // Verwende eine andere Strategie: Zähle Tags pro Frage
+        const questionsWithTagCounts = await prisma.question.findMany({
+          where: { 
+            examId,
+            tags: {
+              some: {
+                tagId: { in: effectiveTagIds }
+              }
+            }
+          },
+          select: { 
+            id: true, 
+            caseId: true,
+            tags: { 
+              select: { tagId: true } 
+            } 
+          }
+        })
+
+        // Filtere nur Fragen, die ALLE gewählten Tags haben
+        questions = questionsWithTagCounts
+          .filter(q => {
+            const questionTagIds = q.tags.map(t => t.tagId)
+            return effectiveTagIds.every(tagId => questionTagIds.includes(tagId))
+          })
+          .map(q => ({ id: q.id, caseId: q.caseId }))
+      } else {
+        // ODER-Logik: Finde Fragen mit mindestens einem Tag
+        questions = await prisma.question.findMany({
+          where: { 
+            examId,
+            OR: effectiveTagIds.map(tagId => ({
+              tags: { some: { tagId } }
+            }))
+          },
+          select: { id: true, caseId: true },
+          orderBy: { id: "asc" }
+        })
+      }
+      
+      console.log("API Debug - Found questions:", { 
+        questionsCount: questions.length, 
+        questionIds: questions.map(q => q.id) 
+      })
+    }
 
     // Fälle zusammenhalten wenn gewünscht
     let questionIdSet = new Set(questions.map(q => q.id))

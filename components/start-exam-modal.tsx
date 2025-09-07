@@ -79,6 +79,16 @@ export default function StartExamModal({
       setLoading(true)
       setError(null)
 
+      // Debug-Log
+      console.log("Frontend Debug - Sending:", {
+        examId,
+        tagIds: selectedTagIds,
+        superTagIds: selectedSuperTagIds,
+        requireAnd,
+        includeCases,
+        limit: typeof limit === "number" ? limit : undefined
+      })
+
       const response = await fetch("/api/attempts", {
         method: "POST",
         headers: {
@@ -170,6 +180,7 @@ export default function StartExamModal({
                   requireAnd={requireAnd}
                   onRequireAndChange={setRequireAnd}
                   showLogicToggle={true}
+                  showSearch={true}
                 />
 
                 {/* Zusätzliche Optionen */}

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
 
 interface Tag {
   id: string
@@ -28,6 +29,7 @@ interface TagPickerProps {
   requireAnd?: boolean
   onRequireAndChange?: (requireAnd: boolean) => void
   showLogicToggle?: boolean
+  showSearch?: boolean
   className?: string
 }
 
@@ -39,11 +41,13 @@ export default function TagPicker({
   requireAnd = true,
   onRequireAndChange,
   showLogicToggle = false,
+  showSearch = false,
   className = ""
 }: TagPickerProps) {
   const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
     loadTags()
@@ -69,6 +73,13 @@ export default function TagPicker({
       ? value.filter(id => id !== tagId)
       : [...value, tagId]
     onChange(newValue)
+    
+    // Automatisch UND-Bedingung deaktivieren wenn nur noch ein Tag gewählt ist
+    const newTotalSelectedTags = superTagIds.length + newValue.length
+    if (newTotalSelectedTags <= 1 && onRequireAndChange && requireAnd) {
+      console.log("TagPicker Debug - Auto-disabling AND logic (normal tag)")
+      onRequireAndChange(false)
+    }
   }
 
   const handleSuperTagToggle = (superTagId: string) => {
@@ -77,11 +88,35 @@ export default function TagPicker({
     const newSuperTagIds = superTagIds.includes(superTagId)
       ? superTagIds.filter(id => id !== superTagId)
       : [...superTagIds, superTagId]
+    
+    console.log("TagPicker Debug - SuperTag Toggle:", { 
+      superTagId, 
+      oldSuperTagIds: superTagIds, 
+      newSuperTagIds 
+    })
+    
     onSuperTagChange(newSuperTagIds)
+    
+    // Automatisch UND-Bedingung deaktivieren wenn nur noch ein Tag gewählt ist
+    const newTotalSelectedTags = newSuperTagIds.length + value.length
+    if (newTotalSelectedTags <= 1 && onRequireAndChange && requireAnd) {
+      console.log("TagPicker Debug - Auto-disabling AND logic")
+      onRequireAndChange(false)
+    }
   }
 
-  const superTags = tags.filter(tag => tag.isSuper)
-  const normalTags = tags.filter(tag => !tag.isSuper)
+  // Filtere Tags basierend auf Suchbegriff
+  const filteredTags = tags.filter(tag => 
+    tag.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tag.slug.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+  
+  const superTags = filteredTags.filter(tag => tag.isSuper)
+  const normalTags = filteredTags.filter(tag => !tag.isSuper)
+  
+  // Berechne die Gesamtanzahl der ausgewählten Tags (Supertags + normale Tags)
+  const totalSelectedTags = superTagIds.length + value.length
+  const canUseAndLogic = totalSelectedTags > 1
 
   if (loading) {
     return (
@@ -104,17 +139,67 @@ export default function TagPicker({
 
   return (
     <div className={`space-y-4 ${className}`}>
+      {/* Suchfeld */}
+      {showSearch && (
+        <div className="space-y-2">
+          <label htmlFor="tagSearch" className="text-sm font-medium">
+            Tags durchsuchen
+          </label>
+          <Input
+            id="tagSearch"
+            type="text"
+            placeholder="Tag-Name eingeben..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full"
+          />
+          {searchTerm && (
+            <div className="text-xs text-muted-foreground">
+              {filteredTags.length} von {tags.length} Tags gefunden
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Logik-Toggle */}
       {showLogicToggle && onRequireAndChange && (
         <div className="flex items-center space-x-2">
           <Checkbox
             id="requireAnd"
-            checked={requireAnd}
-            onCheckedChange={(checked: boolean) => onRequireAndChange(!!checked)}
+            checked={requireAnd && canUseAndLogic}
+            disabled={!canUseAndLogic}
+            onCheckedChange={(checked: boolean) => {
+              if (canUseAndLogic) {
+                onRequireAndChange(!!checked)
+              }
+            }}
           />
-          <label htmlFor="requireAnd" className="text-sm font-medium">
+          <label 
+            htmlFor="requireAnd" 
+            className={`text-sm font-medium ${!canUseAndLogic ? 'text-muted-foreground' : ''}`}
+          >
             UND-Bedingung (alle Tags müssen erfüllt sein)
+            {!canUseAndLogic && (
+              <span className="text-xs text-muted-foreground ml-1">
+                (mindestens 2 Tags erforderlich)
+              </span>
+            )}
           </label>
+        </div>
+      )}
+
+      {/* Keine Tags gefunden */}
+      {searchTerm && filteredTags.length === 0 && (
+        <div className="text-center py-8 text-muted-foreground">
+          <div className="text-sm">Keine Tags gefunden für "{searchTerm}"</div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchTerm("")}
+            className="mt-2"
+          >
+            Suche zurücksetzen
+          </Button>
         </div>
       )}
 

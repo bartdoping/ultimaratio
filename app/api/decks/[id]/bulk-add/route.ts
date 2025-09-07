@@ -73,27 +73,54 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     whereBase.examId = examId
   }
 
+  // Passende Fragen finden - direkte Prisma-Abfrage
+  let questions: Array<{ id: string; caseId: string | null }> = []
+
   if (effectiveTagIds.length > 0) {
-    if (requireAnd && effectiveTagIds.length > 1) {
-      // UND-Logik: Frage muss alle Tags haben (nur wenn mehr als ein Tag)
-      whereBase.AND = effectiveTagIds.map(tagId => ({
-        tags: { some: { tagId } }
-      }))
+    // UND-Logik nur anwenden wenn mehr als ein Tag gewählt ist
+    const shouldUseAndLogic = requireAnd && effectiveTagIds.length > 1
+    
+    if (shouldUseAndLogic) {
+      // UND-Logik: Finde Fragen, die ALLE gewählten Tags haben
+      const questionsWithTagCounts = await prisma.question.findMany({
+        where: { 
+          ...whereBase,
+          tags: {
+            some: {
+              tagId: { in: effectiveTagIds }
+            }
+          }
+        },
+        select: { 
+          id: true, 
+          caseId: true,
+          tags: { 
+            select: { tagId: true } 
+          } 
+        }
+      })
+
+      // Filtere nur Fragen, die ALLE gewählten Tags haben
+      questions = questionsWithTagCounts
+        .filter(q => {
+          const questionTagIds = q.tags.map(t => t.tagId)
+          return effectiveTagIds.every(tagId => questionTagIds.includes(tagId))
+        })
+        .map(q => ({ id: q.id, caseId: q.caseId }))
     } else {
-      // ODER-Logik: Frage muss mindestens einen Tag haben
-      // (auch bei UND wenn nur ein Tag, da UND mit einem Tag = ODER)
-      whereBase.OR = effectiveTagIds.map(tagId => ({
-        tags: { some: { tagId } }
-      }))
+      // ODER-Logik: Finde Fragen mit mindestens einem Tag
+      questions = await prisma.question.findMany({
+        where: { 
+          ...whereBase,
+          OR: effectiveTagIds.map(tagId => ({
+            tags: { some: { tagId } }
+          }))
+        },
+        select: { id: true, caseId: true },
+        orderBy: { id: "asc" }
+      })
     }
   }
-
-  // Passende Fragen finden
-  const questions = await prisma.question.findMany({
-    where: whereBase,
-    select: { id: true, caseId: true },
-    orderBy: { id: "asc" }
-  })
 
   // Fälle zusammenhalten wenn gewünscht
   let questionIds = new Set(questions.map(q => q.id))
