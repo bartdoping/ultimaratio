@@ -3,6 +3,7 @@ import prisma from "@/lib/db"
 import { requireAdmin } from "@/lib/authz"
 import { redirect, notFound } from "next/navigation"
 import { applyGlobalTagsToAllQuestions } from "@/lib/apply-global-tags"
+import { initCategoriesTables } from "@/lib/init-categories-tables"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -38,6 +39,7 @@ async function updateExamAction(formData: FormData) {
   const passPercent = Number(formData.get("passPercent") || 60)
   const allowImmediateFeedback = formData.get("allowImmediateFeedback") === "on"
   const isPublished = formData.get("isPublished") === "on"
+  const categoryId = String(formData.get("categoryId") || "")
 
   await prisma.exam.update({
     where: { id },
@@ -49,6 +51,7 @@ async function updateExamAction(formData: FormData) {
       passPercent,
       allowImmediateFeedback,
       isPublished,
+      categoryId: categoryId || null,
     },
   })
   redirect(`/admin/exams/${id}`)
@@ -494,14 +497,29 @@ async function bulkImportAction(formData: FormData) {
 // ----------------- Page -----------------
 export default async function EditExamPage({ params, searchParams }: Props) {
   await requireAdmin()
+  
+  // Stelle sicher, dass die Tabellen existieren
+  await initCategoriesTables()
+  
   const { id } = await params
   const { edit } = await searchParams
 
   const exam = await prisma.exam.findUnique({
     where: { id },
-    include: { cases: true },
+    include: { 
+      cases: true,
+      category: true
+    },
   })
   if (!exam) notFound()
+
+  // Lade alle verfügbaren Kategorien
+  const categories = await prisma.category.findMany({
+    orderBy: [
+      { order: "asc" },
+      { name: "asc" }
+    ]
+  })
 
   // Falls eine Frage explizit editiert werden soll
   const editing = edit
@@ -715,6 +733,22 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
               <Input id="passPercent" name="passPercent" type="number" defaultValue={exam.passPercent} />
             </div>
+          </div>
+          <div>
+            <Label htmlFor="categoryId">Kategorie</Label>
+            <select 
+              id="categoryId" 
+              name="categoryId" 
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              defaultValue={exam.categoryId || ""}
+            >
+              <option value="">Keine Kategorie</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex items-center gap-4">
             <label className="flex items-center gap-2">

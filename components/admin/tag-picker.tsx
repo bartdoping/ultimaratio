@@ -30,6 +30,7 @@ interface TagPickerProps {
   onRequireAndChange?: (requireAnd: boolean) => void
   showLogicToggle?: boolean
   showSearch?: boolean
+  examId?: string // Wenn gesetzt, werden nur Tags für dieses Exam geladen
   className?: string
 }
 
@@ -42,6 +43,7 @@ export default function TagPicker({
   onRequireAndChange,
   showLogicToggle = false,
   showSearch = false,
+  examId,
   className = ""
 }: TagPickerProps) {
   const [tags, setTags] = useState<Tag[]>([])
@@ -51,12 +53,21 @@ export default function TagPicker({
 
   useEffect(() => {
     loadTags()
-  }, [])
+  }, [examId])
 
   const loadTags = async () => {
     try {
       setLoading(true)
-      const response = await fetch("/api/admin/tags")
+      
+      let response: Response
+      if (examId) {
+        // Lade nur Tags für das spezifische Exam
+        response = await fetch(`/api/exams/${examId}/tags`)
+      } else {
+        // Lade alle Tags (Admin-Modus)
+        response = await fetch("/api/admin/tags")
+      }
+      
       if (!response.ok) throw new Error("Failed to load tags")
       
       const data = await response.json()

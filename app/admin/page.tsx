@@ -16,6 +16,7 @@ export default async function AdminHome() {
       <p className="text-muted-foreground">Verwalte Prüfungen, Fragen und Laborwerte.</p>
       <div className="flex gap-3">
         <Button asChild><Link href="/admin/exams">Prüfungen</Link></Button>
+        <Button variant="outline" asChild><Link href="/admin/categories">Kategorien</Link></Button>
         <Button variant="outline" asChild><Link href="/admin/labs">Laborwerte</Link></Button>
         <Button variant="outline" asChild><Link href="/admin/tags">Tags</Link></Button>
       </div>

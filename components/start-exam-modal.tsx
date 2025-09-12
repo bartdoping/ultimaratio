@@ -181,6 +181,7 @@ export default function StartExamModal({
                   onRequireAndChange={setRequireAnd}
                   showLogicToggle={true}
                   showSearch={true}
+                  examId={examId}
                 />
 
                 {/* Zusätzliche Optionen */}

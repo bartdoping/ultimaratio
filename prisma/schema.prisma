@@ -68,6 +68,10 @@ model Exam {
   stripeProductId String? @unique
   stripePriceId   String? @unique
 
+  // Kategorie-Zuordnung
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
   sections  Section[]
   questions Question[]
   purchases Purchase[]
@@ -414,4 +418,16 @@ model SRDeckSetting {
   updatedAt     DateTime @updatedAt
 
   deck Deck @relation(fields: [deckId], references: [id], onDelete: Cascade)
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?  // Hex-Farbe für UI
+  order       Int      @default(0) // Sortierreihenfolge
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  exams Exam[] // Prüfungen in dieser Kategorie
 }
