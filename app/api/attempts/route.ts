@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { shuffleArray } from "@/lib/shuffle"
 
 export const runtime = "nodejs"
 
@@ -230,15 +231,32 @@ export async function POST(req: Request) {
         }
       })
       
-      // Shuffle Fälle und standalone Fragen
-      const shuffledCases = Array.from(caseGroups.values()).sort(() => Math.random() - 0.5)
-      const shuffledStandalone = standaloneQuestions.sort(() => Math.random() - 0.5)
+      // Shuffle Fälle und standalone Fragen mit Fisher-Yates
+      const shuffledCases = shuffleArray(Array.from(caseGroups.values()))
+      const shuffledStandalone = shuffleArray(standaloneQuestions)
       
-      // Kombiniere: erst Fälle, dann standalone
-      questionIds = [...shuffledCases.flat(), ...shuffledStandalone]
+      // Shuffle auch die Fragen innerhalb jedes Falls
+      const shuffledCaseQuestions = shuffledCases.map(caseQuestions => shuffleArray(caseQuestions))
+      
+      // Kombiniere: erst Fälle (mit gemischten Fragen), dann standalone
+      questionIds = [...shuffledCaseQuestions.flat(), ...shuffledStandalone]
+      
+      console.log("API Debug - Shuffled with cases:", {
+        originalCount: questions.length,
+        caseGroups: caseGroups.size,
+        standaloneCount: standaloneQuestions.length,
+        finalCount: questionIds.length,
+        firstFive: questionIds.slice(0, 5)
+      })
     } else {
-      // Einfaches Shuffling
-      questionIds = questionIds.sort(() => Math.random() - 0.5)
+      // Einfaches Shuffling mit Fisher-Yates
+      questionIds = shuffleArray(questionIds)
+      
+      console.log("API Debug - Shuffled without cases:", {
+        originalCount: questions.length,
+        finalCount: questionIds.length,
+        firstFive: questionIds.slice(0, 5)
+      })
     }
     
     // Limit anwenden
@@ -258,11 +276,7 @@ export async function POST(req: Request) {
   const attempt = await prisma.attempt.create({
     data: { 
       userId: me.id, 
-      examId,
-      // Speichere die gefilterten Fragen-IDs für späteren Gebrauch
-      ...(questionIds.length > 0 && { 
-        // Hier könnten wir die gefilterten IDs speichern, falls das Schema erweitert wird
-      })
+      examId
     },
     select: { id: true },
   })
@@ -272,6 +286,6 @@ export async function POST(req: Request) {
     attemptId: attempt.id,
     selectedCount: questionIds.length,
     totalAvailable: questionIds.length,
-    filteredQuestionIds: questionIds // Sende die gefilterten IDs mit
+    filteredQuestionIds: questionIds // Sende die gefilterten und geshuffelten IDs zurück
   })
 }

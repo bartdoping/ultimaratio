@@ -193,8 +193,14 @@ export default function StartExamModal({
                       onCheckedChange={(checked) => setIncludeCases(!!checked)}
                     />
                     <Label htmlFor="includeCases" className="text-sm">
-                      Fälle zusammenhalten (alle Fragen eines Falls einbeziehen)
+                      Fallfragen einbeziehen (alle Fragen eines Falls zusammenhalten)
                     </Label>
+                  </div>
+                  <div className="text-xs text-muted-foreground ml-6">
+                    {includeCases 
+                      ? "✓ Fallfragen werden in die Prüfung einbezogen und als zusammengehörige Gruppe behandelt"
+                      : "✗ Fallfragen werden aus der Prüfung ausgeschlossen, nur Einzelfragen werden verwendet"
+                    }
                   </div>
 
                   <div>
@@ -227,6 +233,15 @@ export default function StartExamModal({
                         Es werden {Math.min(limit, preview.total)} Fragen verwendet
                       </div>
                     )}
+                    <div className="text-xs text-blue-700 mt-1">
+                      {includeCases 
+                        ? "✓ Fallfragen werden einbezogen und als Gruppe behandelt"
+                        : "✗ Nur Einzelfragen werden verwendet"
+                      }
+                    </div>
+                    <div className="text-xs text-blue-700">
+                      🔀 Fragen werden gemischt für unterschiedliche Prüfungsreihenfolgen
+                    </div>
                   </div>
                 )}
 
