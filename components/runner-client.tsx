@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import AssistantWidget from "@/components/ai/assistant-widget"
+import { AnswerOptions } from "@/components/answer-options"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -875,47 +876,13 @@ const aiContext = useMemo(() => {
             )}
 
             {/* Optionen */}
-            <div className="space-y-2">
-              {q.options.map(o => {
-                const isSelected = given === o.id
-                const canExplain = showFeedback && !!given
-                const open = !!optOpen[o.id]
-                return (
-                  <div key={o.id} className="rounded border">
-                    <button
-                      onClick={() => (canExplain ? setOptOpen(s => ({ ...s, [o.id]: !s[o.id] })) : choose(o.id))}
-                      disabled={submitting}
-                      className={[
-                        "w-full text-left px-3 py-2 transition-shadow flex items-center justify-between",
-                        isSelected ? "border-blue-500 ring-1 ring-blue-500 rounded-t" : "rounded",
-                        "bg-transparent"
-                      ].join(" ")}
-                      aria-expanded={canExplain ? open : undefined}
-                      title={isSelected ? (o.isCorrect ? "Deine Antwort: richtig" : "Deine Antwort: falsch") : "Antwort auswählen"}
-                    >
-                      <span>
-                        {o.text}
-                        {showFeedback && isSelected && (
-                          <span className={`ml-2 text-xs ${o.isCorrect ? "text-green-600" : "text-red-600"}`}>
-                            {o.isCorrect ? "✓ richtig" : "✗ falsch"}
-                          </span>
-                        )}
-                      </span>
-                      {canExplain && (
-                        <svg className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                          <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                        </svg>
-                      )}
-                    </button>
-                    {canExplain && open && o.explanation && (
-                      <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                        {o.explanation}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+            <AnswerOptions
+              options={q.options}
+              selectedOptionId={given}
+              onSelect={choose}
+              showFeedback={showFeedback}
+              submitting={submitting}
+            />
 
             {/* Frage-Gesamterklärung */}
             {hasQExplanation && showFeedback && !!given && (
