@@ -27,6 +27,23 @@ export async function GET(req: NextRequest) {
   const requireAnd = searchParams.get("requireAnd") === "1"
   const includeCases = searchParams.get("includeCases") !== "0"
 
+  // Lade Tag-Hierarchie für UND-Logik
+  let tagHierarchy: { [key: string]: string[] } = {}
+  
+  if (superTagIds.length > 0) {
+    const children = await prisma.tag.findMany({
+      where: {
+        parentId: { in: superTagIds }
+      },
+      select: { id: true, parentId: true }
+    })
+    
+    // Erstelle Hierarchie-Map
+    superTagIds.forEach(superTagId => {
+      tagHierarchy[superTagId] = [superTagId, ...children.filter(c => c.parentId === superTagId).map(c => c.id)]
+    })
+  }
+
   // Effektive Tag-IDs: gewählte Tags + Supertags selbst + alle Kinder der gewählten Supertags
   let effectiveTagIds = [...tagIds, ...superTagIds]
   
@@ -43,6 +60,9 @@ export async function GET(req: NextRequest) {
     ]))
   }
 
+  // Für UND-Logik: Verwende die ursprünglich gewählten Tags (nicht die effektiven)
+  const originalSelectedTags = [...tagIds, ...superTagIds]
+
   if (effectiveTagIds.length === 0) {
     return NextResponse.json({ items: [], total: 0 })
   }
@@ -58,11 +78,12 @@ export async function GET(req: NextRequest) {
   let questions: Array<{ id: string; caseId: string | null }> = []
 
   if (effectiveTagIds.length > 0) {
-    // UND-Logik nur anwenden wenn mehr als ein Tag gewählt ist
-    const shouldUseAndLogic = requireAnd && effectiveTagIds.length > 1
+    // UND-Logik nur anwenden wenn mehr als ein ursprünglich gewähltes Tag vorhanden ist
+    const shouldUseAndLogic = requireAnd && originalSelectedTags.length > 1
     
     if (shouldUseAndLogic) {
-      // UND-Logik: Finde Fragen, die ALLE gewählten Tags haben
+      // UND-Logik: Finde Fragen, die ALLE ursprünglich gewählten Tags haben
+      // Aber verwende effektive Tags für die Suche
       const questionsWithTagCounts = await prisma.question.findMany({
         where: { 
           ...whereBase,
@@ -81,11 +102,22 @@ export async function GET(req: NextRequest) {
         }
       })
 
-      // Filtere nur Fragen, die ALLE gewählten Tags haben
+      // Filtere nur Fragen, die ALLE ursprünglich gewählten Tags haben
       questions = questionsWithTagCounts
         .filter(q => {
           const questionTagIds = q.tags.map(t => t.tagId)
-          return effectiveTagIds.every(tagId => questionTagIds.includes(tagId))
+          
+          // Prüfe für jeden ursprünglich gewählten Tag, ob die Frage ihn oder seine Kinder hat
+          return originalSelectedTags.every(selectedTagId => {
+            // Wenn es ein Supertag ist, prüfe ob die Frage den Supertag oder eines seiner Kinder hat
+            if (superTagIds.includes(selectedTagId)) {
+              const superTagAndChildren = tagHierarchy[selectedTagId] || [selectedTagId]
+              return superTagAndChildren.some(tagId => questionTagIds.includes(tagId))
+            } else {
+              // Normales Tag - prüfe direkt
+              return questionTagIds.includes(selectedTagId)
+            }
+          })
         })
         .map(q => ({ id: q.id, caseId: q.caseId }))
     } else {
