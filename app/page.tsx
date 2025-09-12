@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
+import { DashboardStats } from "@/components/dashboard-stats"
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
@@ -9,6 +10,14 @@ export default async function Home() {
 
   return (
     <main className="relative">
+      {/* Dashboard Statistiken für eingeloggte Nutzer */}
+      {loggedIn && (
+        <section className="mx-auto mb-10 max-w-6xl px-2 md:px-0">
+          <h2 className="text-xl font-semibold mb-4">Deine Statistiken</h2>
+          <DashboardStats />
+        </section>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden rounded-xl border bg-gradient-to-b from-background to-muted/40">
         <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full blur-3xl opacity-20 bg-primary/40 pointer-events-none" />

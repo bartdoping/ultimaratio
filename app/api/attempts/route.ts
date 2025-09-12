@@ -214,10 +214,10 @@ export async function POST(req: Request) {
       const caseGroups = new Map<string, string[]>()
       const standaloneQuestions: string[] = []
       
-      // Hole alle Fragen mit ihren Case-IDs
+      // Hole alle Fragen mit ihren Case-IDs und caseOrder
       const questionsWithCases = await prisma.question.findMany({
         where: { id: { in: questionIds } },
-        select: { id: true, caseId: true }
+        select: { id: true, caseId: true, caseOrder: true }
       })
       
       questionsWithCases.forEach(q => {
@@ -235,18 +235,31 @@ export async function POST(req: Request) {
       const shuffledCases = shuffleArray(Array.from(caseGroups.values()))
       const shuffledStandalone = shuffleArray(standaloneQuestions)
       
-      // Shuffle auch die Fragen innerhalb jedes Falls
-      const shuffledCaseQuestions = shuffledCases.map(caseQuestions => shuffleArray(caseQuestions))
+      // Sortiere Fragen innerhalb jedes Falls nach caseOrder (NICHT shuffeln!)
+      const sortedCaseQuestions = shuffledCases.map(caseQuestions => {
+        return caseQuestions.sort((a, b) => {
+          const questionA = questionsWithCases.find(q => q.id === a)
+          const questionB = questionsWithCases.find(q => q.id === b)
+          const orderA = questionA?.caseOrder ?? 0
+          const orderB = questionB?.caseOrder ?? 0
+          return orderA - orderB
+        })
+      })
       
-      // Kombiniere: erst Fälle (mit gemischten Fragen), dann standalone
-      questionIds = [...shuffledCaseQuestions.flat(), ...shuffledStandalone]
+      // Kombiniere: erst Fälle (mit sortierten Fragen), dann standalone
+      questionIds = [...sortedCaseQuestions.flat(), ...shuffledStandalone]
       
       console.log("API Debug - Shuffled with cases:", {
         originalCount: questions.length,
         caseGroups: caseGroups.size,
         standaloneCount: standaloneQuestions.length,
         finalCount: questionIds.length,
-        firstFive: questionIds.slice(0, 5)
+        firstFive: questionIds.slice(0, 5),
+        caseDetails: Array.from(caseGroups.entries()).map(([caseId, questionIds]) => ({
+          caseId,
+          questionCount: questionIds.length,
+          questionIds: questionIds.slice(0, 3) // Erste 3 Fragen des Falls
+        }))
       })
     } else {
       // Einfaches Shuffling mit Fisher-Yates
@@ -259,9 +272,63 @@ export async function POST(req: Request) {
       })
     }
     
-    // Limit anwenden
+    // Limit anwenden - Fallfragen können enthalten sein, müssen aber nicht
     if (typeof limit === "number" && limit > 0) {
-      questionIds = questionIds.slice(0, limit)
+      if (includeCases) {
+        // Bei Fallfragen: Versuche komplette Fallfragen-Blöcke zu verwenden, aber fülle mit Einzelfragen auf
+        const limitedQuestionIds: string[] = []
+        let currentCount = 0
+        const usedCaseIds = new Set<string>()
+        
+        // Hole alle Fragen mit ihren Case-IDs für die Limit-Logik
+        const questionsWithCases = await prisma.question.findMany({
+          where: { id: { in: questionIds } },
+          select: { id: true, caseId: true }
+        })
+        
+        const questionToCaseMap = new Map(
+          questionsWithCases.map(q => [q.id, q.caseId])
+        )
+        
+        // Erst: Versuche komplette Fallfragen-Blöcke hinzuzufügen
+        for (const questionId of questionIds) {
+          const caseId = questionToCaseMap.get(questionId)
+          
+          if (caseId && !usedCaseIds.has(caseId)) {
+            // Fallfrage: Prüfe, ob der komplette Fall noch in das Limit passt
+            const caseQuestions = questionsWithCases.filter(q => q.caseId === caseId)
+            const caseSize = caseQuestions.length
+            
+            if (currentCount + caseSize <= limit) {
+              // Kompletter Fall passt noch rein
+              limitedQuestionIds.push(...caseQuestions.map(q => q.id))
+              currentCount += caseSize
+              usedCaseIds.add(caseId)
+            }
+            // Wenn Fall nicht passt, überspringe ihn komplett
+          }
+        }
+        
+        // Dann: Fülle mit Einzelfragen auf (auch aus nicht verwendeten Fällen)
+        for (const questionId of questionIds) {
+          if (currentCount >= limit) break
+          
+          const caseId = questionToCaseMap.get(questionId)
+          
+          if (!caseId || usedCaseIds.has(caseId)) {
+            // Standalone-Frage oder bereits verwendeter Fall
+            if (!limitedQuestionIds.includes(questionId)) {
+              limitedQuestionIds.push(questionId)
+              currentCount++
+            }
+          }
+        }
+        
+        questionIds = limitedQuestionIds
+      } else {
+        // Ohne Fallfragen: Einfaches Limit
+        questionIds = questionIds.slice(0, limit)
+      }
     }
 
     if (questionIds.length === 0) {
