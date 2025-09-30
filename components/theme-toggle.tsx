@@ -16,8 +16,10 @@ function applyMode(mode: Mode) {
 
 export default function ThemeToggle() {
   const [mode, setMode] = useState<Mode>("light")
+  const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
+    setMounted(true)
     try {
       const stored = localStorage.getItem("theme")
       if (stored === "dark" || stored === "light") {
@@ -31,6 +33,29 @@ export default function ThemeToggle() {
     setMode(m)
     applyMode(m)
   }, [])
+
+  // Verhindere Hydration Mismatch durch SSR
+  if (!mounted) {
+    return (
+      <button
+        type="button"
+        className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted focus:outline-none focus:ring"
+        disabled
+      >
+        <span className="relative h-4 w-4 inline-block">
+          <svg
+            viewBox="0 0 24 24"
+            className="absolute inset-0 h-4 w-4 opacity-100"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M6.76 4.84 5.34 3.42 3.92 4.84l1.42 1.42 1.42-1.42Zm10.48 0 1.42-1.42L18.24 3.4l-1.42 1.42 1.42 1.42ZM12 4c.55 0 1-.45 1-1V1a1 1 0 1 0-2 0v2c0 .55.45 1 1 1Zm8 7c0-.55.45-1 1-1h2a1 1 0 1 1 0 2h-2c-.55 0-1-.45-1-1ZM12 20a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0v-2c0-.55-.45-1-1-1ZM2 12c0-.55-.45-1-1-1H-1a1 1 0 1 0 0 2h2c.55 0 1-.45 1-1Zm4.76 7.16L5.34 20.6l-1.42 1.42 1.42 1.42 1.42-1.42-1.42-1.42Zm12.9 0L18.24 20.6l1.42 1.42 1.42-1.42-1.42-1.42ZM12 6.5A5.5 5.5 0 1 0 12 17.5 5.5 5.5 0 0 0 12 6.5Z" />
+          </svg>
+        </span>
+        <span className="hidden sm:inline">Light</span>
+      </button>
+    )
+  }
 
   const isDark = mode === "dark"
   const toggle = () => {

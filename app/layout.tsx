@@ -50,12 +50,22 @@ const themeInitScript = `
 (function(){
   try {
     var m = localStorage.getItem('theme');
-    if (m === 'dark' || (m === null && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    if (m === 'dark') {
       document.documentElement.classList.add('dark');
-    } else {
+    } else if (m === 'light') {
       document.documentElement.classList.remove('dark');
+    } else {
+      // Kein gespeichertes Theme - verwende System-Präferenz
+      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
     }
-  } catch (e) {}
+  } catch (e) {
+    // Fallback: Light Mode
+    document.documentElement.classList.remove('dark');
+  }
 })();
 `
 

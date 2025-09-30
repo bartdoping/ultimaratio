@@ -59,6 +59,14 @@ export function SiteHeader() {
             {navLink("/exams", "Prüfungen")}
             {navLink("/dashboard", "Mein Bereich")}
             {isAdmin && navLink("/admin", "Admin")}
+            <a
+              href="https://www.ultima-rat.io/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Tutor finden
+            </a>
           </nav>
         </div>
 

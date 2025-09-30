@@ -43,3 +43,6 @@ next-env.d.ts
 # local envs
 .env
 .env.*
+
+# Uploaded media files
+public/media/uploads/

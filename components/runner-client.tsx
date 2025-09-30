@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import AssistantWidget from "@/components/ai/assistant-widget"
+import LayoutWithSidebar from "@/components/layout-with-sidebar"
 import { AnswerOptions } from "@/components/answer-options"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
@@ -687,7 +687,11 @@ const aiContext = useMemo(() => {
   const canShowWrongChip = mode === "practice" || showFeedback
 
   return (
-    <div className="relative block lg:flex lg:items-start lg:gap-6">
+    <LayoutWithSidebar 
+      showAssistant={true} 
+      assistantContext={aiContext}
+    >
+      <div className="relative block lg:flex lg:items-start lg:gap-6">
       {/* Left-Rail */}
       <aside className="hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[16rem] lg:flex-none rounded border p-3 overflow-y-auto">
         <div className="mb-2 text-sm font-semibold">Fragen</div>
@@ -1230,8 +1234,7 @@ const aiContext = useMemo(() => {
           </div>
         </div>
       )}
-      {/* KI-Tutor (floating, bottom-right) */}
-      <AssistantWidget context={aiContext} />
-    </div>
+      </div>
+    </LayoutWithSidebar>
   )
 }

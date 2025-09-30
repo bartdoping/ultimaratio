@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label"
 import QuestionShelf from "@/components/admin/question-shelf"
 import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
+import ImageUpload from "@/components/admin/image-upload"
+import NewQuestionForm from "@/components/admin/new-question-form"
 import Link from "next/link"
 
 /**
@@ -66,9 +68,17 @@ async function addQuestionAction(formData: FormData) {
   const tip = String(formData.get("tip") || "")
   const allowImmediate = formData.get("allowImmediate") === "on"
 
-  // Bildfelder (optional) direkt beim Anlegen
-  const imageUrl = String(formData.get("imageUrl") || "")
-  const imageAlt = String(formData.get("imageAlt") || "")
+  // Bildfelder (optional) direkt beim Anlegen - unterstütze mehrere Bilder
+  const images: Array<{ url: string; alt: string }> = []
+  let index = 0
+  while (formData.get(`imageUrl_${index}`)) {
+    const url = String(formData.get(`imageUrl_${index}`) || "")
+    const alt = String(formData.get(`imageAlt_${index}`) || "")
+    if (url && url.startsWith("http")) {
+      images.push({ url, alt })
+    }
+    index++
+  }
 
   const q = await prisma.question.create({
     data: {
@@ -105,28 +115,31 @@ async function addQuestionAction(formData: FormData) {
   // 5 Optionen
   const options = [0, 1, 2, 3, 4].map((i) => ({
     questionId: q.id,
-    text: String(formData.get(`opt${i}`) || `Option ${i + 1}`),
-    explanation: String(formData.get(`optExp${i}`) || "") || null,
+    text: String(formData.get(`option_${i}`) || `Option ${i + 1}`),
+    explanation: String(formData.get(`optionExp_${i}`) || "") || null,
     isCorrect: String(formData.get("correct")) === String(i),
     order: i,
   }))
   await prisma.answerOption.createMany({ data: options })
 
-  // Optional sofort ein Bild verknüpfen
-  if (imageUrl && imageUrl.startsWith("http")) {
-    const asset = await prisma.mediaAsset.upsert({
-      where: { url: imageUrl },
-      update: { alt: imageAlt || null },
-      create: { url: imageUrl, alt: imageAlt || null, kind: "image" },
-    })
+  // Optional sofort Bilder verknüpfen
+  if (images.length > 0) {
     const agg = await prisma.questionMedia.aggregate({
       where: { questionId: q.id },
       _max: { order: true },
     })
-    const nextOrder = (agg._max.order ?? 0) + 1
-    await prisma.questionMedia.create({
-      data: { questionId: q.id, mediaId: asset.id, order: nextOrder },
-    })
+    let nextOrder = (agg._max.order ?? 0) + 1
+    
+    for (const image of images) {
+      const asset = await prisma.mediaAsset.upsert({
+        where: { url: image.url },
+        update: { alt: image.alt || null },
+        create: { url: image.url, alt: image.alt || null, kind: "image" },
+      })
+      await prisma.questionMedia.create({
+        data: { questionId: q.id, mediaId: asset.id, order: nextOrder++ },
+      })
+    }
   }
 
   redirect(`/admin/exams/${examId}`)
@@ -619,36 +632,15 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </form>
 
             {/* Bilder */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Bilder</div>
-              <div className="flex flex-wrap gap-2">
-                {editingValid.media.map((m) => (
-                  <div key={m.media.id} className="border rounded p-1">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={m.media.url} alt={m.media.alt ?? ""} className="h-20 w-28 object-cover" />
-                    <form action={removeImageFromQuestionAction} className="mt-1">
-                      <input type="hidden" name="examId" value={id} />
-                      <input type="hidden" name="qid" value={editingValid.id} />
-                      <input type="hidden" name="mid" value={m.media.id} />
-                      <Button variant="outline" size="sm">Entfernen</Button>
-                    </form>
-                  </div>
-                ))}
-              </div>
-              <form action={addImageToQuestionAction} className="flex items-end gap-2">
-                <input type="hidden" name="examId" value={id} />
-                <input type="hidden" name="qid" value={editingValid.id} />
-                <div className="grow">
-                  <Label>Bild-URL</Label>
-                  <Input name="url" placeholder="https://..." />
-                </div>
-                <div className="grow">
-                  <Label>Alt-Text</Label>
-                  <Input name="alt" placeholder="Beschreibung" />
-                </div>
-                <Button type="submit">Hinzufügen</Button>
-              </form>
-            </div>
+            <ImageUpload
+              existingImages={editingValid.media.map(m => ({
+                id: m.media.id,
+                url: m.media.url,
+                alt: m.media.alt
+              }))}
+              examId={id}
+              questionId={editingValid.id}
+            />
 
             {/* Optionen */}
             <div className="space-y-2">
@@ -766,61 +758,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
         {/* Neue Frage anlegen (mit Bild & 5 Optionen) */}
         <div className="rounded border p-3 space-y-2" id="new-question">
           <h3 className="font-medium">Neue Frage</h3>
-          <form action={addQuestionAction} className="space-y-3">
+          <form action={addQuestionAction} className="space-y-4">
             <input type="hidden" name="examId" value={exam.id} />
-
-            <div>
-              <Label>Fragestellung (Stem)</Label>
-              <Input name="stem" required />
-            </div>
-
-            <div>
-              <Label>Oberarztkommentar (optional)</Label>
-              <Input name="tip" placeholder="Hinweis/Tipp zur Lösung" />
-            </div>
-
-            <div>
-              <Label>Zusammenfassende Erläuterung</Label>
-              <textarea name="explanation" className="input w-full h-24" placeholder="Erklärung zur Frage…" />
-            </div>
-
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="allowImmediate" /> Sofort-Feedback für diese Frage erlauben
-            </label>
-
-            {/* Bild bereits beim Erstellen */}
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <Label>Bild-URL (optional)</Label>
-                <Input name="imageUrl" placeholder="https://…" />
-              </div>
-              <div>
-                <Label>Alt-Text (optional)</Label>
-                <Input name="imageAlt" placeholder="Beschreibung" />
-              </div>
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-3">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} className="space-y-1">
-                  <Label>Option {i + 1}</Label>
-                  <Input name={`opt${i}`} required />
-                  <Label className="text-xs text-muted-foreground">Erklärung zu Option {i + 1} (optional)</Label>
-                  <Input name={`optExp${i}`} placeholder="Warum richtig/falsch?" />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center gap-2 text-sm">
-              <span>Korrekte Option:</span>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <label key={i} className="flex items-center gap-1">
-                  <input type="radio" name="correct" value={String(i)} defaultChecked={i === 0} /> {i + 1}
-                </label>
-              ))}
-            </div>
-
-            <Button type="submit">Frage anlegen</Button>
+            <NewQuestionForm examId={exam.id} />
           </form>
         </div>
       </div>
