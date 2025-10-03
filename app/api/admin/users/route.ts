@@ -28,6 +28,7 @@ export async function GET() {
             attempts: true,
             purchases: true,
             decks: true
+          }
         }
       },
       orderBy: { createdAt: "desc" }
