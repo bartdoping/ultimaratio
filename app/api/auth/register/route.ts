@@ -50,7 +50,14 @@ export async function POST(req: Request) {
       },
     });
 
-    await sendVerificationMail(user.email, code);
+    // Temporär: Email-Verification deaktiviert für Production-Test
+    // TODO: Email-Konfiguration korrekt einrichten
+    try {
+      await sendVerificationMail(user.email, code);
+    } catch (emailError) {
+      console.error("Email send failed, but user created:", emailError);
+      // User wird trotzdem erstellt, Email kann später gesendet werden
+    }
 
     return NextResponse.json({ ok: true });
   } catch (err) {
