@@ -58,14 +58,26 @@ export async function POST(req: Request) {
       },
     });
 
-    // Email-Verification senden (temporär deaktiviert für Production)
+    // Email-Verification senden
     try {
+      console.log("Attempting to send verification email to:", user.email);
+      console.log("Email config:", {
+        host: process.env.EMAIL_SERVER_HOST,
+        port: process.env.EMAIL_SERVER_PORT,
+        user: process.env.EMAIL_SERVER_USER,
+        from: process.env.EMAIL_FROM
+      });
+      
       await sendVerificationMail(user.email, code);
-      console.log("Verification email sent to:", user.email);
+      console.log("✅ Verification email sent successfully to:", user.email);
     } catch (emailError) {
-      console.error("Email send failed, but user created successfully:", emailError);
+      console.error("❌ Email send failed:", emailError);
+      console.error("Email error details:", {
+        message: emailError.message,
+        code: emailError.code,
+        response: emailError.response
+      });
       // User wird trotzdem erstellt - Email kann später gesendet werden
-      // TODO: Email-Konfiguration korrekt einrichten
     }
 
     return NextResponse.json({ ok: true });

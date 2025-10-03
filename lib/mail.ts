@@ -21,8 +21,8 @@ function buildTransport() {
     port,
     secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
     auth: user && pass ? { user, pass } : undefined,
-    logger: process.env.MAIL_DEBUG === "1",
-    debug: process.env.MAIL_DEBUG === "1",
+    logger: true, // Immer aktivieren für Debugging
+    debug: true,  // Immer aktivieren für Debugging
   } as nodemailer.TransportOptions
 
   return nodemailer.createTransport(common)
