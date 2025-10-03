@@ -73,9 +73,9 @@ export async function POST(req: Request) {
     } catch (emailError) {
       console.error("❌ Email send failed:", emailError);
       console.error("Email error details:", {
-        message: emailError.message,
-        code: emailError.code,
-        response: emailError.response
+        message: (emailError as any)?.message,
+        code: (emailError as any)?.code,
+        response: (emailError as any)?.response
       });
       // User wird trotzdem erstellt - Email kann später gesendet werden
     }
