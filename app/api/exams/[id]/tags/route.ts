@@ -86,7 +86,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           name: tag.name,
           slug: tag.slug,
           parentId: tag.parentId,
-          parent: tag.parent
+          parent: tag.parent || undefined
         })
 
         // Füge es zu seinem Supertag hinzu
