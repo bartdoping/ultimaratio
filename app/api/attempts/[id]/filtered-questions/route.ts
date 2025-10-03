@@ -7,7 +7,7 @@ import prisma from "@/lib/db"
 export const runtime = "nodejs"
 
 // GET: Gefilterte Fragen für einen Attempt
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
@@ -21,9 +21,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     return NextResponse.json({ error: "user not found" }, { status: 401 })
   }
 
+  const resolvedParams = await params
   // Attempt prüfen
   const attempt = await prisma.attempt.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     select: { id: true, userId: true, examId: true },
   })
   

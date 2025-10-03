@@ -6,7 +6,7 @@ import prisma from "@/lib/db"
 
 export const runtime = "nodejs"
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
@@ -20,9 +20,10 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
 
+  const resolvedParams = await params
   // Deck-Besitz prüfen
   const deck = await prisma.deck.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     select: { userId: true }
   })
   if (!deck || deck.userId !== me.id) {
@@ -179,7 +180,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Bereits vorhandene Items ignorieren
   const existing = await prisma.deckItem.findMany({
     where: {
-      deckId: params.id,
+      deckId: resolvedParams.id,
       questionId: { in: finalIds }
     },
     select: { questionId: true }
@@ -199,7 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
   // Nächste Order-Nummer finden
   const maxOrder = await prisma.deckItem.aggregate({
-    where: { deckId: params.id },
+    where: { deckId: resolvedParams.id },
     _max: { order: true }
   })
   let startOrder = (maxOrder._max.order ?? -1) + 1
@@ -207,7 +208,7 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
   // Items hinzufügen
   await prisma.deckItem.createMany({
     data: toAdd.map(questionId => ({
-      deckId: params.id,
+      deckId: resolvedParams.id,
       questionId,
       order: startOrder++
     })),
