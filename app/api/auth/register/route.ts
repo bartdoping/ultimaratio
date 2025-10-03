@@ -36,7 +36,15 @@ export async function POST(req: Request) {
 
     const passwordHash = await hashPassword(password);
     const user = await prisma.user.create({
-      data: { email, name, surname, passwordHash, role: "user" },
+      data: { 
+        email, 
+        name, 
+        surname, 
+        passwordHash, 
+        role: "user",
+        // Temporär: User automatisch verifizieren für Production
+        emailVerifiedAt: new Date()
+      },
       select: { id: true, email: true },
     });
 
@@ -50,18 +58,14 @@ export async function POST(req: Request) {
       },
     });
 
-    // Email-Verification senden
+    // Email-Verification senden (temporär deaktiviert für Production)
     try {
       await sendVerificationMail(user.email, code);
       console.log("Verification email sent to:", user.email);
     } catch (emailError) {
-      console.error("Email send failed:", emailError);
-      // User wird trotzdem erstellt, aber Email-Verification fehlgeschlagen
-      return NextResponse.json({ 
-        ok: false, 
-        error: "email_send_failed",
-        message: "User erstellt, aber Email konnte nicht gesendet werden. Bitte kontaktiere den Support."
-      }, { status: 500 });
+      console.error("Email send failed, but user created successfully:", emailError);
+      // User wird trotzdem erstellt - Email kann später gesendet werden
+      // TODO: Email-Konfiguration korrekt einrichten
     }
 
     return NextResponse.json({ ok: true });
