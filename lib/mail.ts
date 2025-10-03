@@ -16,6 +16,14 @@ function buildTransport() {
   const user = process.env.EMAIL_SERVER_USER
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
+  console.log("🔧 Email Transport Configuration:", {
+    host,
+    port,
+    user,
+    hasPassword: !!pass,
+    secure: port === 465
+  })
+
   const common = {
     host,
     port,
@@ -23,6 +31,9 @@ function buildTransport() {
     auth: user && pass ? { user, pass } : undefined,
     logger: true, // Immer aktivieren für Debugging
     debug: true,  // Immer aktivieren für Debugging
+    tls: {
+      rejectUnauthorized: false // Für Zoho SMTP
+    }
   } as nodemailer.TransportOptions
 
   return nodemailer.createTransport(common)
