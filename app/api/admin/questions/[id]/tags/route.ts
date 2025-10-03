@@ -7,14 +7,15 @@ import prisma from "@/lib/db"
 export const runtime = "nodejs"
 
 // GET: Tags einer Frage laden
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 })
   }
 
+  const resolvedParams = await params
   const question = await prisma.question.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     select: {
       id: true,
       tags: {
@@ -49,12 +50,13 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 }
 
 // POST: Tags zu einer Frage hinzufügen
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 })
   }
 
+  const resolvedParams = await params
   const { tagIds } = await req.json().catch(() => ({}))
   
   if (!Array.isArray(tagIds) || tagIds.length === 0) {
@@ -78,13 +80,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
         prisma.questionTag.upsert({
           where: {
             questionId_tagId: {
-              questionId: params.id,
+              questionId: resolvedParams.id,
               tagId
             }
           },
           update: {},
           create: {
-            questionId: params.id,
+            questionId: resolvedParams.id,
             tagId
           }
         })
@@ -98,12 +100,13 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 }
 
 // DELETE: Tag von einer Frage entfernen
-export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
   if ((session?.user as any)?.role !== "admin") {
     return NextResponse.json({ error: "forbidden" }, { status: 403 })
   }
 
+  const resolvedParams = await params
   const { tagId } = await req.json().catch(() => ({}))
   
   if (!tagId) {
@@ -113,7 +116,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     await prisma.questionTag.deleteMany({
       where: {
-        questionId: params.id,
+        questionId: resolvedParams.id,
         tagId
       }
     })
