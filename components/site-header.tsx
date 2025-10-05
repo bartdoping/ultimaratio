@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation"
 import { useSession, signOut } from "next-auth/react"
 import { useEffect, useRef, useState } from "react"
 import ThemeToggle from "@/components/theme-toggle" // ⬅️ default import
+import Logo from "@/components/logo"
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -55,11 +56,7 @@ export function SiteHeader() {
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
-            <img 
-              src="/logo/logo.svg" 
-              alt="fragenkreuzen.de Logo" 
-              className="h-8 w-8"
-            />
+            <Logo />
             fragenkreuzen.de
           </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
