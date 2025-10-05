@@ -3,6 +3,7 @@ import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
 import { SiteHeader } from "@/components/site-header"
 import { Providers } from "@/components/providers"
+import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -92,12 +93,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </div>
             </main>
 
-            {/* Footer zentriert, gleiches Padding links/rechts */}
-            <footer className="border-t w-full">
-              <div className="mx-auto w-full max-w-7xl px-4 md:px-6 lg:px-8 py-4 text-center text-sm text-muted-foreground">
-                © {new Date().getFullYear()} UltimaRatio
-              </div>
-            </footer>
+            {/* Footer */}
+            <Footer />
           </div>
         </Providers>
       </body>
