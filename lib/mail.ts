@@ -11,46 +11,31 @@ declare global {
 const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
 
 function buildTransport() {
-  // RADIKAL: Komplett hardcoded - ignoriert ALLE Environment Variables
-  const host = "smtp.zoho.eu"
-  const port = 587
-  const user = "info@ultima-rat.io"
-  const pass = process.env.EMAIL_SERVER_PASSWORD
-  
-  // FORCE OVERRIDE: Überschreibe alle Environment Variables
-  process.env.EMAIL_SERVER_HOST = host
-  process.env.EMAIL_SERVER_PORT = port.toString()
-  process.env.EMAIL_SERVER_USER = user
-
-  console.log("🔧 Email Transport Configuration:", {
-    host,
-    port,
-    user,
-    hasPassword: !!pass,
-    secure: false
-  })
-  
-  console.log("🔍 Raw Environment Variables:", {
-    EMAIL_SERVER_HOST: process.env.EMAIL_SERVER_HOST,
-    EMAIL_SERVER_PORT: process.env.EMAIL_SERVER_PORT,
-    EMAIL_SERVER_USER: process.env.EMAIL_SERVER_USER,
-    EMAIL_SERVER_PASSWORD: process.env.EMAIL_SERVER_PASSWORD ? "***SET***" : "NOT_SET",
-    EMAIL_FROM: process.env.EMAIL_FROM
-  })
-
-  const common = {
-    host,
-    port,
-    secure: false, // 587 = STARTTLS (nicht 465)
-    auth: user && pass ? { user, pass } : undefined,
-    logger: true, // Immer aktivieren für Debugging
-    debug: true,  // Immer aktivieren für Debugging
+  // LETZTE LÖSUNG: Komplett neue Email-Konfiguration
+  const config = {
+    host: "smtp.zoho.eu",
+    port: 587,
+    secure: false, // STARTTLS
+    auth: {
+      user: "info@ultima-rat.io",
+      pass: process.env.EMAIL_SERVER_PASSWORD
+    },
+    logger: true,
+    debug: true,
     tls: {
-      rejectUnauthorized: false // Für Zoho SMTP
+      rejectUnauthorized: false
     }
-  } as nodemailer.TransportOptions
+  }
 
-  return nodemailer.createTransport(common)
+  console.log("🔧 FINAL Email Transport Configuration:", {
+    host: config.host,
+    port: config.port,
+    user: config.auth.user,
+    hasPassword: !!config.auth.pass,
+    secure: config.secure
+  })
+
+  return nodemailer.createTransport(config)
 }
 
 function getTransporter(): nodemailer.Transporter {
