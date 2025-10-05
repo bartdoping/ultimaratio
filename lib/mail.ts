@@ -11,10 +11,10 @@ declare global {
 const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
 
 function buildTransport() {
-  // TEMPORÄR: Hardcoded Values wegen Vercel Environment Variable Problem
-  const host = process.env.EMAIL_SERVER_HOST || "smtp.zoho.eu"
-  const port = Number(process.env.EMAIL_SERVER_PORT ?? 587)
-  const user = process.env.EMAIL_SERVER_USER || "info@ultima-rat.io"
+  // FORCE OVERRIDE: Vercel Environment Variables Problem
+  const host = "smtp.zoho.eu"  // FORCE
+  const port = 587  // FORCE
+  const user = "info@ultima-rat.io"  // FORCE
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
   console.log("🔧 Email Transport Configuration:", {
