@@ -23,6 +23,14 @@ function buildTransport() {
     hasPassword: !!pass,
     secure: port === 465
   })
+  
+  console.log("🔍 Raw Environment Variables:", {
+    EMAIL_SERVER_HOST: process.env.EMAIL_SERVER_HOST,
+    EMAIL_SERVER_PORT: process.env.EMAIL_SERVER_PORT,
+    EMAIL_SERVER_USER: process.env.EMAIL_SERVER_USER,
+    EMAIL_SERVER_PASSWORD: process.env.EMAIL_SERVER_PASSWORD ? "***SET***" : "NOT_SET",
+    EMAIL_FROM: process.env.EMAIL_FROM
+  })
 
   const common = {
     host,
