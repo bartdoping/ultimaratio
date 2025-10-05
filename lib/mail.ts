@@ -61,16 +61,34 @@ export async function sendMail(opts: {
   text?: string
   html?: string
 }) {
-  const transporter = getTransporter()
-  const info = await transporter.sendMail({
-    from: FROM,
+  console.log("📧 SENDING EMAIL:", {
     to: opts.to,
     subject: opts.subject,
-    text: opts.text,
-    html: opts.html,
+    from: FROM
   })
-  if (process.env.MAIL_DEBUG === "1") {
-    console.log("[mail] sent:", info.messageId, info.response)
+  
+  const transporter = getTransporter()
+  
+  try {
+    const info = await transporter.sendMail({
+      from: FROM,
+      to: opts.to,
+      subject: opts.subject,
+      text: opts.text,
+      html: opts.html,
+    })
+    
+    console.log("✅ EMAIL SENT SUCCESSFULLY:", {
+      messageId: info.messageId,
+      response: info.response,
+      accepted: info.accepted,
+      rejected: info.rejected
+    })
+    
+    return info
+  } catch (error) {
+    console.error("❌ EMAIL SEND FAILED:", error)
+    throw error
   }
 }
 
