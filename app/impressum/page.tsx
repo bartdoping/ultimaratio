@@ -14,39 +14,44 @@ export default function ImpressumPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Angaben gemäß § 5 TMG</h2>
           <div className="space-y-2">
-            <p><strong>UltimaRatio GbR</strong></p>
-            <p>[Vorname] [Nachname]</p>
-            <p>[Vorname] [Nachname]</p>
-            <p>[Straße und Hausnummer]</p>
-            <p>[PLZ] [Ort]</p>
+            <p><strong>Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR</strong></p>
+            <p>Warburghof 14</p>
+            <p>30627 Hannover, Deutschland</p>
           </div>
         </section>
 
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Kontakt</h2>
           <div className="space-y-2">
-            <p><strong>Telefon:</strong> [Telefonnummer]</p>
+            <p><strong>Telefon:</strong> +49 163 9347633</p>
             <p><strong>E-Mail:</strong> info@ultima-rat.io</p>
             <p><strong>Website:</strong> https://fragenkreuzen.de</p>
           </div>
         </section>
 
         <section className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Umsatzsteuer-ID</h2>
-          <p>Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:</p>
-          <p><strong>[USt-IdNr. einfügen, falls vorhanden]</strong></p>
-          <p className="text-sm text-gray-600 mt-2">
-            <em>Hinweis: GbR ist grundsätzlich nicht umsatzsteuerpflichtig, es sei denn, 
-            der Jahresumsatz übersteigt 22.000 €. In diesem Fall ist eine USt-IdNr. erforderlich.</em>
-          </p>
+          <h2 className="text-2xl font-semibold mb-4">Vertreten durch</h2>
+          <div className="space-y-2">
+            <p>Mustafa Magdy Abdel Razik Mahmoud Eid</p>
+            <p>Ahkash Thavarajasingam</p>
+          </div>
         </section>
 
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
           <div className="space-y-2">
-            <p>[Vorname] [Nachname]</p>
-            <p>[Straße und Hausnummer]</p>
-            <p>[PLZ] [Ort]</p>
+            <p>Ahkash Thavarajasingam</p>
+            <p>Warburghof 14</p>
+            <p>30627 Hannover</p>
+          </div>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-2xl font-semibold mb-4">Gewerbeanmeldung</h2>
+          <div className="space-y-2">
+            <p>Die Gewerbeerlaubnis nach § 14 GewO wurde am 21.04.2025 durch die</p>
+            <p>Gewerbemeldestelle der Landeshauptstadt Hannover,</p>
+            <p>Schützenplatz 1, 30169 Hannover, erteilt.</p>
           </div>
         </section>
 
@@ -156,7 +161,7 @@ export default function ImpressumPage() {
         </section>
 
         <div className="text-sm text-gray-600 mt-8 pt-4 border-t">
-          <p><strong>Stand:</strong> [Datum der letzten Aktualisierung]</p>
+          <p><strong>Stand:</strong> 05.10.2025</p>
           <p><strong>Quelle:</strong> Erstellt mit rechtlicher Beratung für GbR-Strukturen</p>
         </div>
       </div>

@@ -1,8 +1,8 @@
 import { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "Datenschutz | UltimaRatio",
-  description: "Datenschutzerklärung der UltimaRatio GbR",
+  title: "Datenschutz | fragenkreuzen.de",
+  description: "Datenschutzerklärung der Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR",
 }
 
 export default function DatenschutzPage() {
@@ -201,7 +201,7 @@ export default function DatenschutzPage() {
         </section>
 
         <div className="text-sm text-gray-600 mt-8 pt-4 border-t">
-          <p><strong>Stand:</strong> [Datum der letzten Aktualisierung]</p>
+          <p><strong>Stand:</strong> 05.10.2025</p>
           <p><strong>Quelle:</strong> eRecht24 Safe Sharing</p>
         </div>
       </div>

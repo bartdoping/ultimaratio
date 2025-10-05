@@ -1,8 +1,8 @@
 import { Metadata } from "next"
 
 export const metadata: Metadata = {
-  title: "AGB | UltimaRatio",
-  description: "Allgemeine Geschäftsbedingungen der UltimaRatio GbR",
+  title: "AGB | fragenkreuzen.de",
+  description: "Allgemeine Geschäftsbedingungen der Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR",
 }
 
 export default function AGBPage() {
@@ -14,9 +14,9 @@ export default function AGBPage() {
         <section className="mb-8">
           <h2 className="text-2xl font-semibold mb-4">§ 1 Geltungsbereich</h2>
           <p className="mb-4">
-            Diese Allgemeinen Geschäftsbedingungen (nachfolgend "AGB") der UltimaRatio GbR, 
-            [Straße und Hausnummer], [PLZ] [Ort] (nachfolgend "Anbieter"), gelten für alle 
-            Verträge über die Nutzung der Online-Lernplattform "UltimaRatio" (nachfolgend "Plattform").
+            Diese Allgemeinen Geschäftsbedingungen (nachfolgend "AGB") der Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR, 
+            Warburghof 14, 30627 Hannover (nachfolgend "Anbieter"), gelten für alle 
+            Verträge über die Nutzung der Online-Lernplattform "fragenkreuzen.de" (nachfolgend "Plattform").
           </p>
           <p className="mb-4">
             Abweichende, entgegenstehende oder ergänzende AGB des Kunden werden nicht Vertragsbestandteil, 
@@ -28,11 +28,11 @@ export default function AGBPage() {
           <h2 className="text-2xl font-semibold mb-4">§ 2 Vertragspartner</h2>
           <p className="mb-4">
             <strong>Anbieter:</strong><br />
-            UltimaRatio GbR<br />
-            [Vorname] [Nachname]<br />
-            [Vorname] [Nachname]<br />
-            [Straße und Hausnummer]<br />
-            [PLZ] [Ort]<br />
+            Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR<br />
+            Ahkash Thavarajasingam<br />
+            Mustafa Magdy Abdel Razik Mahmoud Eid<br />
+            Warburghof 14<br />
+            30627 Hannover<br />
             E-Mail: info@ultima-rat.io
           </p>
         </section>
@@ -139,8 +139,8 @@ export default function AGBPage() {
         </section>
 
         <div className="text-sm text-gray-600 mt-8 pt-4 border-t">
-          <p><strong>Stand:</strong> [Datum der letzten Aktualisierung]</p>
-          <p><strong>Gültig ab:</strong> [Datum des Inkrafttretens]</p>
+          <p><strong>Stand:</strong> 05.10.2025</p>
+          <p><strong>Gültig ab:</strong> 05.10.2025</p>
         </div>
       </div>
     </div>
