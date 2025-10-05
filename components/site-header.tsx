@@ -54,7 +54,14 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
       <div className="container mx-auto flex h-14 items-center justify-between px-4">
         <div className="flex items-center gap-4">
-          <Link href="/" className="font-semibold">UltimaRatio</Link>
+          <Link href="/" className="flex items-center gap-2 font-semibold">
+            <img 
+              src="/logo/logo.svg" 
+              alt="fragenkreuzen.de Logo" 
+              className="h-8 w-8"
+            />
+            fragenkreuzen.de
+          </Link>
           <nav className="hidden md:flex items-center gap-1 text-sm">
             {navLink("/exams", "Prüfungen")}
             {navLink("/dashboard", "Mein Bereich")}

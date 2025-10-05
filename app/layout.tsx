@@ -15,23 +15,23 @@ const metadataBase =
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "UltimaRatio – IMPP Coach",
-    template: "%s · UltimaRatio",
+    default: "fragenkreuzen.de – IMPP Coach",
+    template: "%s · fragenkreuzen.de",
   },
   description:
     "Übe IMPP-Fragen (2. Staatsexamen) im Prüfungs- oder Übungsmodus — mit Fallvignetten, Bildern, Laborwerten, Auswertung und Spaced Repetition.",
   openGraph: {
     type: "website",
     url: metadataBase,
-    title: "UltimaRatio – IMPP Coach fürs 2. Staatsexamen",
+    title: "fragenkreuzen.de – IMPP Coach fürs 2. Staatsexamen",
     description:
       "Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
-    siteName: "UltimaRatio",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "UltimaRatio – IMPP Coach" }],
+    siteName: "fragenkreuzen.de",
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "fragenkreuzen.de – IMPP Coach" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "UltimaRatio – IMPP Coach fürs 2. Staatsexamen",
+    title: "fragenkreuzen.de – IMPP Coach fürs 2. Staatsexamen",
     description:
       "Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
     images: ["/og.jpg"],

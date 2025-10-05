@@ -48,12 +48,12 @@ export default function Footer() {
 
           {/* Copyright */}
           <div>
-            <h3 className="font-semibold mb-4">UltimaRatio</h3>
+            <h3 className="font-semibold mb-4">fragenkreuzen.de</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Medizinische Prüfungsvorbereitung</p>
               <p>Fragenkreuzen für das Staatsexamen</p>
               <p className="pt-4">
-                © {new Date().getFullYear()} UltimaRatio GbR
+                © {new Date().getFullYear()} Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR
               </p>
             </div>
           </div>
