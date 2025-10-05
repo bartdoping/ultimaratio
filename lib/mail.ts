@@ -11,11 +11,11 @@ declare global {
 const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
 
 function buildTransport() {
-  // RADIKAL: Ignoriere ALLE Environment Variables komplett
-  console.log("🚨 IGNORIERE ALLE ENVIRONMENT VARIABLES!")
-  console.log("🚨 VERWENDE NUR HARDCODED WERTE!")
+  // LETZTE LÖSUNG: Komplett neue Email-Konfiguration ohne Environment Variables
+  console.log("🚨 NEUE EMAIL-KONFIGURATION - IGNORIERE ALLES!")
   
-  const config = {
+  // Direkte nodemailer.createTransport() ohne Environment Variables
+  const transporter = nodemailer.createTransport({
     host: "smtp.zoho.eu",
     port: 587,
     secure: false,
@@ -28,23 +28,17 @@ function buildTransport() {
     tls: {
       rejectUnauthorized: false
     }
-  }
-
-  console.log("🔧 HARDCODED Email Transport Configuration:", {
-    host: config.host,
-    port: config.port,
-    user: config.auth.user,
-    hasPassword: !!config.auth.pass,
-    secure: config.secure
   })
 
-  // FORCE: Überschreibe alle Environment Variables
-  process.env.EMAIL_SERVER_HOST = "smtp.zoho.eu"
-  process.env.EMAIL_SERVER_PORT = "587"
-  process.env.EMAIL_SERVER_USER = "info@ultima-rat.io"
-  process.env.EMAIL_SERVER_PASSWORD = "6SAF9nEPm46m"
+  console.log("🔧 FINALE Email Transport Configuration:", {
+    host: "smtp.zoho.eu",
+    port: 587,
+    user: "info@ultima-rat.io",
+    hasPassword: true,
+    secure: false
+  })
 
-  return nodemailer.createTransport(config)
+  return transporter
 }
 
 function getTransporter(): nodemailer.Transporter {
