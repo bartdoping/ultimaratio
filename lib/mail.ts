@@ -22,7 +22,7 @@ function buildTransport() {
     port,
     user,
     hasPassword: !!pass,
-    secure: port === 465
+    secure: false
   })
   
   console.log("🔍 Raw Environment Variables:", {
@@ -36,7 +36,7 @@ function buildTransport() {
   const common = {
     host,
     port,
-    secure: port === 465, // 465 = implicit TLS; 587 = STARTTLS
+    secure: false, // 587 = STARTTLS (nicht 465)
     auth: user && pass ? { user, pass } : undefined,
     logger: true, // Immer aktivieren für Debugging
     debug: true,  // Immer aktivieren für Debugging
