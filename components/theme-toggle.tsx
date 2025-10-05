@@ -1,40 +1,17 @@
 // components/theme-toggle.tsx
 "use client"
 
+import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 
-type Mode = "light" | "dark"
-
-function applyMode(mode: Mode) {
-  const root = document.documentElement
-  if (mode === "dark") root.classList.add("dark")
-  else root.classList.remove("dark")
-  try {
-    localStorage.setItem("theme", mode)
-  } catch {}
-}
-
 export default function ThemeToggle() {
-  const [mode, setMode] = useState<Mode>("light")
+  const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    try {
-      const stored = localStorage.getItem("theme")
-      if (stored === "dark" || stored === "light") {
-        setMode(stored)
-        applyMode(stored)
-        return
-      }
-    } catch {}
-    const isDark = document.documentElement.classList.contains("dark")
-    const m: Mode = isDark ? "dark" : "light"
-    setMode(m)
-    applyMode(m)
   }, [])
 
-  // Verhindere Hydration Mismatch durch SSR
   if (!mounted) {
     return (
       <button
@@ -57,11 +34,9 @@ export default function ThemeToggle() {
     )
   }
 
-  const isDark = mode === "dark"
+  const isDark = theme === "dark"
   const toggle = () => {
-    const next: Mode = isDark ? "light" : "dark"
-    setMode(next)
-    applyMode(next)
+    setTheme(isDark ? "light" : "dark")
   }
 
   return (
