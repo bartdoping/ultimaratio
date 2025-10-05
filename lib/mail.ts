@@ -18,7 +18,7 @@ function buildTransport() {
     secure: false, // STARTTLS
     auth: {
       user: "info@ultima-rat.io",
-      pass: process.env.EMAIL_SERVER_PASSWORD
+      pass: "6SAF9nEPm46m" // Ersetze mit dem echten App-Passwort
     },
     logger: true,
     debug: true,
