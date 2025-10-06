@@ -11,13 +11,13 @@ declare global {
 const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
 
 function buildTransport() {
-  // NORMALE KONFIGURATION: Verwende Environment Variables
-  const host = process.env.EMAIL_SERVER_HOST
-  const port = Number(process.env.EMAIL_SERVER_PORT ?? 587)
+  // GMAIL SMTP KONFIGURATION
+  const host = "smtp.gmail.com"
+  const port = 587
   const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '')
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
-  console.log("🔧 Email Transport Configuration:", {
+  console.log("🔧 Gmail Transport Configuration:", {
     host,
     port,
     user: user ? `${user.substring(0, 3)}***@${user.split('@')[1]}` : 'undefined',
@@ -25,7 +25,7 @@ function buildTransport() {
     secure: false
   })
 
-  // ZOHO-SPEZIFISCHE KONFIGURATION
+  // GMAIL-SPEZIFISCHE KONFIGURATION
   const common = {
     host,
     port,
@@ -34,18 +34,12 @@ function buildTransport() {
     logger: true,
     debug: true,
     tls: {
-      rejectUnauthorized: false,
-      // Zoho benötigt explizite TLS-Einstellungen
-      servername: host
+      rejectUnauthorized: false
     },
-    // Timeouts für Zoho
+    // Gmail-spezifische Optionen
     connectionTimeout: 60000,
     greetingTimeout: 30000,
-    socketTimeout: 60000,
-    // Zoho-spezifische Optionen
-    pool: false,
-    maxConnections: 1,
-    maxMessages: 1
+    socketTimeout: 60000
   } as nodemailer.TransportOptions
 
   return nodemailer.createTransport(common)
