@@ -28,12 +28,13 @@ function buildTransport() {
   const common = {
     host,
     port,
-    secure: port === 465,
+    secure: false, // Zoho verwendet STARTTLS auf Port 587
     auth: user && pass ? { user, pass } : undefined,
     logger: true,
     debug: true,
     tls: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false,
+      ciphers: 'SSLv3'
     }
   } as nodemailer.TransportOptions
 
