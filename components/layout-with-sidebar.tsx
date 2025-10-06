@@ -32,7 +32,7 @@ export default function LayoutWithSidebar({
   return (
     <div className="flex h-screen">
       {/* Main Content */}
-      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'mr-80' : 'mr-0'}`}>
+      <div className={`flex-1 transition-all duration-300 ${sidebarOpen ? 'lg:mr-80' : 'lg:mr-0'}`}>
         <div className="h-full overflow-y-auto">
           {children}
         </div>
@@ -40,15 +40,23 @@ export default function LayoutWithSidebar({
 
       {/* AI Assistant Sidebar */}
       {sidebarOpen && (
-        <div className="fixed right-0 top-0 h-full w-80 z-50">
+        <div className="fixed right-0 top-0 h-full w-full sm:w-80 z-50 bg-background shadow-lg">
           <AssistantSidebar context={assistantContext} />
         </div>
+      )}
+
+      {/* Mobile Overlay */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
       {/* Toggle Button */}
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
-        className={`fixed bottom-6 right-6 z-40 h-12 w-12 rounded-full shadow-lg transition-all duration-300 ${
+        className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 h-12 w-12 rounded-full shadow-lg transition-all duration-300 ${
           sidebarOpen 
             ? 'bg-red-500 hover:bg-red-600' 
             : 'bg-gradient-to-br from-blue-600 to-indigo-600 hover:brightness-110'

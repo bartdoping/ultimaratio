@@ -170,41 +170,41 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Mein Bereich</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
           {srTableExists && (
             <Link href="/sr/settings">
-              <Button variant="outline">SR-Einstellungen</Button>
+              <Button variant="outline" className="w-full sm:w-auto">SR-Einstellungen</Button>
             </Link>
           )}
           {srTableExists && dueTotal > 0 && (
             <Link href="/sr/all">
-              <Button variant="default">SR heute: {dueTotal}</Button>
+              <Button variant="default" className="w-full sm:w-auto">SR heute: {dueTotal}</Button>
             </Link>
           )}
           <Link href="/decks">
-            <Button variant="outline">Eigene Prüfungsdecks</Button>
+            <Button variant="outline" className="w-full sm:w-auto">Eigene Prüfungsdecks</Button>
           </Link>
           <Link href="/dashboard/history">
-            <Button variant="outline">Historie</Button>
+            <Button variant="outline" className="w-full sm:w-auto">Historie</Button>
           </Link>
           <Link href="/exams">
-            <Button>Weitere Prüfungen</Button>
+            <Button className="w-full sm:w-auto">Weitere Prüfungen</Button>
           </Link>
         </div>
       </div>
 
       {/* Eigene Decks */}
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Link href="/decks#new-deck">
-              <Button size="sm" variant="outline">Neues Deck</Button>
+              <Button size="sm" variant="outline" className="w-full sm:w-auto">Neues Deck</Button>
             </Link>
             <Link href="/decks">
-              <Button size="sm" variant="ghost">Alle anzeigen</Button>
+              <Button size="sm" variant="ghost" className="w-full sm:w-auto">Alle anzeigen</Button>
             </Link>
           </div>
         </div>
@@ -244,25 +244,25 @@ export default async function DashboardPage() {
                       </CardDescription>
                     )}
                   </CardHeader>
-                  <CardContent className="flex items-center justify-between gap-3">
+                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <span className="text-sm text-muted-foreground">
                       {d._count.items} Frage{d._count.items === 1 ? "" : "n"}
                     </span>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                       <Link href={`/decks/${d.id}`}>
-                        <Button size="sm" variant="outline">Öffnen</Button>
+                        <Button size="sm" variant="outline" className="w-full sm:w-auto">Öffnen</Button>
                       </Link>
                       <Link href={`/practice/deck/${d.id}`}>
-                        <Button size="sm">Training</Button>
+                        <Button size="sm" className="w-full sm:w-auto">Training</Button>
                       </Link>
 
                       {/* SR üben: nur klickbarer Link, wenn SR aktiv; sonst disabled Button ohne Link */}
                       {srOn ? (
                         <Link href={`/sr/deck/${d.id}`}>
-                          <Button size="sm" variant="default">SR üben</Button>
+                          <Button size="sm" variant="default" className="w-full sm:w-auto">SR üben</Button>
                         </Link>
                       ) : (
-                        <Button size="sm" variant="outline" disabled title="SR ist für dieses Deck deaktiviert">
+                        <Button size="sm" variant="outline" disabled title="SR ist für dieses Deck deaktiviert" className="w-full sm:w-auto">
                           SR üben
                         </Button>
                       )}

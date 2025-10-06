@@ -764,10 +764,13 @@ const aiContext = useMemo(() => {
       {/* Hauptbereich */}
       <div className="relative lg:flex-1 lg:min-w-0">
         {/* Kopfzeile */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground">
+        <div className="mb-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3 text-sm text-muted-foreground">
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden">
-              Fragen
+              <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="hidden sm:inline">Fragen</span>
             </Button>
             <span>Frage {idx + 1} / {questions.length} ({progress})</span>
           </div>
@@ -913,10 +916,10 @@ const aiContext = useMemo(() => {
         )}
 
         {/* Navigation unten */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart}>Zurück</Button>
-            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd}>Weiter</Button>
+            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart} className="flex-1 sm:flex-none">Zurück</Button>
+            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd} className="flex-1 sm:flex-none">Weiter</Button>
           </div>
 
           <div className="flex items-center gap-2">
