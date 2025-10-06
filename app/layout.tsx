@@ -15,25 +15,25 @@ const metadataBase =
 export const metadata: Metadata = {
   metadataBase,
   title: {
-    default: "fragenkreuzen.de – IMPP Coach",
+    default: "fragenkreuzen.de – Die Fragenbank für dein Medizinstudium",
     template: "%s · fragenkreuzen.de",
   },
   description:
-    "Übe IMPP-Fragen (2. Staatsexamen) im Prüfungs- oder Übungsmodus — mit Fallvignetten, Bildern, Laborwerten, Auswertung und Spaced Repetition.",
+    "Die Fragenbank für dein Medizinstudium — Übe IMPP-Fragen (2. Staatsexamen) im Prüfungs- oder Übungsmodus mit Fallvignetten, Bildern, Laborwerten, Auswertung und Spaced Repetition.",
   openGraph: {
     type: "website",
     url: metadataBase,
-    title: "fragenkreuzen.de – IMPP Coach fürs 2. Staatsexamen",
+    title: "fragenkreuzen.de – Die Fragenbank für dein Medizinstudium",
     description:
-      "Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
+      "Die Fragenbank für dein Medizinstudium — Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
     siteName: "fragenkreuzen.de",
-    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "fragenkreuzen.de – IMPP Coach" }],
+    images: [{ url: "/og.jpg", width: 1200, height: 630, alt: "fragenkreuzen.de – Die Fragenbank für dein Medizinstudium" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "fragenkreuzen.de – IMPP Coach fürs 2. Staatsexamen",
+    title: "fragenkreuzen.de – Die Fragenbank für dein Medizinstudium",
     description:
-      "Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
+      "Die Fragenbank für dein Medizinstudium — Trainiere Einzelfragen & Fallvignetten mit Auswertung, Timer und Spaced Repetition.",
     images: ["/og.jpg"],
   },
   alternates: { canonical: "/" },

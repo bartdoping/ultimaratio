@@ -58,8 +58,11 @@ export function SiteHeader() {
         <div className="flex items-center gap-4">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo />
-            <span className="hidden sm:inline">fragenkreuzen.de</span>
-            <span className="sm:hidden">fragenkreuzen</span>
+            <div className="flex flex-col">
+              <span className="hidden sm:inline">fragenkreuzen.de</span>
+              <span className="sm:hidden">fragenkreuzen</span>
+              <span className="text-xs text-muted-foreground font-normal">by ultima-rat.io</span>
+            </div>
           </Link>
           
           {/* Desktop Navigation */}
