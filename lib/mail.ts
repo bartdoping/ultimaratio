@@ -20,22 +20,32 @@ function buildTransport() {
   console.log("🔧 Email Transport Configuration:", {
     host,
     port,
-    user,
+    user: user ? `${user.substring(0, 3)}***@${user.split('@')[1]}` : 'undefined',
     hasPassword: !!pass,
-    secure: port === 465
+    secure: false
   })
 
+  // ZOHO-SPEZIFISCHE KONFIGURATION
   const common = {
     host,
     port,
-    secure: false, // Zoho verwendet STARTTLS auf Port 587
+    secure: false, // STARTTLS für Port 587
     auth: user && pass ? { user, pass } : undefined,
     logger: true,
     debug: true,
     tls: {
       rejectUnauthorized: false,
-      ciphers: 'SSLv3'
-    }
+      // Zoho benötigt explizite TLS-Einstellungen
+      servername: host
+    },
+    // Timeouts für Zoho
+    connectionTimeout: 60000,
+    greetingTimeout: 30000,
+    socketTimeout: 60000,
+    // Zoho-spezifische Optionen
+    pool: false,
+    maxConnections: 1,
+    maxMessages: 1
   } as nodemailer.TransportOptions
 
   return nodemailer.createTransport(common)
