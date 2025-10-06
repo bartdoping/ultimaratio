@@ -85,14 +85,17 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${base}/exams/${exam.slug}?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/exams/${exam.slug}`,
+      success_url: `${base}/exams/${exam.slug}?session_id={CHECKOUT_SESSION_ID}&purchase=success`,
+      cancel_url: `${base}/exams/${exam.slug}?cancelled=true`,
       customer_email: me.email ?? undefined,
       metadata: {
         userId: me.id,
         examId: exam.id,
         slug: exam.slug,
+        userEmail: me.email,
       },
+      // Session-Informationen für bessere Persistenz
+      expires_at: Math.floor(Date.now() / 1000) + (30 * 60), // 30 Minuten
     });
 
     return NextResponse.json({ ok: true, url: s.url });

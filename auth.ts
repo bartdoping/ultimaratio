@@ -5,7 +5,11 @@ import prisma from "@/lib/db"
 import { verifyPassword } from "@/lib/password"
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 Tage
+    updateAge: 24 * 60 * 60, // 24 Stunden
+  },
   pages: { signIn: "/login" },
   providers: [
     Credentials({
