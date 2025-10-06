@@ -11,9 +11,9 @@ declare global {
 const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
 
 function buildTransport() {
-  // GMAIL SMTP KONFIGURATION
-  const host = "smtp.gmail.com"
-  const port = 587
+  // GMAIL SMTP KONFIGURATION - VERWENDE ENVIRONMENT VARIABLES
+  const host = process.env.EMAIL_SERVER_HOST || "smtp.gmail.com"
+  const port = Number(process.env.EMAIL_SERVER_PORT ?? 587)
   const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '')
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
