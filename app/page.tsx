@@ -29,7 +29,7 @@ export default async function Home() {
           </div>
 
           <h1 className="mt-4 text-4xl/tight font-bold tracking-tight md:text-5xl">
-            ultima-rat.io – Medizin&nbsp;Coach fürs 2.&nbsp;Staatsexamen
+            Die Fragenbank für dein Medizinstudium
           </h1>
 
           <p className="mx-auto mt-4 max-w-2xl text-base md:text-lg text-muted-foreground">
