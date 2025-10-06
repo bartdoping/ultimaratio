@@ -14,7 +14,7 @@ function buildTransport() {
   // ZOHO SMTP KONFIGURATION - VERWENDE ENVIRONMENT VARIABLES
   const host = process.env.EMAIL_SERVER_HOST || "smtp.zoho.eu"
   const port = Number(process.env.EMAIL_SERVER_PORT ?? 587)
-  const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '')
+  const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '').replace(/\s/g, '')
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
   console.log("🔧 Zoho Transport Configuration:", {
