@@ -14,7 +14,7 @@ function buildTransport() {
   // NORMALE KONFIGURATION: Verwende Environment Variables
   const host = process.env.EMAIL_SERVER_HOST
   const port = Number(process.env.EMAIL_SERVER_PORT ?? 587)
-  const user = process.env.EMAIL_SERVER_USER?.trim()
+  const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '')
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
   console.log("🔧 Email Transport Configuration:", {
