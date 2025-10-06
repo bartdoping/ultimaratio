@@ -8,7 +8,7 @@ declare global {
   var __mailerTransporter: nodemailer.Transporter | undefined
 }
 
-const FROM = process.env.EMAIL_FROM ?? "UltimaRatio <no-reply@example.com>"
+const FROM = process.env.EMAIL_FROM ?? "info@ultima-rat.io"
 
 function buildTransport() {
   // ZOHO SMTP KONFIGURATION - VERWENDE ENVIRONMENT VARIABLES
