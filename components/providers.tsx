@@ -3,7 +3,6 @@ import { SessionProvider } from "next-auth/react"
 import { ThemeProvider } from "next-themes"
 import { LoadingProvider } from "@/components/loading-spinner"
 import { AutoLoading } from "@/components/auto-loading"
-import { LoadingTest } from "@/components/loading-test"
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
@@ -16,7 +15,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       >
         <LoadingProvider>
           <AutoLoading />
-          <LoadingTest />
           {children}
         </LoadingProvider>
       </ThemeProvider>
