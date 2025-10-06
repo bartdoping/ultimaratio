@@ -1,0 +1,18 @@
+import { NextResponse } from "next/server"
+
+export const runtime = "nodejs"
+
+export async function GET() {
+  const envVars = {
+    EMAIL_SERVER_HOST: process.env.EMAIL_SERVER_HOST,
+    EMAIL_SERVER_PORT: process.env.EMAIL_SERVER_PORT,
+    EMAIL_SERVER_USER: process.env.EMAIL_SERVER_USER,
+    EMAIL_SERVER_PASSWORD: process.env.EMAIL_SERVER_PASSWORD ? "***HIDDEN***" : "undefined",
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    NODE_ENV: process.env.NODE_ENV,
+    VERCEL: process.env.VERCEL,
+    VERCEL_ENV: process.env.VERCEL_ENV
+  }
+
+  return NextResponse.json(envVars)
+}
