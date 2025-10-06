@@ -8,7 +8,7 @@ export async function GET() {
     console.log("🧪 TESTING GMAIL SMTP...")
     
     // Gmail SMTP Test
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
