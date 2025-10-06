@@ -40,15 +40,15 @@ export default function LayoutWithSidebar({
 
       {/* AI Assistant Sidebar */}
       {sidebarOpen && (
-        <div className="fixed right-0 top-0 h-full w-full sm:w-80 z-50 bg-background shadow-lg">
-          <AssistantSidebar context={assistantContext} />
+        <div className="fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l transition-all duration-300 ease-in-out lg:w-80 md:w-96 w-full max-w-sm">
+          <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
         </div>
       )}
 
-      {/* Mobile Overlay */}
+      {/* Mobile Overlay - nur auf sehr kleinen Bildschirmen */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -61,7 +61,7 @@ export default function LayoutWithSidebar({
             ? 'bg-red-500 hover:bg-red-600' 
             : 'bg-gradient-to-br from-blue-600 to-indigo-600 hover:brightness-110'
         } text-white grid place-items-center`}
-        title={sidebarOpen ? "KI-Tutor schließen" : "KI-Tutor öffnen (Ctrl+K)"}
+        title={sidebarOpen ? "KI-Tutor schließen (Ctrl+K)" : "KI-Tutor öffnen (Ctrl+K)"}
       >
         {sidebarOpen ? (
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

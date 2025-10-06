@@ -11,8 +11,9 @@ type AnswerStyle = "concise" | "detailed"
 
 export default function AssistantSidebar(props: {
   context: any
+  onClose?: () => void
 }) {
-  const { context } = props
+  const { context, onClose } = props
 
   // --- UI state ---
   const [input, setInput] = useState("")
@@ -164,9 +165,10 @@ export default function AssistantSidebar(props: {
           </div>
         </div>
 
-        {/* Stil-Schalter + Controls */}
+        {/* Controls */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
+          {/* Stil-Schalter - nur auf größeren Bildschirmen */}
+          <div className="hidden sm:flex items-center gap-1">
             <Button
               variant={style === "concise" ? "default" : "outline"}
               size="sm"
@@ -184,6 +186,8 @@ export default function AssistantSidebar(props: {
               Ausführlich
             </Button>
           </div>
+          
+          {/* Reset Button */}
           <Button
             size="sm"
             variant="ghost"
@@ -192,9 +196,25 @@ export default function AssistantSidebar(props: {
               setError(null)
             }}
             title="Chat zurücksetzen"
+            className="hidden sm:flex"
           >
             Reset
           </Button>
+          
+          {/* Close Button - nur auf Mobile */}
+          {onClose && (
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={onClose}
+              title="KI-Tutor schließen"
+              className="sm:hidden"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </Button>
+          )}
         </div>
       </div>
 
@@ -274,28 +294,28 @@ export default function AssistantSidebar(props: {
       {/* Quick-Prompts */}
       <div className="px-3 pb-2 flex flex-wrap gap-2 border-t bg-muted/40">
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent"
+          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
           onClick={() => quickAsk("Gib mir bitte einen Hinweis, wie ich vorgehe – ohne die Lösung zu verraten.")}
         >
-          Hinweis
+          <span className="truncate">Hinweis</span>
         </button>
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent"
+          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
           onClick={() => quickAsk("Erkläre das Ausschlussverfahren für diese Optionen.")}
         >
-          Ausschlussverfahren
+          <span className="truncate">Ausschluss</span>
         </button>
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent"
+          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
           onClick={() => quickAsk("Gib mir eine kurze Merkhilfe zu dieser Frage.")}
         >
-          Merkhilfe
+          <span className="truncate">Merkhilfe</span>
         </button>
       </div>
 
       {/* Input */}
       <form
-        className="p-2 border-t flex items-center gap-2"
+        className="p-2 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault()
           void send()
@@ -306,9 +326,9 @@ export default function AssistantSidebar(props: {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={busy}
-          className="flex-1"
+          className="flex-1 min-w-0"
         />
-        <Button type="submit" disabled={busy || !input.trim()}>
+        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto">
           {busy ? "Senden…" : "Senden"}
         </Button>
       </form>
