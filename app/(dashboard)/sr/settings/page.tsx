@@ -78,27 +78,33 @@ function FieldLabel({
 
 /* ---------- helpers ---------- */
 async function ensureSrTables() {
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SRUserSetting" (
-      "userId"           text PRIMARY KEY REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      "srEnabled"        boolean NOT NULL DEFAULT true,
-      "dailyNewLimit"    integer NOT NULL DEFAULT 20,
-      "maxReviewsPerDay" integer NOT NULL DEFAULT 200,
-      "easeFactorStart"  double precision NOT NULL DEFAULT 2.5,
-      "intervalMinDays"  integer NOT NULL DEFAULT 1,
-      "lapsePenalty"     double precision NOT NULL DEFAULT 0.5,
-      "lastGlobalRunAt"  timestamptz
-    );
-  `)
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SRDeckSetting" (
-      "deckId"    text PRIMARY KEY REFERENCES "Deck"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      "srEnabled" boolean NOT NULL DEFAULT false
-    );
-  `)
-  await prisma.$executeRawUnsafe(`
-    CREATE INDEX IF NOT EXISTS "SRDeckSetting_deckId_idx" ON "SRDeckSetting" ("deckId");
-  `)
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SRUserSetting" (
+        "userId"           text PRIMARY KEY REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "srEnabled"        boolean NOT NULL DEFAULT true,
+        "dailyNewLimit"    integer NOT NULL DEFAULT 20,
+        "maxReviewsPerDay" integer NOT NULL DEFAULT 200,
+        "easeFactorStart"  double precision NOT NULL DEFAULT 2.5,
+        "intervalMinDays"  integer NOT NULL DEFAULT 1,
+        "lapsePenalty"     double precision NOT NULL DEFAULT 0.5,
+        "lastGlobalRunAt"  timestamptz
+      );
+    `)
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "SRDeckSetting" (
+        "deckId"    text PRIMARY KEY REFERENCES "Deck"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+        "srEnabled" boolean NOT NULL DEFAULT false
+      );
+    `)
+    await prisma.$executeRawUnsafe(`
+      CREATE INDEX IF NOT EXISTS "SRDeckSetting_deckId_idx" ON "SRDeckSetting" ("deckId");
+    `)
+  } catch (error) {
+    console.error("Error creating SR tables:", error)
+    // Tabellen existieren möglicherweise bereits oder es gibt ein Berechtigungsproblem
+    // Das ist nicht kritisch, da die Queries später mit try-catch behandelt werden
+  }
 }
 
 /* ---------- actions ---------- */
@@ -172,18 +178,27 @@ export default async function SRSettingsPage() {
 
   await ensureSrTables()
 
-  // global
-  const globalRows = await prisma.$queryRaw<
-    { srEnabled: boolean; dailyNewLimit: number; maxReviewsPerDay: number; easeFactorStart: number; intervalMinDays: number; lapsePenalty: number }[]
-  >`SELECT "srEnabled","dailyNewLimit","maxReviewsPerDay","easeFactorStart","intervalMinDays","lapsePenalty" FROM "SRUserSetting" WHERE "userId"=${me.id}`
-
-  const global = globalRows[0] ?? {
+  // global - mit Fehlerbehandlung
+  let global = {
     srEnabled: true,
     dailyNewLimit: 20,
     maxReviewsPerDay: 200,
     easeFactorStart: 2.5,
     intervalMinDays: 1,
     lapsePenalty: 0.5,
+  }
+
+  try {
+    const globalRows = await prisma.$queryRaw<
+      { srEnabled: boolean; dailyNewLimit: number; maxReviewsPerDay: number; easeFactorStart: number; intervalMinDays: number; lapsePenalty: number }[]
+    >`SELECT "srEnabled","dailyNewLimit","maxReviewsPerDay","easeFactorStart","intervalMinDays","lapsePenalty" FROM "SRUserSetting" WHERE "userId"=${me.id}`
+
+    if (globalRows && globalRows[0]) {
+      global = globalRows[0]
+    }
+  } catch (error) {
+    console.error("Error loading SR settings:", error)
+    // Fallback zu Default-Werten
   }
 
   // decks
@@ -194,39 +209,53 @@ export default async function SRSettingsPage() {
   })
   const deckIds = decks.map(d => d.id)
 
-  // per-deck flags
-  const deckFlags = deckIds.length
-    ? await prisma.$queryRaw<{ deckId: string; srEnabled: boolean }[]>`
+  // per-deck flags - mit Fehlerbehandlung
+  let deckFlags: { deckId: string; srEnabled: boolean }[] = []
+  let srEnabledMap = new Map<string, boolean>()
+
+  try {
+    if (deckIds.length > 0) {
+      deckFlags = await prisma.$queryRaw<{ deckId: string; srEnabled: boolean }[]>`
         SELECT "deckId","srEnabled" FROM "SRDeckSetting" WHERE "deckId" IN (${Prisma.join(deckIds)})
       `
-    : []
-  const srEnabledMap = new Map(deckFlags.map(r => [r.deckId, r.srEnabled]))
+      srEnabledMap = new Map(deckFlags.map(r => [r.deckId, r.srEnabled]))
+    }
+  } catch (error) {
+    console.error("Error loading deck SR settings:", error)
+    // Fallback zu leeren Maps
+  }
 
-  // due totals (nur SR-Decks)
+  // due totals (nur SR-Decks) - mit Fehlerbehandlung
   const enabledDeckIds = deckFlags.filter(r => r.srEnabled).map(r => r.deckId)
   let dueTotal = 0
   let perDeckDue = new Map<string, number>()
-  if (enabledDeckIds.length) {
-    const tot = await prisma.$queryRaw<{ cnt: number }[]>`
-      SELECT COUNT(*)::int AS cnt
-      FROM "ReviewItem" ri
-      JOIN "DeckItem" di ON di."questionId" = ri."questionId"
-      WHERE ri."userId" = ${me.id}
-        AND ri."dueAt" <= NOW()
-        AND di."deckId" IN (${Prisma.join(enabledDeckIds)});
-    `
-    dueTotal = tot?.[0]?.cnt ?? 0
 
-    const per = await prisma.$queryRaw<{ deckId: string; cnt: number }[]>`
-      SELECT di."deckId", COUNT(*)::int AS cnt
-      FROM "ReviewItem" ri
-      JOIN "DeckItem" di ON di."questionId" = ri."questionId"
-      WHERE ri."userId" = ${me.id}
-        AND ri."dueAt" <= NOW()
-        AND di."deckId" IN (${Prisma.join(enabledDeckIds)})
-      GROUP BY di."deckId";
-    `
-    perDeckDue = new Map(per.map(r => [r.deckId, r.cnt]))
+  try {
+    if (enabledDeckIds.length > 0) {
+      const tot = await prisma.$queryRaw<{ cnt: number }[]>`
+        SELECT COUNT(*)::int AS cnt
+        FROM "ReviewItem" ri
+        JOIN "DeckItem" di ON di."questionId" = ri."questionId"
+        WHERE ri."userId" = ${me.id}
+          AND ri."dueAt" <= NOW()
+          AND di."deckId" IN (${Prisma.join(enabledDeckIds)});
+      `
+      dueTotal = tot?.[0]?.cnt ?? 0
+
+      const per = await prisma.$queryRaw<{ deckId: string; cnt: number }[]>`
+        SELECT di."deckId", COUNT(*)::int AS cnt
+        FROM "ReviewItem" ri
+        JOIN "DeckItem" di ON di."questionId" = ri."questionId"
+        WHERE ri."userId" = ${me.id}
+          AND ri."dueAt" <= NOW()
+          AND di."deckId" IN (${Prisma.join(enabledDeckIds)})
+        GROUP BY di."deckId";
+      `
+      perDeckDue = new Map(per.map(r => [r.deckId, r.cnt]))
+    }
+  } catch (error) {
+    console.error("Error loading due totals:", error)
+    // Fallback zu 0
   }
 
   return (
