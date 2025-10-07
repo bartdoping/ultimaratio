@@ -50,10 +50,10 @@ export default async function ComingSoonPage() {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
             <div className="text-3xl mb-3">📚</div>
             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
-              IMPP-Fragen
+              Prüfungsfragen
             </h3>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Übe mit echten Prüfungsfragen des 2. Staatsexamens
+              Übe mit realistischen Single-Choice-Fragen für deine Prüfungen.
             </p>
           </div>
           
@@ -78,34 +78,10 @@ export default async function ComingSoonPage() {
           </div>
         </div>
         
-        {/* Newsletter/Info */}
-        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg mt-12">
-          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Bleib auf dem Laufenden
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6">
-            Erhalte Updates über den Launch und exklusive Early-Access-Informationen.
-          </p>
-          
-          <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder="Deine E-Mail-Adresse"
-              className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors">
-              Benachrichtigen
-            </button>
-          </div>
-          
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-4">
-            Keine Spam-Mails. Jederzeit abbestellbar.
-          </p>
-        </div>
         
         {/* Footer */}
         <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-12">
-          <p>© 2024 fragenkreuzen.de - Alle Rechte vorbehalten</p>
+          <p>© 2025 fragenkreuzen.de - Alle Rechte vorbehalten</p>
           <p className="mt-2">
             <a href="https://www.ultima-rat.io" target="_blank" rel="noopener noreferrer" className="hover:text-blue-600 transition-colors">
               by ultima-rat.io
