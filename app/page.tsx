@@ -3,10 +3,26 @@ import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import { DashboardStats } from "@/components/dashboard-stats"
+import prisma from "@/lib/db"
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
   const loggedIn = !!session?.user
+  
+  // Prüfe ob User Admin ist
+  let isAdmin = false
+  if (session?.user?.email) {
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { isAdmin: true }
+    })
+    isAdmin = user?.isAdmin || false
+  }
+  
+  // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter
+  if (!isAdmin) {
+    redirect("/coming-soon")
+  }
 
   return (
     <main className="relative">

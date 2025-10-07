@@ -1,6 +1,7 @@
 // middleware.ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
 /* ========= Rate-Limit (nur POST/DELETE) ========= */
 
@@ -90,9 +91,54 @@ function applySecurityHeaders(res: NextResponse) {
   }
 }
 
+/* ========= Coming Soon Check ========= */
+
+async function isAdminUser(req: NextRequest): Promise<boolean> {
+  try {
+    const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET });
+    if (!token?.email) return false;
+    
+    // Prüfe ob User Admin ist (vereinfacht - in Produktion sollte das in der DB geprüft werden)
+    const adminEmails = [
+      "info@ultima-rat.io",
+      "admin@fragenkreuzen.de"
+    ];
+    
+    return adminEmails.includes(token.email);
+  } catch (error) {
+    console.error("Error checking admin status:", error);
+    return false;
+  }
+}
+
 /* ========= Middleware ========= */
 
-export function middleware(req: NextRequest) {
+export async function middleware(req: NextRequest) {
+  // Coming Soon Check - blockiere alle Routen außer für Admins
+  const pathname = req.nextUrl.pathname;
+  
+  // Erlaube Coming-Soon-Seite, Login/Register und statische Assets
+  if (pathname === "/coming-soon" || 
+      pathname.startsWith("/login") || 
+      pathname.startsWith("/register") || 
+      pathname.startsWith("/forgot-password") ||
+      pathname.startsWith("/reset") ||
+      pathname.startsWith("/verify") ||
+      isAllowlisted(req)) {
+    return NextResponse.next();
+  }
+  
+  // Prüfe ob User Admin ist
+  const isAdmin = await isAdminUser(req);
+  
+  // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter
+  if (!isAdmin) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/coming-soon";
+    return NextResponse.redirect(url);
+  }
+  
+  // Admin kann weiter zur App
   if (isAllowlisted(req)) return NextResponse.next();
 
   if (shouldRateLimit(req)) {
