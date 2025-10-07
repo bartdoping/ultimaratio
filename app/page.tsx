@@ -12,11 +12,11 @@ export default async function Home() {
   // Prüfe ob User Admin ist
   let isAdmin = false
   if (session?.user?.email) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { isAdmin: true }
-    })
-    isAdmin = user?.isAdmin || false
+    const adminEmails = [
+      "info@ultima-rat.io",
+      "admin@fragenkreuzen.de"
+    ]
+    isAdmin = adminEmails.includes(session.user.email)
   }
   
   // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter

@@ -9,13 +9,14 @@ export default async function ComingSoonPage() {
   
   // Wenn eingeloggt, prüfe ob Admin
   if (session?.user?.email) {
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { isAdmin: true }
-    })
+    // Admin-E-Mails definieren
+    const adminEmails = [
+      "info@ultima-rat.io",
+      "admin@fragenkreuzen.de"
+    ]
     
     // Wenn Admin, weiterleiten zur App
-    if (user?.isAdmin) {
+    if (adminEmails.includes(session.user.email)) {
       redirect("/")
     }
   }
