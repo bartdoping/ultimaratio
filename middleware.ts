@@ -117,13 +117,14 @@ export async function middleware(req: NextRequest) {
   // Coming Soon Check - blockiere alle Routen außer für Admins
   const pathname = req.nextUrl.pathname;
   
-  // Erlaube Coming-Soon-Seite, Login/Register und statische Assets
+  // Erlaube Coming-Soon-Seite, Login/Register, API-Routen und statische Assets
   if (pathname === "/coming-soon" || 
       pathname.startsWith("/login") || 
       pathname.startsWith("/register") || 
       pathname.startsWith("/forgot-password") ||
       pathname.startsWith("/reset") ||
       pathname.startsWith("/verify") ||
+      pathname.startsWith("/api/auth") ||
       isAllowlisted(req)) {
     return NextResponse.next();
   }
