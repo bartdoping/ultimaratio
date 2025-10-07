@@ -40,7 +40,10 @@ export default function Footer() {
           <div>
             <h3 className="font-semibold mb-4">Kontakt</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p>UltimaRatio GbR</p>
+              <p>Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR</p>
+              <p>Musterstraße 123</p>
+              <p>12345 Musterstadt</p>
+              <p>Deutschland</p>
               <p className="break-all">info@ultima-rat.io</p>
               <p className="break-all">https://fragenkreuzen.de</p>
             </div>
