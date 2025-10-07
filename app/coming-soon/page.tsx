@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth"
 import { redirect } from "next/navigation"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { Logo } from "@/components/logo"
+import Logo from "@/components/logo"
 
 export default async function ComingSoonPage() {
   const session = await getServerSession(authOptions)
