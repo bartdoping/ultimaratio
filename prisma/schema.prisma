@@ -14,6 +14,11 @@ enum Role {
   admin
 }
 
+enum SubscriptionStatus {
+  free
+  pro
+}
+
 enum QuestionType {
   single
 }
@@ -40,6 +45,13 @@ model User {
   role            Role      @default(user)
   createdAt       DateTime  @default(now())
 
+  // Subscription Management
+  subscriptionStatus    SubscriptionStatus @default(free)
+  subscriptionId        String?            @unique
+  subscriptionExpiresAt DateTime?
+  dailyQuestionsUsed    Int                @default(0)
+  lastQuestionResetAt   DateTime          @default(now())
+
   purchases     Purchase[]
   attempts      Attempt[]
   emailTokens   EmailVerification[]
@@ -48,10 +60,11 @@ model User {
   questionStars QuestionStar[]
 
   // Gegenrelationen
-  flags     UserQuestionFlag[]
-  decks     Deck[]
-  reviews   ReviewItem[]
-  srSetting SRUserSetting?
+  flags         UserQuestionFlag[]
+  decks         Deck[]
+  reviews       ReviewItem[]
+  srSetting     SRUserSetting?
+  subscription  Subscription?
 }
 
 model Exam {
@@ -430,4 +443,27 @@ model Category {
   updatedAt   DateTime @updatedAt
 
   exams Exam[] // Prüfungen in dieser Kategorie
+}
+
+/**
+ * ============ Subscription Management ============
+ */
+model Subscription {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  stripeCustomerId  String?  @unique
+  stripeSubscriptionId String? @unique
+  status            SubscriptionStatus @default(free)
+  priceId           String?  // Stripe Price ID
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd  Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([stripeCustomerId])
+  @@index([stripeSubscriptionId])
 }

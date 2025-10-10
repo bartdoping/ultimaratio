@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import LayoutWithSidebar from "@/components/layout-with-sidebar"
 import { AnswerOptions } from "@/components/answer-options"
+import { SubscriptionLimitPopup } from "@/components/subscription-limit-popup"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -84,6 +85,14 @@ export function RunnerClient(props: Props) {
   })
   const [answers, setAnswers] = useState<Record<string, string | undefined>>(initialAnswers)
   const [submitting, setSubmitting] = useState(false)
+  
+  // Subscription Management
+  const [subscriptionStatus, setSubscriptionStatus] = useState<{
+    isPro: boolean
+    questionsRemaining: number
+    dailyQuestionsUsed: number
+  } | null>(null)
+  const [showLimitPopup, setShowLimitPopup] = useState(false)
 
   // Timer
   const lsElapsedAtMount = (() => {
@@ -99,6 +108,22 @@ export function RunnerClient(props: Props) {
   const lastSentRef = useRef<number>(0)
   const sendingRef = useRef<boolean>(false)
   const HEARTBEAT_MS = 10_000
+
+  // Subscription Status laden
+  useEffect(() => {
+    const fetchSubscriptionStatus = async () => {
+      try {
+        const response = await fetch("/api/stripe/subscription/status")
+        const data = await response.json()
+        if (data.ok) {
+          setSubscriptionStatus(data.subscription)
+        }
+      } catch (error) {
+        console.error("Failed to fetch subscription status:", error)
+      }
+    }
+    fetchSubscriptionStatus()
+  }, [])
 
   function persistElapsedToLS(value: number) {
     try {
@@ -464,6 +489,14 @@ const aiContext = useMemo(() => {
 
   // Antwort wählen
   async function choose(optionId: string) {
+    // Prüfe Subscription Limit
+    if (subscriptionStatus && !subscriptionStatus.isPro) {
+      if (subscriptionStatus.questionsRemaining <= 0) {
+        setShowLimitPopup(true)
+        return
+      }
+    }
+    
     setSubmitting(true)
     try {
       if (mode === "practice") {
@@ -1237,6 +1270,17 @@ const aiContext = useMemo(() => {
           </div>
         </div>
       )}
+      
+      {/* Subscription Limit Popup */}
+      <SubscriptionLimitPopup
+        isOpen={showLimitPopup}
+        onClose={() => setShowLimitPopup(false)}
+        onUpgrade={() => {
+          setShowLimitPopup(false)
+          window.location.href = "/subscription"
+        }}
+        questionsUsed={subscriptionStatus?.dailyQuestionsUsed || 0}
+      />
       </div>
     </LayoutWithSidebar>
   )

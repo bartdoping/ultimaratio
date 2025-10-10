@@ -36,6 +36,80 @@ export async function POST(req: Request) {
       }
     }
 
+    // Subscription Events
+    if (event.type === "customer.subscription.created") {
+      const subscription = event.data.object as any;
+      const userId = subscription.metadata?.userId;
+      
+      if (userId) {
+        await prisma.subscription.upsert({
+          where: { userId },
+          create: {
+            userId,
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: subscription.customer,
+            status: "pro",
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+          },
+          update: {
+            stripeSubscriptionId: subscription.id,
+            stripeCustomerId: subscription.customer,
+            status: "pro",
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            cancelAtPeriodEnd: false,
+          }
+        });
+
+        await prisma.user.update({
+          where: { id: userId },
+          data: { subscriptionStatus: "pro" }
+        });
+      }
+    }
+
+    if (event.type === "customer.subscription.updated") {
+      const subscription = event.data.object as any;
+      const userId = subscription.metadata?.userId;
+      
+      if (userId) {
+        await prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: subscription.id },
+          data: {
+            status: subscription.status === "active" ? "pro" : "free",
+            currentPeriodStart: new Date(subscription.current_period_start * 1000),
+            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            cancelAtPeriodEnd: subscription.cancel_at_period_end,
+          }
+        });
+
+        await prisma.user.updateMany({
+          where: { subscription: { stripeSubscriptionId: subscription.id } },
+          data: { 
+            subscriptionStatus: subscription.status === "active" ? "pro" : "free" 
+          }
+        });
+      }
+    }
+
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = event.data.object as any;
+      const userId = subscription.metadata?.userId;
+      
+      if (userId) {
+        await prisma.subscription.updateMany({
+          where: { stripeSubscriptionId: subscription.id },
+          data: { status: "free" }
+        });
+
+        await prisma.user.updateMany({
+          where: { subscription: { stripeSubscriptionId: subscription.id } },
+          data: { subscriptionStatus: "free" }
+        });
+      }
+    }
+
     return NextResponse.json({ received: true });
   } catch (e: any) {
     console.error("Webhook handler failed:", e);

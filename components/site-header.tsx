@@ -7,6 +7,7 @@ import { useSession, signOut } from "next-auth/react"
 import { useEffect, useRef, useState } from "react"
 import ThemeToggle from "@/components/theme-toggle" // ⬅️ default import
 import Logo from "@/components/logo"
+import { SubscriptionStatus } from "@/components/subscription-status"
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -82,6 +83,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          {session && <SubscriptionStatus />}
           <ThemeToggle />
 
           {/* Mobile Hamburger Menu */}
@@ -154,6 +156,14 @@ export function SiteHeader() {
                     onClick={() => setMenuOpen(false)}
                   >
                     Account
+                  </Link>
+                  <Link
+                    href="/subscription"
+                    role="menuitem"
+                    className="block rounded px-3 py-2 hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Abonnement
                   </Link>
                   <Link
                     href="/dashboard/history"
@@ -232,6 +242,13 @@ export function SiteHeader() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Account
+                </Link>
+                <Link
+                  href="/subscription"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Abonnement
                 </Link>
                 <Link
                   href="/dashboard/history"
