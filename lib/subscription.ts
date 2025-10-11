@@ -85,9 +85,9 @@ export async function isUserPro(userId: string): Promise<boolean> {
   if (user.role === "admin") return true;
   
   // Prüfe aktive Subscription
-  return user.subscription && 
+  return !!(user.subscription && 
     user.subscription.currentPeriodEnd && 
-    new Date(user.subscription.currentPeriodEnd) > new Date();
+    new Date(user.subscription.currentPeriodEnd) > new Date());
 }
 
 export async function ensureAdminProStatus() {
