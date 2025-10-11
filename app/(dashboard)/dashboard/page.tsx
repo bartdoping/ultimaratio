@@ -346,9 +346,9 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Erworbene Prüfungen */}
+      {/* Aktivierte Prüfungen */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Erworbene Prüfungen</h2>
+        <h2 className="text-lg font-semibold">Aktivierte Prüfungen</h2>
 
         {purchases.length === 0 ? (
           <Card>

@@ -12,7 +12,6 @@ interface Exam {
   slug: string
   title: string
   description: string
-  priceCents: number
 }
 
 interface Category {
@@ -25,13 +24,13 @@ interface Category {
 interface ExamsCategorizedProps {
   categories: Category[]
   examsWithoutCategory: Exam[]
-  purchasedExamIds: Set<string>
+  activatedExamIds: Set<string>
 }
 
 export default function ExamsCategorized({ 
   categories, 
   examsWithoutCategory, 
-  purchasedExamIds 
+  activatedExamIds 
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -106,7 +105,7 @@ export default function ExamsCategorized({
 
         <div className="grid gap-4">
           {displayedExams.map((exam) => {
-            const isPurchased = purchasedExamIds.has(exam.id)
+            const isActivated = activatedExamIds.has(exam.id)
             const category = exam.categoryId ? categories.find(c => c.id === exam.categoryId) : null
             
             return (
@@ -133,9 +132,6 @@ export default function ExamsCategorized({
                       </div>
                       <p className="text-sm text-muted-foreground">{exam.description}</p>
                     </div>
-                    <div className="text-right text-sm font-medium">
-                      {(exam.priceCents / 100).toFixed(2)} €
-                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -144,10 +140,10 @@ export default function ExamsCategorized({
                       className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
                       href={`/exams/${exam.slug}`}
                     >
-                      {isPurchased ? "Details" : "Details & Kaufen"}
+                      Details
                     </Link>
 
-                    {isPurchased && (
+                    {isActivated && (
                       <>
                         <StartExamButton examId={exam.id} />
                         <Link 

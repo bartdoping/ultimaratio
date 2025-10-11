@@ -12,13 +12,12 @@ async function createExamAction(formData: FormData) {
   const title = String(formData.get("title") || "")
   const slug  = String(formData.get("slug") || "")
   const description = String(formData.get("description") || "")
-  const priceCents = Number(formData.get("priceCents") || 0)
   const passPercent = Number(formData.get("passPercent") || 60)
   const allowImmediateFeedback = formData.get("allowImmediateFeedback") === "on"
   const isPublished = formData.get("isPublished") === "on"
 
   const exam = await prisma.exam.create({
-    data: { title, slug, description, priceCents, passPercent, allowImmediateFeedback, isPublished }
+    data: { title, slug, description, passPercent, allowImmediateFeedback, isPublished }
   })
   redirect(`/admin/exams/${exam.id}`)
 }
@@ -41,15 +40,9 @@ export default async function NewExamPage() {
           <Label htmlFor="description">Beschreibung</Label>
           <Input id="description" name="description" />
         </div>
-        <div className="flex gap-3">
-          <div className="grow">
-            <Label htmlFor="priceCents">Preis (Cent)</Label>
-            <Input id="priceCents" name="priceCents" type="number" defaultValue={1990} />
-          </div>
-          <div className="grow">
-            <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
-            <Input id="passPercent" name="passPercent" type="number" defaultValue={60} />
-          </div>
+        <div>
+          <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
+          <Input id="passPercent" name="passPercent" type="number" defaultValue={60} />
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2">

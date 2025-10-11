@@ -24,7 +24,6 @@ export default async function ExamsListPage() {
       slug: true,
       title: true,
       description: true,
-      priceCents: true,
       category: {
         select: {
           id: true,
@@ -56,25 +55,30 @@ export default async function ExamsListPage() {
           slug: true,
           title: true,
           description: true,
-          priceCents: true,
         }
       }
     }
   })
 
-  // Gekaufte Exams des eingeloggten Users (als Set für O(1)-Lookup)
-  let purchasedExamIds = new Set<string>()
+  // Aktivierte Exams des eingeloggten Users (als Set für O(1)-Lookup)
+  let activatedExamIds = new Set<string>()
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true },
+      select: { id: true, subscriptionStatus: true },
     })
     if (me) {
-      const purchases = await prisma.purchase.findMany({
-        where: { userId: me.id },
-        select: { examId: true },
-      })
-      purchasedExamIds = new Set(purchases.map(p => p.examId))
+      // Pro-User haben alle Prüfungen aktiviert
+      if (me.subscriptionStatus === "pro") {
+        activatedExamIds = new Set(exams.map(e => e.id))
+      } else {
+        // Free-User haben nur gekaufte Prüfungen aktiviert (für Rückwärtskompatibilität)
+        const purchases = await prisma.purchase.findMany({
+          where: { userId: me.id },
+          select: { examId: true },
+        })
+        activatedExamIds = new Set(purchases.map(p => p.examId))
+      }
     }
   }
 
@@ -88,7 +92,7 @@ export default async function ExamsListPage() {
       <ExamsCategorized 
         categories={categories}
         examsWithoutCategory={examsWithoutCategory}
-        purchasedExamIds={purchasedExamIds}
+        activatedExamIds={activatedExamIds}
       />
     </div>
   )
