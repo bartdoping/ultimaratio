@@ -104,7 +104,12 @@ async function isAdminUser(req: NextRequest): Promise<boolean> {
       "admin@fragenkreuzen.de"
     ];
     
-    return adminEmails.includes(token.email);
+    // Test-User für Abo-Testing
+    const testEmails = [
+      "test@fragenkreuzen.de"
+    ];
+    
+    return adminEmails.includes(token.email) || testEmails.includes(token.email);
   } catch (error) {
     console.error("Error checking admin status:", error);
     return false;
