@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         subscription: {
           select: {
             stripeSubscriptionId: true,
-            status: true
+            // status: true
           }
         }
       },

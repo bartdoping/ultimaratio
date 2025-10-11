@@ -24,7 +24,7 @@ export async function GET() {
         lastQuestionResetAt: true,
         subscription: {
           select: {
-            status: true,
+            // status: true,
             currentPeriodStart: true,
             currentPeriodEnd: true,
             cancelAtPeriodEnd: true
@@ -39,15 +39,15 @@ export async function GET() {
     const lastReset = new Date(user.lastQuestionResetAt);
     const isNewDay = now.toDateString() !== lastReset.toDateString();
     
-    const questionsRemaining = user.subscription?.status === "active" 
+    const questionsRemaining = user.subscription?.stripeSubscriptionId 
       ? -1 // Unbegrenzt für Pro-User
       : Math.max(0, 20 - (isNewDay ? 0 : (user.dailyQuestionsUsed || 0)));
 
     return NextResponse.json({ 
       ok: true,
       subscription: {
-        status: user.subscription?.status || "free",
-        isPro: user.subscription?.status === "active",
+        status: user.subscription?.stripeSubscriptionId ? "pro" : "free",
+        isPro: !!user.subscription?.stripeSubscriptionId,
         questionsRemaining,
         dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
         subscriptionDetails: user.subscription

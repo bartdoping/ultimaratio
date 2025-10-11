@@ -25,7 +25,7 @@ export async function POST(req: Request) {
         subscription: {
           select: {
             stripeCustomerId: true,
-            status: true
+            // status: true
           }
         }
       },
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
     // 3) Prüfe ob bereits Pro-User
-    if (user.subscription?.status === "active") {
+    if (user.subscription?.stripeSubscriptionId) {
       return NextResponse.json({ ok: false, error: "already_pro" }, { status: 400 });
     }
 
