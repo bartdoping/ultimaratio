@@ -59,15 +59,16 @@ export async function incrementQuestionUsage(userId: string): Promise<boolean> {
     return false;
   }
 
+  // Temporarily disabled - daily tracking not available
   // Inkrementiere Zähler
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      dailyQuestionsUsed: {
-        increment: 1
-      }
-    }
-  });
+  // await prisma.user.update({
+  //   where: { id: userId },
+  //   data: {
+  //     dailyQuestionsUsed: {
+  //       increment: 1
+  //     }
+  //   }
+  // });
 
   return true;
 }
