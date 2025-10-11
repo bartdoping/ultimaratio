@@ -10,7 +10,7 @@ interface Exam {
   slug: string
   title: string
   isPublished: boolean
-  priceCents: number
+  priceCents: number | null
   categoryId: string | null
   category: {
     id: string
