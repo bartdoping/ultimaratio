@@ -719,7 +719,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <div className="flex gap-3">
             <div className="grow">
               <Label htmlFor="priceCents">Preis (Cent)</Label>
-              <Input id="priceCents" name="priceCents" type="number" defaultValue={exam.priceCents} />
+              <Input id="priceCents" name="priceCents" type="number" defaultValue={exam.priceCents || 0} />
             </div>
             <div className="grow">
               <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
