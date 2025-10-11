@@ -45,6 +45,25 @@ export async function POST(req: Request) {
           data: { subscriptionStatus: "pro" }
         });
         
+        // Auch Subscription-Tabelle aktualisieren falls vorhanden
+        try {
+          await prisma.subscription.upsert({
+            where: { userId },
+            create: {
+              userId,
+              stripeCustomerId: s.customer,
+              status: "pro",
+              createdAt: new Date()
+            },
+            update: {
+              status: "pro"
+            }
+          });
+        } catch (subError) {
+          console.error("Subscription table update failed:", subError);
+          // Continue - user is already pro
+        }
+        
         console.log("User upgraded to pro:", userId);
       }
       
@@ -86,6 +105,7 @@ export async function POST(req: Request) {
         if (userId) {
           console.log("Updating subscription for user:", userId);
           
+          // Subscription-Tabelle aktualisieren
           await prisma.subscription.upsert({
             where: { userId },
             create: {
@@ -95,6 +115,7 @@ export async function POST(req: Request) {
               status: "pro",
               currentPeriodStart: new Date(subscription.current_period_start * 1000),
               currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              cancelAtPeriodEnd: false,
               createdAt: new Date()
             },
             update: {
@@ -107,6 +128,7 @@ export async function POST(req: Request) {
             }
           });
 
+          // User-Status aktualisieren
           await prisma.user.update({
             where: { id: userId },
             data: { subscriptionStatus: "pro" }
@@ -115,6 +137,47 @@ export async function POST(req: Request) {
           console.log("Subscription updated successfully for user:", userId);
         } else {
           console.error("Could not find userId for subscription:", subscription.id);
+          // Fallback: Versuche über Customer ID zu finden
+          if (subscription.customer) {
+            const user = await prisma.user.findFirst({
+              where: { 
+                subscription: { 
+                  stripeCustomerId: subscription.customer 
+                } 
+              },
+              select: { id: true }
+            });
+            
+            if (user) {
+              console.log("Found user via customer ID, updating subscription");
+              await prisma.subscription.upsert({
+                where: { userId: user.id },
+                create: {
+                  userId: user.id,
+                  stripeSubscriptionId: subscription.id,
+                  stripeCustomerId: subscription.customer,
+                  status: "pro",
+                  currentPeriodStart: new Date(subscription.current_period_start * 1000),
+                  currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                  cancelAtPeriodEnd: false,
+                  createdAt: new Date()
+                },
+                update: {
+                  stripeSubscriptionId: subscription.id,
+                  stripeCustomerId: subscription.customer,
+                  status: "pro",
+                  currentPeriodStart: new Date(subscription.current_period_start * 1000),
+                  currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+                  cancelAtPeriodEnd: false,
+                }
+              });
+
+              await prisma.user.update({
+                where: { id: user.id },
+                data: { subscriptionStatus: "pro" }
+              });
+            }
+          }
         }
       } catch (error) {
         console.error("Error processing subscription.created:", error);
