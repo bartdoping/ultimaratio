@@ -24,8 +24,7 @@ export async function POST() {
         data: {
           passwordHash: hashedPassword,
           emailVerifiedAt: new Date(),
-          role: "admin",
-          subscriptionStatus: "pro"
+          role: "admin"
         }
       });
 
@@ -39,7 +38,7 @@ export async function POST() {
       });
     }
 
-    // Erstelle neuen Admin
+    // Erstelle neuen Admin (ohne neue Spalten)
     const hashedPassword = await bcrypt.hash(adminPassword, 12);
     
     const newAdmin = await prisma.user.create({
@@ -49,7 +48,6 @@ export async function POST() {
         surname: "User",
         passwordHash: hashedPassword,
         role: "admin",
-        subscriptionStatus: "pro",
         emailVerifiedAt: new Date()
       }
     });
