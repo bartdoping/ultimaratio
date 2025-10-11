@@ -24,6 +24,7 @@ export async function GET() {
         lastQuestionResetAt: true,
         subscription: {
           select: {
+            stripeSubscriptionId: true,
             // status: true,
             currentPeriodStart: true,
             currentPeriodEnd: true,
