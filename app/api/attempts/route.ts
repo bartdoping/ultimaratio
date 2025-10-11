@@ -337,6 +337,65 @@ export async function POST(req: Request) {
         error: "Keine Fragen gefunden, die den gewählten Kriterien entsprechen" 
       }, { status: 400 })
     }
+  } else {
+    // Keine Tags ausgewählt - alle Fragen der Prüfung verwenden
+    console.log("API Debug - No tags selected, using all questions")
+    
+    const allQuestions = await prisma.question.findMany({
+      where: { examId },
+      select: { id: true, caseId: true, caseOrder: true }
+    })
+    
+    questionIds = allQuestions.map(q => q.id)
+    
+    // Shuffle alle Fragen
+    if (includeCases) {
+      // Gruppiere nach Fällen
+      const caseGroups = new Map<string, string[]>()
+      const standaloneQuestions: string[] = []
+      
+      allQuestions.forEach(q => {
+        if (q.caseId) {
+          if (!caseGroups.has(q.caseId)) {
+            caseGroups.set(q.caseId, [])
+          }
+          caseGroups.get(q.caseId)!.push(q.id)
+        } else {
+          standaloneQuestions.push(q.id)
+        }
+      })
+      
+      // Shuffle Fälle und standalone Fragen
+      const shuffledCases = shuffleArray(Array.from(caseGroups.values()))
+      const shuffledStandalone = shuffleArray(standaloneQuestions)
+      
+      // Sortiere Fragen innerhalb jedes Falls nach caseOrder
+      const sortedCaseQuestions = shuffledCases.map(caseQuestions => {
+        return caseQuestions.sort((a, b) => {
+          const questionA = allQuestions.find(q => q.id === a)
+          const questionB = allQuestions.find(q => q.id === b)
+          const orderA = questionA?.caseOrder ?? 0
+          const orderB = questionB?.caseOrder ?? 0
+          return orderA - orderB
+        })
+      })
+      
+      questionIds = [...sortedCaseQuestions.flat(), ...shuffledStandalone]
+    } else {
+      // Einfaches Shuffling
+      questionIds = shuffleArray(questionIds)
+    }
+    
+    // Limit anwenden
+    if (typeof limit === "number" && limit > 0) {
+      questionIds = questionIds.slice(0, limit)
+    }
+    
+    console.log("API Debug - All questions shuffled:", {
+      totalQuestions: allQuestions.length,
+      finalCount: questionIds.length,
+      firstFive: questionIds.slice(0, 5)
+    })
   }
 
   // Neu anlegen

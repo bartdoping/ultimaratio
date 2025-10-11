@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { z } from "zod"
+import { incrementQuestionUsage } from "@/lib/subscription"
 
 export const runtime = "nodejs"
 
@@ -19,6 +20,16 @@ export async function POST(req: Request) {
     const userId = session?.user?.id as string | undefined
     if (!userId) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    }
+
+    // Prüfe Tageslimit für Free-User
+    const canUseQuestion = await incrementQuestionUsage(userId)
+    if (!canUseQuestion) {
+      return NextResponse.json({ 
+        error: "Tageslimit erreicht", 
+        message: "Du hast dein tägliches Limit von 20 Fragen erreicht. Upgrade zu Pro für unbegrenzten Zugang!",
+        upgradeRequired: true
+      }, { status: 403 })
     }
 
     // Body validieren

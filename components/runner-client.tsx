@@ -500,11 +500,19 @@ const aiContext = useMemo(() => {
     setSubmitting(true)
     try {
       if (mode === "practice") {
-        await fetch(`/api/practice/answer`, {
+        const res = await fetch(`/api/practice/answer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
-        }).catch(() => {})
+        })
+        const j = await res.json().catch(() => ({}))
+        if (!res.ok) {
+          if (j.upgradeRequired) {
+            setShowLimitPopup(true)
+            return
+          }
+          throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
+        }
         setAnswers(a => ({ ...a, [q.id]: optionId }))
       } else {
         const res = await fetch(`/api/attempts/${attemptId}/answer`, {

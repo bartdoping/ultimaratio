@@ -70,10 +70,11 @@ export default function StartExamModal({
   }
 
   const handleStart = async () => {
-    if (selectedTagIds.length === 0 && selectedSuperTagIds.length === 0) {
-      setError("Bitte wähle mindestens einen Tag oder Supertag aus")
-      return
-    }
+    // Erlaube Start ohne Tag-Auswahl (zufällige Fragen)
+    // if (selectedTagIds.length === 0 && selectedSuperTagIds.length === 0) {
+    //   setError("Bitte wähle mindestens einen Tag oder Supertag aus")
+    //   return
+    // }
 
     try {
       setLoading(true)
