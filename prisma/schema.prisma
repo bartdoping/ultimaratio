@@ -453,7 +453,7 @@ model Subscription {
   userId            String   @unique
   stripeCustomerId  String?  @unique
   stripeSubscriptionId String? @unique
-  status            SubscriptionStatus @default(free)
+  // status            SubscriptionStatus @default(free)
   priceId           String?  // Stripe Price ID
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?
