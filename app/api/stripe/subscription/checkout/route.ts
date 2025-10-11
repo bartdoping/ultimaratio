@@ -53,7 +53,8 @@ export async function POST(req: Request) {
         create: {
           userId: user.id,
           stripeCustomerId: customerId,
-          status: "free"
+          status: "free",
+          createdAt: new Date()
         },
         update: {
           stripeCustomerId: customerId
