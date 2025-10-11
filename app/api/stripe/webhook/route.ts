@@ -39,9 +39,31 @@ export async function POST(req: Request) {
     // Subscription Events
     if (event.type === "customer.subscription.created") {
       const subscription = event.data.object as any;
-      const userId = subscription.metadata?.userId;
+      console.log("Processing subscription.created:", { 
+        subscriptionId: subscription.id, 
+        customerId: subscription.customer,
+        metadata: subscription.metadata 
+      });
+      
+      // Versuche userId aus verschiedenen Quellen zu bekommen
+      let userId = subscription.metadata?.userId;
+      
+      // Fallback: Suche User über Customer ID
+      if (!userId && subscription.customer) {
+        const user = await prisma.user.findFirst({
+          where: { 
+            subscription: { 
+              stripeCustomerId: subscription.customer 
+            } 
+          },
+          select: { id: true }
+        });
+        userId = user?.id;
+      }
       
       if (userId) {
+        console.log("Updating subscription for user:", userId);
+        
         await prisma.subscription.upsert({
           where: { userId },
           create: {
@@ -51,6 +73,7 @@ export async function POST(req: Request) {
             status: "pro",
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+            createdAt: new Date()
           },
           update: {
             stripeSubscriptionId: subscription.id,
@@ -66,6 +89,10 @@ export async function POST(req: Request) {
           where: { id: userId },
           data: { subscriptionStatus: "pro" }
         });
+        
+        console.log("Subscription updated successfully for user:", userId);
+      } else {
+        console.error("Could not find userId for subscription:", subscription.id);
       }
     }
 

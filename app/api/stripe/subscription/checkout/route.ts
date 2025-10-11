@@ -98,6 +98,7 @@ export async function POST(req: Request) {
       line_items: lineItems,
       success_url: `${base}/dashboard?subscription=success`,
       cancel_url: `${base}/dashboard?subscription=cancelled`,
+      allow_promotion_codes: true,
       metadata: {
         userId: user.id,
         userEmail: user.email,

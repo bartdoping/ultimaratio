@@ -9,6 +9,7 @@ import { StartExamButton } from "@/components/start-exam-button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { SubscriptionSuccessHandler } from "@/components/subscription-success-handler"
 
 export const runtime = "nodejs"
 
@@ -170,6 +171,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
+      <SubscriptionSuccessHandler />
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Mein Bereich</h1>
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
