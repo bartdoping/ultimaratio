@@ -19,7 +19,9 @@ export function SubscriptionStatus() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch("/api/stripe/subscription/status")
+      const response = await fetch("/api/stripe/subscription/status", {
+        credentials: "include"
+      })
       const data = await response.json()
       
       if (data.ok) {

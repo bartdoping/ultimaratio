@@ -11,7 +11,15 @@ export async function POST(req: Request) {
   try {
     // 1) Auth
     const session = await getServerSession(authOptions);
+    console.log("Checkout session:", { 
+      hasSession: !!session, 
+      hasUser: !!session?.user, 
+      hasEmail: !!session?.user?.email,
+      email: session?.user?.email 
+    });
+    
     if (!session?.user?.email) {
+      console.error("No session or email found");
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 

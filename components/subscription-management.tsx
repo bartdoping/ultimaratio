@@ -38,7 +38,9 @@ export function SubscriptionManagement() {
 
   const fetchSubscriptionStatus = async () => {
     try {
-      const response = await fetch("/api/stripe/subscription/status")
+      const response = await fetch("/api/stripe/subscription/status", {
+        credentials: "include"
+      })
       const data = await response.json()
       
       if (data.ok) {
@@ -56,7 +58,8 @@ export function SubscriptionManagement() {
     try {
       const response = await fetch("/api/stripe/subscription/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        credentials: "include"
       })
       const data = await response.json()
       
@@ -83,7 +86,8 @@ export function SubscriptionManagement() {
     try {
       const response = await fetch("/api/stripe/subscription/cancel", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        credentials: "include"
       })
       const data = await response.json()
       
@@ -111,7 +115,8 @@ export function SubscriptionManagement() {
     try {
       const response = await fetch("/api/stripe/subscription/reactivate", {
         method: "POST",
-        headers: { "Content-Type": "application/json" }
+        headers: { "Content-Type": "application/json" },
+        credentials: "include"
       })
       const data = await response.json()
       
