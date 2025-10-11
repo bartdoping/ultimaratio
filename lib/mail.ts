@@ -122,10 +122,7 @@ export async function sendVerificationMail(to: string, code: string) {
 // Passwort-Reset-Link
 export async function sendPasswordResetMail(to: string, token: string) {
   // Basis-URL bestimmen (lokal/preview/prod)
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ||
-    process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
+  const appUrl = "https://fragenkreuzen.de"
 
   const url = `${appUrl}/reset?token=${encodeURIComponent(token)}`
 

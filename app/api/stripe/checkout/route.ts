@@ -64,10 +64,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid price" }, { status: 400 });
     }
 
-    const base =
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXTAUTH_URL ??
-      "http://localhost:3000";
+    const base = "https://fragenkreuzen.de";
 
     const s = await stripe.checkout.sessions.create({
       mode: "payment",

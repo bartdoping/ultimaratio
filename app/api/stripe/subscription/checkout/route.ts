@@ -63,7 +63,7 @@ export async function POST(req: Request) {
     }
 
     // 5) Subscription Checkout Session erstellen
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "https://fragenkreuzen.de";
+    const base = "https://fragenkreuzen.de";
     
     // Verwende vordefinierte Preis-ID oder erstelle dynamisch
     const priceId = process.env.STRIPE_PRICE_ID;
