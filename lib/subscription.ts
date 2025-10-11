@@ -12,12 +12,12 @@ export async function checkUserSubscriptionStatus(userId: string): Promise<Subsc
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
-      // subscriptionStatus: true,
-      // dailyQuestionsUsed: true,
-      // lastQuestionResetAt: true,
+      subscriptionStatus: true,
+      dailyQuestionsUsed: true,
+      lastQuestionResetAt: true,
       subscription: {
         select: {
-          // status: true,
+          status: true,
           currentPeriodStart: true,
           currentPeriodEnd: true,
           cancelAtPeriodEnd: true
@@ -30,18 +30,30 @@ export async function checkUserSubscriptionStatus(userId: string): Promise<Subsc
     return { isPro: false, questionsRemaining: 0, dailyQuestionsUsed: 0 };
   }
 
-  // Vereinfachte Logik: Prüfe nur ob User eine aktive Subscription hat
-  const hasActiveSubscription = user.subscription && 
-    user.subscription.currentPeriodEnd && 
-    new Date(user.subscription.currentPeriodEnd) > new Date();
+  // Prüfe ob neuer Tag
+  const now = new Date();
+  const lastReset = new Date(user.lastQuestionResetAt);
+  const isNewDay = now.toDateString() !== lastReset.toDateString();
 
-  const isPro = !!hasActiveSubscription;
-  const questionsRemaining = isPro ? -1 : 20;
+  // Reset tägliche Fragen wenn neuer Tag
+  if (isNewDay) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: {
+        dailyQuestionsUsed: 0,
+        lastQuestionResetAt: now
+      }
+    });
+  }
+
+  const questionsUsed = isNewDay ? 0 : user.dailyQuestionsUsed;
+  const isPro = user.subscriptionStatus === "pro";
+  const questionsRemaining = isPro ? -1 : Math.max(0, 20 - questionsUsed);
 
   return {
     isPro,
     questionsRemaining,
-    dailyQuestionsUsed: 0, // Vereinfacht
+    dailyQuestionsUsed: questionsUsed,
     subscriptionDetails: user.subscription
   };
 }
@@ -59,16 +71,15 @@ export async function incrementQuestionUsage(userId: string): Promise<boolean> {
     return false;
   }
 
-  // Temporarily disabled - daily tracking not available
   // Inkrementiere Zähler
-  // await prisma.user.update({
-  //   where: { id: userId },
-  //   data: {
-  //     dailyQuestionsUsed: {
-  //       increment: 1
-  //     }
-  //   }
-  // });
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      dailyQuestionsUsed: {
+        increment: 1
+      }
+    }
+  });
 
   return true;
 }
@@ -76,7 +87,7 @@ export async function incrementQuestionUsage(userId: string): Promise<boolean> {
 export async function isUserPro(userId: string): Promise<boolean> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, subscription: { select: { currentPeriodEnd: true } } }
+    select: { subscriptionStatus: true, role: true }
   });
 
   if (!user) return false;
@@ -84,32 +95,28 @@ export async function isUserPro(userId: string): Promise<boolean> {
   // Admins sind automatisch Pro
   if (user.role === "admin") return true;
   
-  // Prüfe aktive Subscription
-  return !!(user.subscription && 
-    user.subscription.currentPeriodEnd && 
-    new Date(user.subscription.currentPeriodEnd) > new Date());
+  return user.subscriptionStatus === "pro";
 }
 
 export async function ensureAdminProStatus() {
   try {
-    // Temporarily disabled - subscription fields not available
     // Finde alle Admin-User
-    // const admins = await prisma.user.findMany({
-    //   where: { role: "admin" },
-    //   select: { id: true, email: true, subscriptionStatus: true }
-    // });
+    const admins = await prisma.user.findMany({
+      where: { role: "admin" },
+      select: { id: true, email: true, subscriptionStatus: true }
+    });
 
-    // // Setze alle Admins auf Pro-Status
-    // for (const admin of admins) {
-    //   if (admin.subscriptionStatus !== "pro") {
-    //     await prisma.user.update({
-    //       where: { id: admin.id },
-    //       data: { subscriptionStatus: "pro" }
-    //     });
-    //     
-    //     console.log(`Admin ${admin.email} set to Pro status`);
-    //   }
-    // }
+    // Setze alle Admins auf Pro-Status
+    for (const admin of admins) {
+      if (admin.subscriptionStatus !== "pro") {
+        await prisma.user.update({
+          where: { id: admin.id },
+          data: { subscriptionStatus: "pro" }
+        });
+        
+        console.log(`Admin ${admin.email} set to Pro status`);
+      }
+    }
   } catch (error) {
     console.error("Error ensuring admin pro status:", error);
   }

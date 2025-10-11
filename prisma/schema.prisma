@@ -14,10 +14,10 @@ enum Role {
   admin
 }
 
-// enum SubscriptionStatus {
-//   free
-//   pro
-// }
+enum SubscriptionStatus {
+  free
+  pro
+}
 
 enum QuestionType {
   single
@@ -45,12 +45,12 @@ model User {
   role            Role      @default(user)
   createdAt       DateTime  @default(now())
 
-  // Subscription Management (temporarily disabled)
-  // subscriptionStatus    SubscriptionStatus @default(free)
-  // subscriptionId        String?            @unique
-  // subscriptionExpiresAt DateTime?
-  // dailyQuestionsUsed    Int                @default(0)
-  // lastQuestionResetAt   DateTime          @default(now())
+  // Subscription Management
+  subscriptionStatus    SubscriptionStatus @default(free)
+  subscriptionId        String?            @unique
+  subscriptionExpiresAt DateTime?
+  dailyQuestionsUsed    Int                @default(0)
+  lastQuestionResetAt   DateTime          @default(now())
 
   purchases     Purchase[]
   attempts      Attempt[]
@@ -453,7 +453,7 @@ model Subscription {
   userId            String   @unique
   stripeCustomerId  String?  @unique
   stripeSubscriptionId String? @unique
-  // status            SubscriptionStatus @default(free)
+  status            SubscriptionStatus @default(free)
   priceId           String?  // Stripe Price ID
   currentPeriodStart DateTime?
   currentPeriodEnd   DateTime?

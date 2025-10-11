@@ -44,7 +44,7 @@ export async function POST() {
         surname: "User",
         passwordHash: hashedPassword,
         role: "user",
-        // subscriptionStatus: "free"
+        subscriptionStatus: "free"
       }
     });
 

@@ -24,7 +24,8 @@ export async function POST() {
         data: {
           passwordHash: hashedPassword,
           emailVerifiedAt: new Date(),
-          role: "admin"
+          role: "admin",
+          subscriptionStatus: "pro"
         }
       });
 
@@ -48,7 +49,8 @@ export async function POST() {
         surname: "User",
         passwordHash: hashedPassword,
         role: "admin",
-        emailVerifiedAt: new Date()
+        emailVerifiedAt: new Date(),
+        subscriptionStatus: "pro"
       }
     });
 

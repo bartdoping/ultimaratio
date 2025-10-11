@@ -21,12 +21,12 @@ export async function POST(req: Request) {
       select: { 
         id: true, 
         email: true, 
-        // subscriptionStatus: true,
+        subscriptionStatus: true,
         subscription: {
           select: {
             stripeCustomerId: true,
             stripeSubscriptionId: true,
-            // status: true
+            status: true
           }
         }
       },
@@ -34,7 +34,7 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
     // 3) Prüfe ob bereits Pro-User
-    if (user.subscription?.stripeSubscriptionId) {
+    if (user.subscriptionStatus === "pro") {
       return NextResponse.json({ ok: false, error: "already_pro" }, { status: 400 });
     }
 
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
         create: {
           userId: user.id,
           stripeCustomerId: customerId,
-          // status: "free"
+          status: "free"
         },
         update: {
           stripeCustomerId: customerId

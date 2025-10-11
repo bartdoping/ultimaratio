@@ -29,7 +29,7 @@ async function createTestUser() {
         surname: "User",
         passwordHash: hashedPassword,
         role: "user",
-        subscriptionStatus: "free"
+        // subscriptionStatus: "free"
       }
     });
 

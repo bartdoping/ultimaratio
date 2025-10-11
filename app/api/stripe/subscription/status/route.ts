@@ -19,13 +19,13 @@ export async function GET() {
       where: { email: session.user.email },
       select: { 
         id: true,
-        // subscriptionStatus: true,
-        // dailyQuestionsUsed: true,
-        // lastQuestionResetAt: true,
+        subscriptionStatus: true,
+        dailyQuestionsUsed: true,
+        lastQuestionResetAt: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
-            // status: true,
+            status: true,
             currentPeriodStart: true,
             currentPeriodEnd: true,
             cancelAtPeriodEnd: true
@@ -35,18 +35,22 @@ export async function GET() {
     });
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
-    // 3) Tageslimit berechnen (vereinfacht)
-    const questionsRemaining = user.subscription?.stripeSubscriptionId 
+    // 3) Tageslimit berechnen
+    const now = new Date();
+    const lastReset = new Date(user.lastQuestionResetAt);
+    const isNewDay = now.toDateString() !== lastReset.toDateString();
+    
+    const questionsRemaining = user.subscriptionStatus === "pro" 
       ? -1 // Unbegrenzt für Pro-User
-      : 20; // Standard-Limit für Free-User
+      : Math.max(0, 20 - (isNewDay ? 0 : user.dailyQuestionsUsed));
 
     return NextResponse.json({ 
       ok: true,
       subscription: {
-        status: user.subscription?.stripeSubscriptionId ? "pro" : "free",
-        isPro: !!user.subscription?.stripeSubscriptionId,
+        status: user.subscriptionStatus,
+        isPro: user.subscriptionStatus === "pro",
         questionsRemaining,
-        dailyQuestionsUsed: 0, // Vereinfacht
+        dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
         subscriptionDetails: user.subscription
       }
     });

@@ -23,7 +23,7 @@ export async function POST(req: Request) {
         subscription: {
           select: {
             stripeSubscriptionId: true,
-            // status: true
+            status: true
           }
         }
       },
@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       where: { userId: user.id },
       data: {
         cancelAtPeriodEnd: true,
-        // status: "free"
+        status: "free"
       }
     });
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        // subscriptionStatus: "free"
+        subscriptionStatus: "free"
       }
     });
 
