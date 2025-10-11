@@ -58,11 +58,12 @@ export function SubscriptionManagement() {
       if (data.ok && data.url) {
         window.location.href = data.url
       } else {
-        alert("Fehler beim Erstellen des Abonnements")
+        console.error("Upgrade failed:", data)
+        alert(`Fehler beim Erstellen des Abonnements: ${data.details || data.error || "Unbekannter Fehler"}`)
       }
     } catch (error) {
       console.error("Upgrade failed:", error)
-      alert("Fehler beim Upgrade")
+      alert(`Fehler beim Upgrade: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
     } finally {
       setActionLoading(false)
     }

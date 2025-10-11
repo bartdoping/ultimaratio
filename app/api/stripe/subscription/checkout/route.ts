@@ -64,10 +64,16 @@ export async function POST(req: Request) {
     // 5) Subscription Checkout Session erstellen
     const base = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? "http://localhost:3000";
     
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: customerId,
-      line_items: [
+    // Verwende vordefinierte Preis-ID oder erstelle dynamisch
+    const priceId = process.env.STRIPE_PRICE_ID;
+    
+    let lineItems;
+    if (priceId) {
+      // Verwende vordefinierte Preis-ID
+      lineItems = [{ price: priceId, quantity: 1 }];
+    } else {
+      // Erstelle Preis dynamisch
+      lineItems = [
         {
           price_data: {
             currency: "eur",
@@ -82,7 +88,13 @@ export async function POST(req: Request) {
           },
           quantity: 1,
         },
-      ],
+      ];
+    }
+    
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: lineItems,
       success_url: `${base}/dashboard?subscription=success`,
       cancel_url: `${base}/dashboard?subscription=cancelled`,
       metadata: {
@@ -100,6 +112,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, url: checkoutSession.url });
   } catch (err: any) {
     console.error("subscription checkout error", err);
-    return NextResponse.json({ ok: false, error: "checkout failed" }, { status: 500 });
+    
+    // Detaillierte Fehlermeldung für besseres Debugging
+    const errorMessage = err.message || "Unbekannter Fehler";
+    const errorType = err.type || "unknown";
+    
+    return NextResponse.json({ 
+      ok: false, 
+      error: "checkout failed",
+      details: errorMessage,
+      type: errorType
+    }, { status: 500 });
   }
 }

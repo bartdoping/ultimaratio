@@ -17,25 +17,32 @@ export function SubscriptionStatus() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const fetchStatus = async () => {
+    try {
+      const response = await fetch("/api/stripe/subscription/status")
+      const data = await response.json()
+      
+      if (data.ok) {
+        setSubscription(data.subscription)
+      }
+    } catch (error) {
+      console.error("Failed to fetch subscription status:", error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (!session?.user?.email) return
-
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch("/api/stripe/subscription/status")
-        const data = await response.json()
-        
-        if (data.ok) {
-          setSubscription(data.subscription)
-        }
-      } catch (error) {
-        console.error("Failed to fetch subscription status:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchStatus()
+  }, [session])
+
+  // Aktualisiere Status alle 5 Sekunden
+  useEffect(() => {
+    if (!session?.user?.email) return
+    
+    const interval = setInterval(fetchStatus, 5000)
+    return () => clearInterval(interval)
   }, [session])
 
   if (loading || !subscription) return null
