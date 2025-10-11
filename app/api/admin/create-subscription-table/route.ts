@@ -11,8 +11,8 @@ export async function POST() {
     // Erstelle Subscription Tabelle
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS "Subscription" (
-        "id" text NOT NULL PRIMARY KEY,
-        "userId" text NOT NULL UNIQUE,
+        "id" text PRIMARY KEY,
+        "userId" text UNIQUE,
         "stripeCustomerId" text UNIQUE,
         "stripeSubscriptionId" text UNIQUE,
         "status" text DEFAULT 'free',
