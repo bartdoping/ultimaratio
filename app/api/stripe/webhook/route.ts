@@ -22,12 +22,33 @@ export async function POST(req: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object as any;
+      console.log("Processing checkout.session.completed:", { 
+        sessionId: s.id, 
+        paymentStatus: s.payment_status,
+        mode: s.mode,
+        metadata: s.metadata 
+      });
+      
       if (s.payment_status !== "paid") return NextResponse.json({ ok: true });
 
       const userId = s.metadata?.userId as string | undefined;
       const examId = s.metadata?.examId as string | undefined;
       const stripeSessionId = s.id as string;
 
+      // Handle subscription checkout completion
+      if (s.mode === "subscription" && userId) {
+        console.log("Subscription checkout completed for user:", userId);
+        
+        // Update user to pro status immediately
+        await prisma.user.update({
+          where: { id: userId },
+          data: { subscriptionStatus: "pro" }
+        });
+        
+        console.log("User upgraded to pro:", userId);
+      }
+      
+      // Handle exam purchase
       if (userId && examId) {
         const exists = await prisma.purchase.findFirst({ where: { userId, examId } });
         if (!exists) {
@@ -45,95 +66,117 @@ export async function POST(req: Request) {
         metadata: subscription.metadata 
       });
       
-      // Versuche userId aus verschiedenen Quellen zu bekommen
-      let userId = subscription.metadata?.userId;
-      
-      // Fallback: Suche User über Customer ID
-      if (!userId && subscription.customer) {
-        const user = await prisma.user.findFirst({
-          where: { 
-            subscription: { 
-              stripeCustomerId: subscription.customer 
-            } 
-          },
-          select: { id: true }
-        });
-        userId = user?.id;
-      }
-      
-      if (userId) {
-        console.log("Updating subscription for user:", userId);
+      try {
+        // Versuche userId aus verschiedenen Quellen zu bekommen
+        let userId = subscription.metadata?.userId;
         
-        await prisma.subscription.upsert({
-          where: { userId },
-          create: {
-            userId,
-            stripeSubscriptionId: subscription.id,
-            stripeCustomerId: subscription.customer,
-            status: "pro",
-            currentPeriodStart: new Date(subscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            createdAt: new Date()
-          },
-          update: {
-            stripeSubscriptionId: subscription.id,
-            stripeCustomerId: subscription.customer,
-            status: "pro",
-            currentPeriodStart: new Date(subscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            cancelAtPeriodEnd: false,
-          }
-        });
+        // Fallback: Suche User über Customer ID
+        if (!userId && subscription.customer) {
+          const user = await prisma.user.findFirst({
+            where: { 
+              subscription: { 
+                stripeCustomerId: subscription.customer 
+              } 
+            },
+            select: { id: true }
+          });
+          userId = user?.id;
+        }
+        
+        if (userId) {
+          console.log("Updating subscription for user:", userId);
+          
+          await prisma.subscription.upsert({
+            where: { userId },
+            create: {
+              userId,
+              stripeSubscriptionId: subscription.id,
+              stripeCustomerId: subscription.customer,
+              status: "pro",
+              currentPeriodStart: new Date(subscription.current_period_start * 1000),
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              createdAt: new Date()
+            },
+            update: {
+              stripeSubscriptionId: subscription.id,
+              stripeCustomerId: subscription.customer,
+              status: "pro",
+              currentPeriodStart: new Date(subscription.current_period_start * 1000),
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              cancelAtPeriodEnd: false,
+            }
+          });
 
-        await prisma.user.update({
-          where: { id: userId },
-          data: { subscriptionStatus: "pro" }
-        });
-        
-        console.log("Subscription updated successfully for user:", userId);
-      } else {
-        console.error("Could not find userId for subscription:", subscription.id);
+          await prisma.user.update({
+            where: { id: userId },
+            data: { subscriptionStatus: "pro" }
+          });
+          
+          console.log("Subscription updated successfully for user:", userId);
+        } else {
+          console.error("Could not find userId for subscription:", subscription.id);
+        }
+      } catch (error) {
+        console.error("Error processing subscription.created:", error);
+        // Don't throw - let other webhooks continue
       }
     }
 
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as any;
-      const userId = subscription.metadata?.userId;
+      console.log("Processing subscription.updated:", { 
+        subscriptionId: subscription.id,
+        status: subscription.status 
+      });
       
-      if (userId) {
-        await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: subscription.id },
-          data: {
-            status: subscription.status === "active" ? "pro" : "free",
-            currentPeriodStart: new Date(subscription.current_period_start * 1000),
-            currentPeriodEnd: new Date(subscription.current_period_end * 1000),
-            cancelAtPeriodEnd: subscription.cancel_at_period_end,
-          }
-        });
+      try {
+        const userId = subscription.metadata?.userId;
+        
+        if (userId) {
+          await prisma.subscription.updateMany({
+            where: { stripeSubscriptionId: subscription.id },
+            data: {
+              status: subscription.status === "active" ? "pro" : "free",
+              currentPeriodStart: new Date(subscription.current_period_start * 1000),
+              currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+              cancelAtPeriodEnd: subscription.cancel_at_period_end,
+            }
+          });
 
-        await prisma.user.updateMany({
-          where: { subscription: { stripeSubscriptionId: subscription.id } },
-          data: { 
-            // subscriptionStatus: subscription.status === "active" ? "pro" : "free" 
-          }
-        });
+          await prisma.user.updateMany({
+            where: { subscription: { stripeSubscriptionId: subscription.id } },
+            data: { 
+              subscriptionStatus: subscription.status === "active" ? "pro" : "free"
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error processing subscription.updated:", error);
       }
     }
 
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as any;
-      const userId = subscription.metadata?.userId;
+      console.log("Processing subscription.deleted:", { 
+        subscriptionId: subscription.id 
+      });
       
-      if (userId) {
-        await prisma.subscription.updateMany({
-          where: { stripeSubscriptionId: subscription.id },
-          data: { status: "free" }
-        });
+      try {
+        const userId = subscription.metadata?.userId;
+        
+        if (userId) {
+          await prisma.subscription.updateMany({
+            where: { stripeSubscriptionId: subscription.id },
+            data: { status: "free" }
+          });
 
-        await prisma.user.updateMany({
-          where: { subscription: { stripeSubscriptionId: subscription.id } },
-          data: { subscriptionStatus: "free" }
-        });
+          await prisma.user.updateMany({
+            where: { subscription: { stripeSubscriptionId: subscription.id } },
+            data: { subscriptionStatus: "free" }
+          });
+        }
+      } catch (error) {
+        console.error("Error processing subscription.deleted:", error);
       }
     }
 
