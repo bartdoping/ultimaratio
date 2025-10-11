@@ -19,6 +19,11 @@ interface SubscriptionData {
     currentPeriodEnd?: string
     cancelAtPeriodEnd: boolean
   }
+  // Neue Abonnement-Daten
+  nextPaymentDate?: string
+  cancelAtPeriodEnd?: boolean
+  periodStart?: string
+  periodEnd?: string
 }
 
 export function SubscriptionManagement() {
@@ -92,6 +97,34 @@ export function SubscriptionManagement() {
     } catch (error) {
       console.error("Cancel failed:", error)
       alert(`Fehler beim Kündigen des Abonnements: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
+  const handleReactivate = async () => {
+    if (!confirm("Möchtest du dein Abonnement reaktivieren? Die automatische Verlängerung wird wieder aktiviert.")) {
+      return
+    }
+
+    setActionLoading(true)
+    try {
+      const response = await fetch("/api/stripe/subscription/reactivate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      })
+      const data = await response.json()
+      
+      if (data.ok) {
+        alert("Abonnement wurde reaktiviert! Die automatische Verlängerung ist wieder aktiv.")
+        fetchSubscriptionStatus()
+      } else {
+        console.error("Reactivation failed:", data)
+        alert(`Fehler beim Reaktivieren des Abonnements: ${data.error || "Unbekannter Fehler"}`)
+      }
+    } catch (error) {
+      console.error("Reactivation failed:", error)
+      alert(`Fehler beim Reaktivieren des Abonnements: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
     } finally {
       setActionLoading(false)
     }
@@ -228,16 +261,71 @@ export function SubscriptionManagement() {
         </CardContent>
       </Card>
 
+      {/* Abonnement-Status */}
+      {subscription.isPro && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>👑</span>
+              Pro-Abonnement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {subscription.nextPaymentDate && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
+                  </span>
+                  <span className="font-medium">
+                    {new Date(subscription.nextPaymentDate).toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </span>
+                </div>
+              )}
+              
+              {subscription.cancelAtPeriodEnd && (
+                <Alert>
+                  <AlertDescription>
+                    <strong>⚠️ Abonnement gekündigt</strong><br />
+                    Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}. Du kannst die Kündigung jederzeit rückgängig machen.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Actions */}
       <div className="flex gap-4">
         {subscription.isPro ? (
-          <Button 
-            variant="destructive" 
-            onClick={handleCancel}
-            disabled={actionLoading}
-          >
-            {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
-          </Button>
+          <div className="flex gap-4">
+            {subscription.cancelAtPeriodEnd ? (
+              <Button 
+                onClick={handleReactivate}
+                disabled={actionLoading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {actionLoading ? "Wird reaktiviert..." : "Abonnement reaktivieren"}
+              </Button>
+            ) : (
+              <Button 
+                variant="destructive" 
+                onClick={handleCancel}
+                disabled={actionLoading}
+              >
+                {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
+              </Button>
+            )}
+          </div>
         ) : (
           <Button 
             onClick={handleUpgrade}

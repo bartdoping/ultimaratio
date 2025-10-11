@@ -58,7 +58,12 @@ export async function GET() {
         isPro: user.subscriptionStatus === "pro",
         questionsRemaining,
         dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
-        subscriptionDetails: user.subscription
+        subscriptionDetails: user.subscription,
+        // Abonnement-Daten
+        nextPaymentDate: user.subscription?.currentPeriodEnd,
+        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
+        periodStart: user.subscription?.currentPeriodStart,
+        periodEnd: user.subscription?.currentPeriodEnd
       }
     }, {
       headers: {
