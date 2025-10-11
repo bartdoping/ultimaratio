@@ -70,22 +70,17 @@ export async function POST(req: Request) {
       // Continue with DB update even if Stripe fails
     }
 
-    // 4) DB aktualisieren
+    // 4) DB aktualisieren - User bleibt Pro bis zum Ende der Periode
     await prisma.subscription.update({
       where: { userId: user.id },
       data: {
         cancelAtPeriodEnd: true,
-        status: "free"
+        // Status bleibt "pro" - wird erst bei Ablauf auf "free" gesetzt
       }
     });
 
-    // 5) User Status aktualisieren
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        subscriptionStatus: "free"
-      }
-    });
+    // User-Status bleibt "pro" - wird erst bei Ablauf der Periode auf "free" gesetzt
+    // Das passiert automatisch durch Stripe Webhooks oder manuell
 
     return NextResponse.json({ ok: true, message: "subscription_cancelled" });
   } catch (err: any) {

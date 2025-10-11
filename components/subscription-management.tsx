@@ -314,7 +314,7 @@ export function SubscriptionManagement() {
                 disabled={actionLoading}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {actionLoading ? "Wird reaktiviert..." : "Abonnement reaktivieren"}
+                {actionLoading ? "Wird reaktiviert..." : "Abonnement wiederherstellen"}
               </Button>
             ) : (
               <Button 

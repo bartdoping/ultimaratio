@@ -206,12 +206,20 @@ export async function POST(req: Request) {
             }
           });
 
-          await prisma.user.updateMany({
-            where: { subscription: { stripeSubscriptionId: subscription.id } },
-            data: { 
-              subscriptionStatus: subscription.status === "active" ? "pro" : "free"
-            }
-          });
+          // User-Status nur ändern wenn Abonnement wirklich beendet ist
+          // Bei cancel_at_period_end bleibt User Pro bis zum Ende der Periode
+          if (subscription.status === "canceled" || subscription.status === "incomplete_expired") {
+            await prisma.user.updateMany({
+              where: { subscription: { stripeSubscriptionId: subscription.id } },
+              data: { subscriptionStatus: "free" }
+            });
+          } else if (subscription.status === "active") {
+            // Bei aktiven Abonnements Pro-Status setzen
+            await prisma.user.updateMany({
+              where: { subscription: { stripeSubscriptionId: subscription.id } },
+              data: { subscriptionStatus: "pro" }
+            });
+          }
         }
       } catch (error) {
         console.error("Error processing subscription.updated:", error);
