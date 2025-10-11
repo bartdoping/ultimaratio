@@ -40,9 +40,12 @@ export default async function ExamPage({ params }: PageProps) {
           id: true,
           tags: {
             select: {
-              id: true,
-              name: true,
-              color: true
+              tag: {
+                select: {
+                  id: true,
+                  name: true
+                }
+              }
             }
           }
         }
@@ -73,7 +76,8 @@ export default async function ExamPage({ params }: PageProps) {
   // Alle einzigartigen Tags sammeln
   const allTags = new Map();
   exam.questions.forEach(question => {
-    question.tags.forEach(tag => {
+    question.tags.forEach(tagLink => {
+      const tag = tagLink.tag;
       if (!allTags.has(tag.id)) {
         allTags.set(tag.id, tag);
       }
@@ -116,7 +120,6 @@ export default async function ExamPage({ params }: PageProps) {
                 <span
                   key={tag.id}
                   className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800"
-                  style={tag.color ? { backgroundColor: tag.color + '20', color: tag.color } : {}}
                 >
                   {tag.name}
                 </span>
