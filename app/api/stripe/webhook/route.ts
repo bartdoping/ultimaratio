@@ -64,7 +64,7 @@ export async function POST(req: Request) {
 
         await prisma.user.update({
           where: { id: userId },
-          data: { subscriptionStatus: "pro" }
+          data: { /* subscriptionStatus: "pro" */ }
         });
       }
     }
@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         await prisma.user.updateMany({
           where: { subscription: { stripeSubscriptionId: subscription.id } },
           data: { 
-            subscriptionStatus: subscription.status === "active" ? "pro" : "free" 
+            // subscriptionStatus: subscription.status === "active" ? "pro" : "free" 
           }
         });
       }
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
 
         await prisma.user.updateMany({
           where: { subscription: { stripeSubscriptionId: subscription.id } },
-          data: { subscriptionStatus: "free" }
+          data: { /* subscriptionStatus: "free" */ }
         });
       }
     }

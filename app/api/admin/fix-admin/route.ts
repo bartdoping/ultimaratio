@@ -31,7 +31,7 @@ export async function POST() {
       data: {
         emailVerifiedAt: new Date(), // Sofort verifiziert
         role: "admin",
-        subscriptionStatus: "pro" // Admin ist automatisch Pro
+        // subscriptionStatus: "pro" // Admin ist automatisch Pro
       }
     });
 
@@ -43,7 +43,7 @@ export async function POST() {
         email: updatedAdmin.email,
         role: updatedAdmin.role,
         emailVerified: !!updatedAdmin.emailVerifiedAt,
-        subscriptionStatus: updatedAdmin.subscriptionStatus
+        // subscriptionStatus: updatedAdmin.subscriptionStatus
       }
     });
   } catch (error) {

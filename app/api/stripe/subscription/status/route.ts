@@ -19,7 +19,7 @@ export async function GET() {
       where: { email: session.user.email },
       select: { 
         id: true,
-        subscriptionStatus: true,
+        // subscriptionStatus: true,
         dailyQuestionsUsed: true,
         lastQuestionResetAt: true,
         subscription: {
@@ -39,15 +39,15 @@ export async function GET() {
     const lastReset = new Date(user.lastQuestionResetAt);
     const isNewDay = now.toDateString() !== lastReset.toDateString();
     
-    const questionsRemaining = user.subscriptionStatus === "pro" 
+    const questionsRemaining = user.subscription?.status === "active" 
       ? -1 // Unbegrenzt für Pro-User
-      : Math.max(0, 20 - (isNewDay ? 0 : user.dailyQuestionsUsed));
+      : Math.max(0, 20 - (isNewDay ? 0 : (user.dailyQuestionsUsed || 0)));
 
     return NextResponse.json({ 
       ok: true,
       subscription: {
-        status: user.subscriptionStatus,
-        isPro: user.subscriptionStatus === "pro",
+        status: user.subscription?.status || "free",
+        isPro: user.subscription?.status === "active",
         questionsRemaining,
         dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
         subscriptionDetails: user.subscription
