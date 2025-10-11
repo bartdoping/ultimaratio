@@ -29,7 +29,7 @@ export async function POST() {
       return NextResponse.json({ 
         ok: false,
         error: "Migration failed",
-        details: execError.message
+        details: execError instanceof Error ? execError.message : "Unknown error"
       }, { status: 500 });
     }
   } catch (error) {
