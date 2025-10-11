@@ -20,6 +20,7 @@ export async function POST(req: Request) {
       where: { email: session.user.email },
       select: { 
         id: true,
+        subscriptionStatus: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -30,11 +31,32 @@ export async function POST(req: Request) {
     });
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
-    if (!user.subscription?.stripeSubscriptionId) {
+    console.log("Cancel request for user:", { 
+      userId: user.id, 
+      subscriptionStatus: user.subscriptionStatus,
+      hasSubscription: !!user.subscription,
+      stripeSubscriptionId: user.subscription?.stripeSubscriptionId 
+    });
+
+    // Prüfe ob User Pro-Status hat (auch ohne Stripe Subscription)
+    if (user.subscriptionStatus !== "pro") {
       return NextResponse.json({ 
         ok: false, 
-        error: "Kein aktives Abonnement gefunden. Bitte kontaktiere den Support." 
+        error: "Du hast kein aktives Pro-Abonnement zum Kündigen." 
       }, { status: 400 });
+    }
+
+    if (!user.subscription?.stripeSubscriptionId) {
+      // User ist Pro, aber hat keine Stripe Subscription (Admin oder Test-User)
+      console.log("User is pro but has no Stripe subscription, setting to free");
+      
+      // Direkt auf Free setzen
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { subscriptionStatus: "free" }
+      });
+
+      return NextResponse.json({ ok: true, message: "subscription_cancelled_no_stripe" });
     }
 
     // 3) Stripe Subscription kündigen

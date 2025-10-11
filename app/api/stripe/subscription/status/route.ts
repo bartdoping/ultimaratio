@@ -11,7 +11,14 @@ export async function GET() {
     // 1) Auth
     const session = await getServerSession(authOptions);
     if (!session?.user?.email) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { 
+        status: 401,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        }
+      });
     }
 
     // 2) User + Subscription
@@ -52,6 +59,12 @@ export async function GET() {
         questionsRemaining,
         dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
         subscriptionDetails: user.subscription
+      }
+    }, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
       }
     });
   } catch (err: any) {
