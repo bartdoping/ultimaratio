@@ -100,7 +100,7 @@ export async function POST(req: Request) {
       if (userId) {
         await prisma.subscription.updateMany({
           where: { stripeSubscriptionId: subscription.id },
-          data: { status: "free" }
+          data: { /* status: "free" */ }
         });
 
         await prisma.user.updateMany({
