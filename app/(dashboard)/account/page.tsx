@@ -44,7 +44,7 @@ export default async function AccountPage() {
           id: p.id,
           createdAt: p.createdAt.toISOString(),
           examTitle: p.exam.title,
-          priceCents: p.exam.priceCents,
+          priceCents: p.exam.priceCents || 0,
         }))}
       />
     </div>
