@@ -75,7 +75,7 @@ export async function POST(
       data: {
         userId: user.id,
         examId: exam.id,
-        priceCents: 0, // Kostenlos für Pro-User oder bei Aktivierung
+        stripeSessionId: `activation_${Date.now()}`, // Dummy Session ID für Aktivierungen
         createdAt: new Date()
       }
     });
