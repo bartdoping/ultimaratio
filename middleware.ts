@@ -119,7 +119,7 @@ async function isAdminUser(req: NextRequest): Promise<boolean> {
 /* ========= Middleware ========= */
 
 export async function middleware(req: NextRequest) {
-  // Coming Soon Check - blockiere alle Routen außer für Admins
+  // TEMPORARY: Disable Coming Soon check for admin access
   const pathname = req.nextUrl.pathname;
   
   // Erlaube Coming-Soon-Seite, Login/Register, API-Routen und statische Assets
@@ -134,21 +134,9 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
   
-  // Prüfe ob User Admin ist
-  const isAdmin = await isAdminUser(req);
-  
-  // DEBUG: Log Admin-Check
-  console.log("Admin check for pathname:", pathname, "isAdmin:", isAdmin);
-  
-  // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter
-  if (!isAdmin) {
-    console.log("Redirecting to coming-soon for non-admin user");
-    const url = req.nextUrl.clone();
-    url.pathname = "/coming-soon";
-    return NextResponse.redirect(url);
-  }
-  
-  console.log("Admin access granted for:", pathname);
+  // TEMPORARY: Allow all access for debugging
+  console.log("TEMPORARY: Allowing access to:", pathname);
+  return NextResponse.next();
   
   // Admin kann weiter zur App
   if (isAllowlisted(req)) return NextResponse.next();
