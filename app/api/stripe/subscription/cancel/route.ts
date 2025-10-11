@@ -31,13 +31,22 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
     if (!user.subscription?.stripeSubscriptionId) {
-      return NextResponse.json({ ok: false, error: "no_subscription" }, { status: 400 });
+      return NextResponse.json({ 
+        ok: false, 
+        error: "Kein aktives Abonnement gefunden. Bitte kontaktiere den Support." 
+      }, { status: 400 });
     }
 
     // 3) Stripe Subscription kündigen
-    await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
-      cancel_at_period_end: true,
-    });
+    try {
+      await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
+        cancel_at_period_end: true,
+      });
+      console.log("Stripe subscription cancelled:", user.subscription.stripeSubscriptionId);
+    } catch (stripeError: any) {
+      console.error("Stripe cancellation error:", stripeError);
+      // Continue with DB update even if Stripe fails
+    }
 
     // 4) DB aktualisieren
     await prisma.subscription.update({
@@ -59,6 +68,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, message: "subscription_cancelled" });
   } catch (err: any) {
     console.error("subscription cancel error", err);
-    return NextResponse.json({ ok: false, error: "cancel failed" }, { status: 500 });
+    return NextResponse.json({ 
+      ok: false, 
+      error: `Kündigung fehlgeschlagen: ${err.message || "Unbekannter Fehler"}` 
+    }, { status: 500 });
   }
 }

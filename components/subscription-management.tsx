@@ -86,11 +86,12 @@ export function SubscriptionManagement() {
         alert("Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Periode.")
         fetchSubscriptionStatus()
       } else {
-        alert("Fehler beim Kündigen des Abonnements")
+        console.error("Cancel failed:", data)
+        alert(`Fehler beim Kündigen des Abonnements: ${data.error || "Unbekannter Fehler"}`)
       }
     } catch (error) {
       console.error("Cancel failed:", error)
-      alert("Fehler beim Kündigen")
+      alert(`Fehler beim Kündigen des Abonnements: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
     } finally {
       setActionLoading(false)
     }
