@@ -72,7 +72,7 @@ model Exam {
   slug                   String   @unique
   title                  String
   description            String
-  priceCents             Int
+  priceCents             Int?
   isPublished            Boolean  @default(false)
   passPercent            Int      @default(60)
   allowImmediateFeedback Boolean  @default(false)
