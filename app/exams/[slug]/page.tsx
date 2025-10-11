@@ -71,7 +71,7 @@ export default async function ExamPage({ params }: PageProps) {
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Preis</span>
-            <span className="text-lg font-medium">{formatPrice(exam.priceCents)}</span>
+            <span className="text-lg font-medium">{formatPrice(exam.priceCents || 0)}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Bestehensgrenze</span>
