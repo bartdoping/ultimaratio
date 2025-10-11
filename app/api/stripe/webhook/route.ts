@@ -77,7 +77,7 @@ export async function POST(req: Request) {
         await prisma.subscription.updateMany({
           where: { stripeSubscriptionId: subscription.id },
           data: {
-            status: subscription.status === "active" ? "pro" : "free",
+            // status: subscription.status === "active" ? "pro" : "free",
             currentPeriodStart: new Date(subscription.current_period_start * 1000),
             currentPeriodEnd: new Date(subscription.current_period_end * 1000),
             cancelAtPeriodEnd: subscription.cancel_at_period_end,
