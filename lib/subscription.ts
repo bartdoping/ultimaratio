@@ -35,7 +35,7 @@ export async function checkUserSubscriptionStatus(userId: string): Promise<Subsc
     user.subscription.currentPeriodEnd && 
     new Date(user.subscription.currentPeriodEnd) > new Date();
 
-  const isPro = hasActiveSubscription;
+  const isPro = !!hasActiveSubscription;
   const questionsRemaining = isPro ? -1 : 20;
 
   return {
