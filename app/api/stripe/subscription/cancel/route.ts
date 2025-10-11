@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       where: { userId: user.id },
       data: {
         cancelAtPeriodEnd: true,
-        status: "free"
+        // status: "free"
       }
     });
 
