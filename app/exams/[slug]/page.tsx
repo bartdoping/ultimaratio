@@ -6,6 +6,7 @@ import { authOptions } from "@/auth";
 import { ConfirmAfterReturn } from "@/components/confirm-after-return";
 import { CheckoutButton } from "@/components/checkout-button";
 import { StartExamButton } from "@/components/start-exam-button";
+import { ActivateExamButton } from "@/components/activate-exam-button";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,18 @@ export default async function ExamPage({ params }: PageProps) {
       isPublished: true,
       passPercent: true,
       allowImmediateFeedback: true,
+      questions: {
+        select: {
+          id: true,
+          tags: {
+            select: {
+              id: true,
+              name: true,
+              color: true
+            }
+          }
+        }
+      }
     },
   });
 
@@ -41,7 +54,7 @@ export default async function ExamPage({ params }: PageProps) {
     notFound();
   }
 
-  // Prüfen, ob der eingeloggte Nutzer die Prüfung gekauft hat
+  // Prüfen, ob der eingeloggte Nutzer die Prüfung aktiviert hat
   let hasPurchase = false;
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
@@ -57,6 +70,17 @@ export default async function ExamPage({ params }: PageProps) {
     }
   }
 
+  // Alle einzigartigen Tags sammeln
+  const allTags = new Map();
+  exam.questions.forEach(question => {
+    question.tags.forEach(tag => {
+      if (!allTags.has(tag.id)) {
+        allTags.set(tag.id, tag);
+      }
+    });
+  });
+  const uniqueTags = Array.from(allTags.values());
+
   return (
     <>
       {/* Stripe-Rückkehr-Helper: bestätigt /api/stripe/confirm?session_id=... und refresht */}
@@ -70,8 +94,8 @@ export default async function ExamPage({ params }: PageProps) {
 
         <div className="rounded-lg border p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Preis</span>
-            <span className="text-lg font-medium">{formatPrice(exam.priceCents || 0)}</span>
+            <span className="text-sm text-muted-foreground">Anzahl Fragen</span>
+            <span className="text-lg font-medium">{exam.questions.length}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-sm text-muted-foreground">Bestehensgrenze</span>
@@ -83,13 +107,34 @@ export default async function ExamPage({ params }: PageProps) {
           </div>
         </div>
 
+        {/* Tags anzeigen */}
+        {uniqueTags.length > 0 && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium">Themengebiete</h3>
+            <div className="flex flex-wrap gap-2">
+              {uniqueTags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-800"
+                  style={tag.color ? { backgroundColor: tag.color + '20', color: tag.color } : {}}
+                >
+                  {tag.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {!hasPurchase ? (
           session?.user ? (
             <div className="space-y-2">
-              {/* ⬇️ Checkout braucht den slug */}
-              <CheckoutButton slug={exam.slug} />
+              <ActivateExamButton 
+                examId={exam.id}
+                examTitle={exam.title}
+                isActivated={false}
+              />
               <p className="text-sm text-muted-foreground">
-                Nach der Zahlung wirst du automatisch freigeschaltet.
+                Aktiviere die Prüfung, um sie zu nutzen und in deinen Statistiken zu berücksichtigen.
               </p>
             </div>
           ) : (
@@ -98,10 +143,10 @@ export default async function ExamPage({ params }: PageProps) {
                 href="/login"
                 className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
               >
-                Einloggen, um zu kaufen
+                Einloggen, um zu aktivieren
               </Link>
               <p className="text-sm text-muted-foreground">
-                Du benötigst ein Konto, um die Prüfung zu erwerben.
+                Du benötigst ein Konto, um die Prüfung zu aktivieren.
               </p>
             </div>
           )
@@ -110,7 +155,7 @@ export default async function ExamPage({ params }: PageProps) {
             {/* ⬇️ Start braucht die examId */}
             <div className="flex flex-wrap gap-2">
               <StartExamButton examId={exam.id} />
-              {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Kauf */}
+              {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Aktivierung */}
               <Link
                 href={`/practice/${exam.id}`}
                 className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StartExamButton } from "@/components/start-exam-button"
+import { ActivateExamButton } from "@/components/activate-exam-button"
 
 interface Exam {
   id: string
@@ -142,6 +143,12 @@ export default function ExamsCategorized({
                     >
                       Details
                     </Link>
+
+                    <ActivateExamButton 
+                      examId={exam.id}
+                      examTitle={exam.title}
+                      isActivated={isActivated}
+                    />
 
                     {isActivated && (
                       <>
