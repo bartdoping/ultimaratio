@@ -137,12 +137,18 @@ export async function middleware(req: NextRequest) {
   // Prüfe ob User Admin ist
   const isAdmin = await isAdminUser(req);
   
+  // DEBUG: Log Admin-Check
+  console.log("Admin check for pathname:", pathname, "isAdmin:", isAdmin);
+  
   // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter
   if (!isAdmin) {
+    console.log("Redirecting to coming-soon for non-admin user");
     const url = req.nextUrl.clone();
     url.pathname = "/coming-soon";
     return NextResponse.redirect(url);
   }
+  
+  console.log("Admin access granted for:", pathname);
   
   // Admin kann weiter zur App
   if (isAllowlisted(req)) return NextResponse.next();
