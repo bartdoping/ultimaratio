@@ -119,7 +119,6 @@ async function isAdminUser(req: NextRequest): Promise<boolean> {
 /* ========= Middleware ========= */
 
 export async function middleware(req: NextRequest) {
-  // TEMPORARY: Disable Coming Soon check for admin access
   const pathname = req.nextUrl.pathname;
   
   // Erlaube Coming-Soon-Seite, Login/Register, API-Routen und statische Assets
@@ -134,37 +133,14 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
   
-  // TEMPORARY: Allow all access for debugging
-  console.log("TEMPORARY: Allowing access to:", pathname);
-  return NextResponse.next();
-  
-  // Admin kann weiter zur App
-  if (isAllowlisted(req)) return NextResponse.next();
-
-  if (shouldRateLimit(req)) {
-    const bucket = RL_PATHS.find((re) => re.test(req.nextUrl.pathname))?.source ?? "";
-    const key = `${ipFrom(req)}:${bucket}`;
-    const rl = checkRateLimit(key);
-    if (!rl.ok) {
-      return new NextResponse("Too Many Requests", {
-        status: 429,
-        headers: {
-          "Retry-After": String(Math.ceil(rl.resetMs / 1000)),
-          "X-RateLimit-Limit": String(LIMIT),
-          "X-RateLimit-Remaining": "0",
-        },
-      });
-    }
-    const res = NextResponse.next();
-    res.headers.set("X-RateLimit-Limit", String(LIMIT));
-    res.headers.set("X-RateLimit-Remaining", String(rl.remaining));
-    applySecurityHeaders(res);
-    return res;
+  // Prüfe ob User Admin oder Test-User ist
+  const isAdmin = await isAdminUser(req);
+  if (isAdmin) {
+    return NextResponse.next();
   }
-
-  const res = NextResponse.next();
-  applySecurityHeaders(res);
-  return res;
+  
+  // Alle anderen User zur Coming Soon Seite weiterleiten
+  return NextResponse.redirect(new URL("/coming-soon", req.url));
 }
 
 /* ========= Matcher ========= */
