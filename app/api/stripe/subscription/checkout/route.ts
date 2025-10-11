@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     // Verwende vordefinierte Preis-ID oder erstelle dynamisch
     const priceId = process.env.STRIPE_PRICE_ID;
     
-    let lineItems;
+    let lineItems: any[];
     if (priceId) {
       // Verwende vordefinierte Preis-ID
       lineItems = [{ price: priceId, quantity: 1 }];
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
             },
             unit_amount: 999, // 9,99€ in Cent
             recurring: {
-              interval: "month",
+              interval: "month" as const,
             },
           },
           quantity: 1,
