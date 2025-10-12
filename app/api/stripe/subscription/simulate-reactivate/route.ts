@@ -39,7 +39,24 @@ export async function POST() {
       }, { status: 400 })
     }
 
-    // Simuliere Reaktivierung
+    // Simuliere Reaktivierung durch Setzen von cancelAtPeriodEnd = false
+    await prisma.subscription.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        stripeCustomerId: `simulated_${user.id}`,
+        stripeSubscriptionId: `simulated_${user.id}_${Date.now()}`,
+        status: "pro",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)), // +30 Tage
+        cancelAtPeriodEnd: false, // Reaktiviert
+        createdAt: new Date()
+      },
+      update: {
+        cancelAtPeriodEnd: false, // Als reaktiviert markieren
+      }
+    })
+
     console.log(`Simulated reactivation for user: ${user.email}`)
 
     return NextResponse.json({ 

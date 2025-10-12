@@ -39,14 +39,21 @@ export async function POST() {
       }, { status: 400 })
     }
 
-    // Simuliere Kündigung durch Setzen eines Flags in der User-Tabelle
-    // Wir verwenden ein temporäres Feld oder Session-Storage
-    // Für Demo: Setze ein Flag in der User-Tabelle
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        // Verwende ein temporäres Feld für Simulation
-        // Da wir kein entsprechendes Feld haben, loggen wir es
+    // Simuliere Kündigung durch Erstellen einer Subscription mit cancelAtPeriodEnd = true
+    await prisma.subscription.upsert({
+      where: { userId: user.id },
+      create: {
+        userId: user.id,
+        stripeCustomerId: `simulated_${user.id}`,
+        stripeSubscriptionId: `simulated_${user.id}_${Date.now()}`,
+        status: "pro",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + (30 * 24 * 60 * 60 * 1000)), // +30 Tage
+        cancelAtPeriodEnd: true, // Gekündigt
+        createdAt: new Date()
+      },
+      update: {
+        cancelAtPeriodEnd: true, // Als gekündigt markieren
       }
     })
 

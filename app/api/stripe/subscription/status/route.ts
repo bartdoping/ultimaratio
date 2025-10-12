@@ -61,25 +61,34 @@ export async function GET() {
       daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
 
-    // Für Pro-User ohne Abonnement-Details: Simuliere theoretische Periode
+    // Für Pro-User ohne echte Stripe-Abonnement-Details: Verwende simulierte Daten
     let simulatedNextPayment = null;
     let simulatedPeriodStart = null;
     let simulatedCancelAtPeriodEnd = false;
     
-    if (user.subscriptionStatus === "pro" && !user.subscription?.currentPeriodEnd) {
-      // Simuliere 30-Tage-Periode ab heute
+    if (user.subscriptionStatus === "pro" && user.subscription?.stripeSubscriptionId?.startsWith('simulated_')) {
+      // Verwende die echten Subscription-Daten aus der DB (auch wenn simuliert)
+      simulatedNextPayment = user.subscription.currentPeriodEnd;
+      simulatedPeriodStart = user.subscription.currentPeriodStart;
+      simulatedCancelAtPeriodEnd = user.subscription.cancelAtPeriodEnd;
+      
+      // Berechne verbleibende Tage für simulierte gekündigte Abonnements
+      if (user.subscription.cancelAtPeriodEnd && user.subscription.currentPeriodEnd) {
+        const now = new Date();
+        const periodEnd = new Date(user.subscription.currentPeriodEnd);
+        const diffTime = periodEnd.getTime() - now.getTime();
+        daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
+    } else if (user.subscriptionStatus === "pro" && !user.subscription?.currentPeriodEnd) {
+      // Fallback: Simuliere theoretische Periode für User ohne Subscription
       const now = new Date();
       simulatedPeriodStart = new Date(now);
       simulatedNextPayment = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // +30 Tage
       
       // Prüfe ob User bereits "gekündigt" hat (simuliert)
-      // Für Test-User: Simuliere Kündigung nach 1 Tag
       const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
       if (user.createdAt && new Date(user.createdAt) < oneDayAgo) {
-        // User ist älter als 1 Tag -> simuliere gekündigtes Abonnement
         simulatedCancelAtPeriodEnd = true;
-        
-        // Berechne verbleibende Tage für simulierte gekündigte Abonnements
         const diffTime = simulatedNextPayment.getTime() - now.getTime();
         daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       }
@@ -108,7 +117,7 @@ export async function GET() {
         periodEnd: user.subscription?.currentPeriodEnd || simulatedNextPayment,
         daysRemaining: daysRemaining,
         // Zusätzliche Info für simulierte Abonnements
-        isSimulated: !user.subscription?.currentPeriodEnd && user.subscriptionStatus === "pro"
+        isSimulated: user.subscription?.stripeSubscriptionId?.startsWith('simulated_') || (!user.subscription?.currentPeriodEnd && user.subscriptionStatus === "pro")
       }
     }, {
       headers: {
