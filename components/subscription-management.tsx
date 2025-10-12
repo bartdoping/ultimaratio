@@ -302,7 +302,7 @@ export function SubscriptionManagement() {
                              month: 'long',
                              day: 'numeric'
                            })}. 
-                           {subscription.daysRemaining !== null && subscription.daysRemaining > 0 && (
+                           {subscription.daysRemaining !== null && subscription.daysRemaining !== undefined && subscription.daysRemaining > 0 && (
                              <><br /><strong>Noch {subscription.daysRemaining} Tage übrig</strong></>
                            )}
                            <br />Du kannst die Kündigung jederzeit rückgängig machen.
