@@ -14,7 +14,7 @@ interface StorageInfo {
   totalAttempts: number
   totalPurchases: number
   totalDecks: number
-  totalAnswers: number
+  totalAttemptAnswers: number
   totalTags: number
   totalSubscriptions: number
   databaseSize: string
@@ -189,7 +189,7 @@ export default function StoragePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               💬 Antworten
-              <Badge variant="outline">{storageInfo?.totalAnswers || 0}</Badge>
+              <Badge variant="outline">{storageInfo?.totalAttemptAnswers || 0}</Badge>
             </CardTitle>
             <CardDescription>
               Gespeicherte Antworten

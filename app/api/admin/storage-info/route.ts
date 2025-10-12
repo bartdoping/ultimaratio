@@ -23,7 +23,7 @@ export async function GET() {
       totalAttempts,
       totalPurchases,
       totalDecks,
-      totalAnswers,
+      totalAttemptAnswers,
       totalTags,
       totalSubscriptions
     ] = await Promise.all([
@@ -33,7 +33,7 @@ export async function GET() {
       prisma.attempt.count(),
       prisma.purchase.count(),
       prisma.deck.count(),
-      prisma.answer.count(),
+      prisma.attemptAnswer.count(),
       prisma.tag.count(),
       prisma.subscription.count()
     ])
@@ -46,7 +46,7 @@ export async function GET() {
        totalAttempts * 0.8 +      // Attempt-Daten: ~0.8KB pro Attempt
        totalPurchases * 0.2 +     // Purchase-Daten: ~0.2KB pro Purchase
        totalDecks * 0.3 +         // Deck-Daten: ~0.3KB pro Deck
-       totalAnswers * 0.1 +       // Answer-Daten: ~0.1KB pro Answer
+       totalAttemptAnswers * 0.1 + // AttemptAnswer-Daten: ~0.1KB pro Answer
        totalTags * 0.05 +         // Tag-Daten: ~0.05KB pro Tag
        totalSubscriptions * 0.3   // Subscription-Daten: ~0.3KB pro Subscription
       ) / 1024
@@ -59,7 +59,7 @@ export async function GET() {
       totalAttempts,
       totalPurchases,
       totalDecks,
-      totalAnswers,
+      totalAttemptAnswers,
       totalTags,
       totalSubscriptions,
       databaseSize: `${estimatedSize} MB`,
