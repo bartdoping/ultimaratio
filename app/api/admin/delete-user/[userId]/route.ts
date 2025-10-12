@@ -8,7 +8,7 @@ export const runtime = "nodejs"
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { userId: string } }
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
     // Nur Admins dürfen das
@@ -18,7 +18,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { userId } = params
+    const { userId } = await params
 
     // Prüfe ob User existiert
     const user = await prisma.user.findUnique({
