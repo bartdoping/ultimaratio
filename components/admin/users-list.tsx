@@ -99,7 +99,7 @@ export default function UsersList() {
                     )}
                   </div>
                   <p className="text-sm text-muted-foreground mb-2">{user.email}</p>
-                  <div className="flex gap-4 text-xs text-muted-foreground">
+                  <div className="flex gap-4 text-xs text-muted-foreground mb-2">
                     <span>Registriert: {new Date(user.createdAt).toLocaleDateString("de-DE")}</span>
                     <span>•</span>
                     <span>Versuche: {user._count.attempts}</span>
@@ -107,6 +107,9 @@ export default function UsersList() {
                     <span>Käufe: {user._count.purchases}</span>
                     <span>•</span>
                     <span>Decks: {user._count.decks}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-mono bg-gray-100 px-2 py-1 rounded">ID: {user.id}</span>
                   </div>
                 </div>
               </div>
