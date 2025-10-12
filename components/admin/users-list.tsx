@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 
 type User = {
   id: string
@@ -24,6 +25,8 @@ export default function UsersList() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [deletingUser, setDeletingUser] = useState<string | null>(null)
+  const [deleteResult, setDeleteResult] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchUsers() {
@@ -43,6 +46,41 @@ export default function UsersList() {
 
     fetchUsers()
   }, [])
+
+  const handleDeleteUser = async (userId: string, userEmail: string) => {
+    if (!confirm(`⚠️ WARNUNG: User "${userEmail}" wird gelöscht! Fortfahren?`)) {
+      return
+    }
+
+    if (!confirm(`⚠️ LETZTE WARNUNG: Diese Aktion kann NICHT rückgängig gemacht werden! User "${userEmail}" wirklich löschen?`)) {
+      return
+    }
+
+    setDeletingUser(userId)
+    setDeleteResult(null)
+
+    try {
+      const response = await fetch(`/api/admin/delete-user/${userId}`, {
+        method: "DELETE",
+        credentials: "include"
+      })
+      
+      const data = await response.json()
+      
+      if (data.ok) {
+        setDeleteResult(`✅ User "${userEmail}" erfolgreich gelöscht`)
+        // User aus der Liste entfernen
+        setUsers(users.filter(user => user.id !== userId))
+      } else {
+        setDeleteResult(`❌ Fehler: ${data.error || "Unbekannter Fehler"}`)
+      }
+    } catch (error) {
+      console.error("Delete user failed:", error)
+      setDeleteResult(`❌ Fehler: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+    } finally {
+      setDeletingUser(null)
+    }
+  }
 
   if (loading) {
     return (
@@ -76,6 +114,14 @@ export default function UsersList() {
         <CardTitle>Registrierte User ({users.length})</CardTitle>
       </CardHeader>
       <CardContent>
+        {deleteResult && (
+          <Alert className="mb-4">
+            <AlertDescription>
+              {deleteResult}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="space-y-4">
           {users.map((user) => (
             <div key={user.id} className="border rounded-lg p-4">
@@ -112,6 +158,19 @@ export default function UsersList() {
                     <span className="font-mono bg-gray-100 px-2 py-1 rounded">ID: {user.id}</span>
                   </div>
                 </div>
+                
+                {user.role !== "admin" && (
+                  <div className="ml-4">
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleDeleteUser(user.id, user.email)}
+                      disabled={deletingUser === user.id}
+                    >
+                      {deletingUser === user.id ? "Lösche..." : "🗑️ Löschen"}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           ))}

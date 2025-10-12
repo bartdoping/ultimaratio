@@ -22,25 +22,35 @@ export async function GET() {
       totalQuestions,
       totalAttempts,
       totalPurchases,
-      totalDecks
+      totalDecks,
+      totalAnswers,
+      totalTags,
+      totalSubscriptions
     ] = await Promise.all([
       prisma.user.count(),
       prisma.exam.count(),
       prisma.question.count(),
       prisma.attempt.count(),
       prisma.purchase.count(),
-      prisma.deck.count()
+      prisma.deck.count(),
+      prisma.answer.count(),
+      prisma.tag.count(),
+      prisma.subscription.count()
     ])
 
-    // Schätze Datenbank-Größe (vereinfacht)
-    const estimatedSize = Math.round(
-      (totalUsers * 0.5 + 
-       totalExams * 0.1 + 
-       totalQuestions * 0.2 + 
-       totalAttempts * 0.3 + 
-       totalPurchases * 0.1 + 
-       totalDecks * 0.1) / 1024
-    )
+    // Schätze Datenbank-Größe (realistischer)
+    const estimatedSize = Math.max(1, Math.round(
+      (totalUsers * 2 +           // User-Daten: ~2KB pro User
+       totalExams * 0.5 +         // Exam-Daten: ~0.5KB pro Exam
+       totalQuestions * 1 +       // Question-Daten: ~1KB pro Question
+       totalAttempts * 0.8 +      // Attempt-Daten: ~0.8KB pro Attempt
+       totalPurchases * 0.2 +     // Purchase-Daten: ~0.2KB pro Purchase
+       totalDecks * 0.3 +         // Deck-Daten: ~0.3KB pro Deck
+       totalAnswers * 0.1 +       // Answer-Daten: ~0.1KB pro Answer
+       totalTags * 0.05 +         // Tag-Daten: ~0.05KB pro Tag
+       totalSubscriptions * 0.3   // Subscription-Daten: ~0.3KB pro Subscription
+      ) / 1024
+    ))
 
     return NextResponse.json({
       totalUsers,
@@ -49,6 +59,9 @@ export async function GET() {
       totalAttempts,
       totalPurchases,
       totalDecks,
+      totalAnswers,
+      totalTags,
+      totalSubscriptions,
       databaseSize: `${estimatedSize} MB`,
       lastCleanup: null // TODO: Implement cleanup tracking
     })

@@ -14,6 +14,9 @@ interface StorageInfo {
   totalAttempts: number
   totalPurchases: number
   totalDecks: number
+  totalAnswers: number
+  totalTags: number
+  totalSubscriptions: number
   databaseSize: string
   lastCleanup: string | null
 }
@@ -178,6 +181,57 @@ export default function StoragePage() {
           <CardContent>
             <p className="text-sm text-muted-foreground">
               Von Usern erstellte Prüfungsdecks
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              💬 Antworten
+              <Badge variant="outline">{storageInfo?.totalAnswers || 0}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Gespeicherte Antworten
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Alle User-Antworten in der Datenbank
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              🏷️ Tags
+              <Badge variant="outline">{storageInfo?.totalTags || 0}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Verfügbare Tags
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Alle verfügbaren Frage-Tags
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              👑 Abonnements
+              <Badge variant="outline">{storageInfo?.totalSubscriptions || 0}</Badge>
+            </CardTitle>
+            <CardDescription>
+              Aktive Abonnements
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Pro-Abonnements in der Datenbank
             </p>
           </CardContent>
         </Card>
