@@ -99,9 +99,9 @@ export async function POST(req: Request) {
       message: `Subscription synced for user ${user.email}`,
       subscription: {
         status: stripeSubscription.status,
-        currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
-        currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end
+        currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
+        currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
+        cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end
       }
     });
 
