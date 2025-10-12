@@ -19,6 +19,7 @@ export async function POST() {
       where: { email: session.user.email },
       select: { 
         id: true,
+        email: true,
         subscriptionStatus: true,
         subscription: {
           select: {
