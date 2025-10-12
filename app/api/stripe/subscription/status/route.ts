@@ -60,6 +60,14 @@ export async function GET() {
       daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
 
+    console.log("API Debug - User subscription data:", {
+      userId: user.id,
+      subscriptionStatus: user.subscriptionStatus,
+      subscription: user.subscription,
+      questionsRemaining,
+      isPro: user.subscriptionStatus === "pro"
+    });
+
     return NextResponse.json({ 
       ok: true,
       subscription: {

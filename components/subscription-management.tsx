@@ -39,14 +39,21 @@ export function SubscriptionManagement() {
 
   const fetchSubscriptionStatus = async () => {
     try {
+      console.log("Fetching subscription status...")
       const response = await fetch("/api/stripe/subscription/status", {
         credentials: "include"
       })
+      console.log("Response status:", response.status)
       const data = await response.json()
+      console.log("Full API response:", data)
       
       if (data.ok) {
-        console.log("Subscription data:", data.subscription)
+        console.log("Subscription data received:", data.subscription)
+        console.log("isPro:", data.subscription.isPro)
+        console.log("cancelAtPeriodEnd:", data.subscription.cancelAtPeriodEnd)
         setSubscription(data.subscription)
+      } else {
+        console.error("API returned error:", data.error)
       }
     } catch (error) {
       console.error("Failed to fetch subscription status:", error)
@@ -378,14 +385,16 @@ export function SubscriptionManagement() {
         )}
       </div>
 
-      {/* Debug Info - nur in Entwicklung */}
-      {process.env.NODE_ENV === 'development' && subscription && (
-        <div className="mt-4 p-4 bg-gray-100 rounded text-xs">
-          <strong>Debug Info:</strong><br />
+      {/* Debug Info - immer sichtbar für Debugging */}
+      {subscription && (
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-xs">
+          <strong>🔍 Debug Info:</strong><br />
           isPro: {subscription.isPro ? 'true' : 'false'}<br />
           cancelAtPeriodEnd: {subscription.cancelAtPeriodEnd ? 'true' : 'false'}<br />
           nextPaymentDate: {subscription.nextPaymentDate || 'null'}<br />
-          daysRemaining: {subscription.daysRemaining || 'null'}
+          daysRemaining: {subscription.daysRemaining || 'null'}<br />
+          questionsRemaining: {subscription.questionsRemaining}<br />
+          status: {subscription.status}
         </div>
       )}
 
