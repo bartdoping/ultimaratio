@@ -286,7 +286,7 @@ export function SubscriptionManagement() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {subscription.nextPaymentDate && (
+              {subscription.nextPaymentDate ? (
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">
                     {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
@@ -298,6 +298,10 @@ export function SubscriptionManagement() {
                       day: 'numeric'
                     })}
                   </span>
+                </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">
+                  <span className="text-green-600">✓</span> Pro-Status aktiv (Admin oder Test-User)
                 </div>
               )}
               
@@ -363,7 +367,7 @@ export function SubscriptionManagement() {
               >
                 {actionLoading ? "Wird reaktiviert..." : "🔄 Abonnement wiederherstellen"}
               </Button>
-            ) : (
+            ) : subscription.nextPaymentDate ? (
               <Button 
                 variant="destructive" 
                 onClick={handleCancel}
@@ -371,6 +375,10 @@ export function SubscriptionManagement() {
               >
                 {actionLoading ? "Wird gekündigt..." : "❌ Abonnement kündigen"}
               </Button>
+            ) : (
+              <div className="text-sm text-muted-foreground">
+                <span className="text-green-600">✓</span> Pro-Status aktiv (Admin oder Test-User)
+              </div>
             )}
           </div>
         ) : (
