@@ -315,6 +315,35 @@ export function SubscriptionManagement() {
         </Card>
       )}
 
+      {/* Kostenloser User Status */}
+      {!subscription.isPro && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>⚪</span>
+              Kostenloser Account
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              <div className="text-sm text-muted-foreground">
+                Du nutzt den kostenlosen Account mit 20 Fragen pro Tag.
+              </div>
+              {subscription.questionsRemaining >= 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">
+                    Fragen übrig heute:
+                  </span>
+                  <span className="font-medium">
+                    {subscription.questionsRemaining} von 20
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Actions */}
       <div className="flex gap-4">
         {subscription.isPro ? (
@@ -338,16 +367,14 @@ export function SubscriptionManagement() {
             )}
           </div>
         ) : (
-          // Nur "Upgraden" anzeigen, wenn User wirklich free ist UND nicht in einer gekündigten Periode
-          (!subscription?.cancelAtPeriodEnd) && (
-            <Button 
-              onClick={handleUpgrade}
-              disabled={actionLoading}
-              className="bg-green-600 hover:bg-green-700"
-            >
-              {actionLoading ? "Wird verarbeitet..." : "🚀 Jetzt upgraden - 9,99€/Monat"}
-            </Button>
-          )
+          // Nur "Upgraden" anzeigen für kostenlose User
+          <Button 
+            onClick={handleUpgrade}
+            disabled={actionLoading}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            {actionLoading ? "Wird verarbeitet..." : "🚀 Jetzt upgraden - 9,99€/Monat"}
+          </Button>
         )}
       </div>
 
