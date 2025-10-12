@@ -63,11 +63,25 @@ export async function GET() {
     // Für Pro-User ohne Abonnement-Details: Simuliere theoretische Periode
     let simulatedNextPayment = null;
     let simulatedPeriodStart = null;
+    let simulatedCancelAtPeriodEnd = false;
+    
     if (user.subscriptionStatus === "pro" && !user.subscription?.currentPeriodEnd) {
       // Simuliere 30-Tage-Periode ab heute
       const now = new Date();
       simulatedPeriodStart = new Date(now);
       simulatedNextPayment = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // +30 Tage
+      
+      // Prüfe ob User bereits "gekündigt" hat (simuliert)
+      // Für Test-User: Simuliere Kündigung nach 1 Tag
+      const oneDayAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      if (user.createdAt && new Date(user.createdAt) < oneDayAgo) {
+        // User ist älter als 1 Tag -> simuliere gekündigtes Abonnement
+        simulatedCancelAtPeriodEnd = true;
+        
+        // Berechne verbleibende Tage für simulierte gekündigte Abonnements
+        const diffTime = simulatedNextPayment.getTime() - now.getTime();
+        daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      }
     }
 
     console.log("API Debug - User subscription data:", {
@@ -88,7 +102,7 @@ export async function GET() {
         subscriptionDetails: user.subscription,
         // Abonnement-Daten (echte oder simulierte)
         nextPaymentDate: user.subscription?.currentPeriodEnd || simulatedNextPayment,
-        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
+        cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || simulatedCancelAtPeriodEnd,
         periodStart: user.subscription?.currentPeriodStart || simulatedPeriodStart,
         periodEnd: user.subscription?.currentPeriodEnd || simulatedNextPayment,
         daysRemaining: daysRemaining,

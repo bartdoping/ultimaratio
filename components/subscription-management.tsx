@@ -94,7 +94,11 @@ export function SubscriptionManagement() {
 
     setActionLoading(true)
     try {
-      const response = await fetch("/api/stripe/subscription/cancel", {
+      // Prüfe ob es ein simuliertes Abonnement ist
+      const isSimulated = subscription?.isSimulated
+      const endpoint = isSimulated ? "/api/stripe/subscription/simulate-cancel" : "/api/stripe/subscription/cancel"
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include"
@@ -102,7 +106,10 @@ export function SubscriptionManagement() {
       const data = await response.json()
       
       if (data.ok) {
-        alert("Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Periode.")
+        const message = isSimulated 
+          ? "Abonnement wurde simuliert gekündigt. (Test-Modus)"
+          : "Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Periode."
+        alert(message)
         fetchSubscriptionStatus()
       } else {
         console.error("Cancel failed:", data)
@@ -123,7 +130,11 @@ export function SubscriptionManagement() {
 
     setActionLoading(true)
     try {
-      const response = await fetch("/api/stripe/subscription/reactivate", {
+      // Prüfe ob es ein simuliertes Abonnement ist
+      const isSimulated = subscription?.isSimulated
+      const endpoint = isSimulated ? "/api/stripe/subscription/simulate-reactivate" : "/api/stripe/subscription/reactivate"
+      
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include"
@@ -131,7 +142,10 @@ export function SubscriptionManagement() {
       const data = await response.json()
       
       if (data.ok) {
-        alert("Abonnement wurde reaktiviert! Die automatische Verlängerung ist wieder aktiv.")
+        const message = isSimulated 
+          ? "Abonnement wurde simuliert reaktiviert! (Test-Modus)"
+          : "Abonnement wurde reaktiviert! Die automatische Verlängerung ist wieder aktiv."
+        alert(message)
         fetchSubscriptionStatus()
       } else {
         console.error("Reactivation failed:", data)
