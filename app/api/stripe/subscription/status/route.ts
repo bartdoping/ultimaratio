@@ -51,6 +51,15 @@ export async function GET() {
       ? -1 // Unbegrenzt für Pro-User
       : Math.max(0, 20 - (isNewDay ? 0 : user.dailyQuestionsUsed));
 
+    // Berechne verbleibende Tage für gekündigte Abonnements
+    let daysRemaining = null;
+    if (user.subscription?.cancelAtPeriodEnd && user.subscription?.currentPeriodEnd) {
+      const now = new Date();
+      const periodEnd = new Date(user.subscription.currentPeriodEnd);
+      const diffTime = periodEnd.getTime() - now.getTime();
+      daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+
     return NextResponse.json({ 
       ok: true,
       subscription: {
@@ -63,7 +72,8 @@ export async function GET() {
         nextPaymentDate: user.subscription?.currentPeriodEnd,
         cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
         periodStart: user.subscription?.currentPeriodStart,
-        periodEnd: user.subscription?.currentPeriodEnd
+        periodEnd: user.subscription?.currentPeriodEnd,
+        daysRemaining: daysRemaining
       }
     }, {
       headers: {

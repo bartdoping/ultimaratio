@@ -24,6 +24,7 @@ interface SubscriptionData {
   cancelAtPeriodEnd?: boolean
   periodStart?: string
   periodEnd?: string
+  daysRemaining?: number | null
 }
 
 export function SubscriptionManagement() {
@@ -292,18 +293,22 @@ export function SubscriptionManagement() {
                 </div>
               )}
               
-              {subscription.cancelAtPeriodEnd && (
-                <Alert>
-                  <AlertDescription>
-                    <strong>⚠️ Abonnement gekündigt</strong><br />
-                    Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}. Du kannst die Kündigung jederzeit rückgängig machen.
-                  </AlertDescription>
-                </Alert>
-              )}
+                     {subscription.cancelAtPeriodEnd && (
+                       <Alert>
+                         <AlertDescription>
+                           <strong>⚠️ Abonnement gekündigt</strong><br />
+                           Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
+                             year: 'numeric',
+                             month: 'long',
+                             day: 'numeric'
+                           })}. 
+                           {subscription.daysRemaining !== null && subscription.daysRemaining > 0 && (
+                             <><br /><strong>Noch {subscription.daysRemaining} Tage übrig</strong></>
+                           )}
+                           <br />Du kannst die Kündigung jederzeit rückgängig machen.
+                         </AlertDescription>
+                       </Alert>
+                     )}
             </div>
           </CardContent>
         </Card>
