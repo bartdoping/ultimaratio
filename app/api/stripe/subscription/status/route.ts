@@ -60,6 +60,16 @@ export async function GET() {
       daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
     }
 
+    // Für Pro-User ohne Abonnement-Details: Simuliere theoretische Periode
+    let simulatedNextPayment = null;
+    let simulatedPeriodStart = null;
+    if (user.subscriptionStatus === "pro" && !user.subscription?.currentPeriodEnd) {
+      // Simuliere 30-Tage-Periode ab heute
+      const now = new Date();
+      simulatedPeriodStart = new Date(now);
+      simulatedNextPayment = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000)); // +30 Tage
+    }
+
     console.log("API Debug - User subscription data:", {
       userId: user.id,
       subscriptionStatus: user.subscriptionStatus,
@@ -76,12 +86,14 @@ export async function GET() {
         questionsRemaining,
         dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
         subscriptionDetails: user.subscription,
-        // Abonnement-Daten
-        nextPaymentDate: user.subscription?.currentPeriodEnd,
+        // Abonnement-Daten (echte oder simulierte)
+        nextPaymentDate: user.subscription?.currentPeriodEnd || simulatedNextPayment,
         cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd || false,
-        periodStart: user.subscription?.currentPeriodStart,
-        periodEnd: user.subscription?.currentPeriodEnd,
-        daysRemaining: daysRemaining
+        periodStart: user.subscription?.currentPeriodStart || simulatedPeriodStart,
+        periodEnd: user.subscription?.currentPeriodEnd || simulatedNextPayment,
+        daysRemaining: daysRemaining,
+        // Zusätzliche Info für simulierte Abonnements
+        isSimulated: !user.subscription?.currentPeriodEnd && user.subscriptionStatus === "pro"
       }
     }, {
       headers: {

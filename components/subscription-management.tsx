@@ -25,6 +25,7 @@ interface SubscriptionData {
   periodStart?: string
   periodEnd?: string
   daysRemaining?: number | null
+  isSimulated?: boolean
 }
 
 export function SubscriptionManagement() {
@@ -287,17 +288,38 @@ export function SubscriptionManagement() {
           <CardContent>
             <div className="space-y-3">
               {subscription.nextPaymentDate ? (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
-                    {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
-                  </span>
-                  <span className="font-medium">
-                    {new Date(subscription.nextPaymentDate).toLocaleDateString('de-DE', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}
-                  </span>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">
+                      {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
+                    </span>
+                    <span className="font-medium">
+                      {new Date(subscription.nextPaymentDate).toLocaleDateString('de-DE', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </div>
+                  {subscription.periodStart && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-muted-foreground">
+                        Laufperiode von:
+                      </span>
+                      <span className="font-medium">
+                        {new Date(subscription.periodStart).toLocaleDateString('de-DE', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </span>
+                    </div>
+                  )}
+                  {subscription.isSimulated && (
+                    <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                      ℹ️ Theoretische Abonnement-Periode (Admin/Test-User)
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground">
@@ -400,6 +422,8 @@ export function SubscriptionManagement() {
           isPro: {subscription.isPro ? 'true' : 'false'}<br />
           cancelAtPeriodEnd: {subscription.cancelAtPeriodEnd ? 'true' : 'false'}<br />
           nextPaymentDate: {subscription.nextPaymentDate || 'null'}<br />
+          periodStart: {subscription.periodStart || 'null'}<br />
+          isSimulated: {subscription.isSimulated ? 'true' : 'false'}<br />
           daysRemaining: {subscription.daysRemaining || 'null'}<br />
           questionsRemaining: {subscription.questionsRemaining}<br />
           status: {subscription.status}
