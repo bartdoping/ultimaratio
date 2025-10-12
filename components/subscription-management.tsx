@@ -45,6 +45,7 @@ export function SubscriptionManagement() {
       const data = await response.json()
       
       if (data.ok) {
+        console.log("Subscription data:", data.subscription)
         setSubscription(data.subscription)
       }
     } catch (error) {
@@ -267,7 +268,7 @@ export function SubscriptionManagement() {
         </CardContent>
       </Card>
 
-      {/* Abonnement-Status */}
+      {/* Abonnement-Status - nur für Pro-User anzeigen */}
       {subscription.isPro && (
         <Card>
           <CardHeader>
@@ -293,22 +294,22 @@ export function SubscriptionManagement() {
                 </div>
               )}
               
-                     {subscription.cancelAtPeriodEnd && (
-                       <Alert>
-                         <AlertDescription>
-                           <strong>⚠️ Abonnement gekündigt</strong><br />
-                           Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
-                             year: 'numeric',
-                             month: 'long',
-                             day: 'numeric'
-                           })}. 
-                           {subscription.daysRemaining !== null && subscription.daysRemaining !== undefined && subscription.daysRemaining > 0 && (
-                             <><br /><strong>Noch {subscription.daysRemaining} Tage übrig</strong></>
-                           )}
-                           <br />Du kannst die Kündigung jederzeit rückgängig machen.
-                         </AlertDescription>
-                       </Alert>
-                     )}
+              {subscription.cancelAtPeriodEnd && (
+                <Alert>
+                  <AlertDescription>
+                    <strong>⚠️ Abonnement gekündigt</strong><br />
+                    Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}. 
+                    {subscription.daysRemaining !== null && subscription.daysRemaining !== undefined && subscription.daysRemaining > 0 && (
+                      <><br /><strong>Noch {subscription.daysRemaining} Tage übrig</strong></>
+                    )}
+                    <br />Du kannst die Kündigung jederzeit rückgängig machen.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -324,7 +325,7 @@ export function SubscriptionManagement() {
                 disabled={actionLoading}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {actionLoading ? "Wird reaktiviert..." : "Abonnement wiederherstellen"}
+                {actionLoading ? "Wird reaktiviert..." : "🔄 Abonnement wiederherstellen"}
               </Button>
             ) : (
               <Button 
@@ -332,7 +333,7 @@ export function SubscriptionManagement() {
                 onClick={handleCancel}
                 disabled={actionLoading}
               >
-                {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
+                {actionLoading ? "Wird gekündigt..." : "❌ Abonnement kündigen"}
               </Button>
             )}
           </div>
@@ -344,11 +345,22 @@ export function SubscriptionManagement() {
               disabled={actionLoading}
               className="bg-green-600 hover:bg-green-700"
             >
-              {actionLoading ? "Wird verarbeitet..." : "Jetzt upgraden - 9,99€/Monat"}
+              {actionLoading ? "Wird verarbeitet..." : "🚀 Jetzt upgraden - 9,99€/Monat"}
             </Button>
           )
         )}
       </div>
+
+      {/* Debug Info - nur in Entwicklung */}
+      {process.env.NODE_ENV === 'development' && subscription && (
+        <div className="mt-4 p-4 bg-gray-100 rounded text-xs">
+          <strong>Debug Info:</strong><br />
+          isPro: {subscription.isPro ? 'true' : 'false'}<br />
+          cancelAtPeriodEnd: {subscription.cancelAtPeriodEnd ? 'true' : 'false'}<br />
+          nextPaymentDate: {subscription.nextPaymentDate || 'null'}<br />
+          daysRemaining: {subscription.daysRemaining || 'null'}
+        </div>
+      )}
 
       {/* Info */}
       <Alert>
