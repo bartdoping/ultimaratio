@@ -4,6 +4,7 @@ import { useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { DeleteAccountButton } from "@/components/account/delete-account-button"
 
 type User = {
   id: string
@@ -282,6 +283,9 @@ export default function AccountClient({
           </div>
         )}
       </section>
+
+      {/* Account löschen */}
+      <DeleteAccountButton />
     </div>
   )
 }
