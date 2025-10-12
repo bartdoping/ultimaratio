@@ -29,6 +29,7 @@ export async function GET() {
         subscriptionStatus: true,
         dailyQuestionsUsed: true,
         lastQuestionResetAt: true,
+        createdAt: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
