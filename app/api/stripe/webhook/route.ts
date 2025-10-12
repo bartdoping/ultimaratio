@@ -47,21 +47,35 @@ export async function POST(req: Request) {
         
         // Auch Subscription-Tabelle aktualisieren falls vorhanden
         try {
-          await prisma.subscription.upsert({
-            where: { userId },
-            create: {
-              userId,
-              stripeCustomerId: s.customer,
-              status: "pro",
-              createdAt: new Date()
-            },
-            update: {
-              status: "pro"
-            }
-          });
+          // Hole die aktuelle Subscription von Stripe für korrekte Daten
+          if (s.subscription) {
+            const stripeSubscription = await stripe.subscriptions.retrieve(s.subscription as string);
+            
+            await prisma.subscription.upsert({
+              where: { userId },
+              create: {
+                userId,
+                stripeSubscriptionId: stripeSubscription.id,
+                stripeCustomerId: stripeSubscription.customer as string,
+                status: "pro",
+                currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+                createdAt: new Date()
+              },
+              update: {
+                stripeSubscriptionId: stripeSubscription.id,
+                stripeCustomerId: stripeSubscription.customer as string,
+                status: "pro",
+                currentPeriodStart: new Date(stripeSubscription.current_period_start * 1000),
+                currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+                cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+              }
+            });
+            console.log("Subscription table updated with correct data for checkout.session.completed:", userId);
+          }
         } catch (subError) {
-          console.error("Subscription table update failed:", subError);
-          // Continue - user is already pro
+          console.error("Error updating subscription table on checkout.session.completed:", subError);
         }
         
         console.log("User upgraded to pro:", userId);

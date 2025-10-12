@@ -337,13 +337,16 @@ export function SubscriptionManagement() {
             )}
           </div>
         ) : (
-          <Button 
-            onClick={handleUpgrade}
-            disabled={actionLoading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {actionLoading ? "Wird verarbeitet..." : "Jetzt upgraden - 9,99€/Monat"}
-          </Button>
+          // Nur "Upgraden" anzeigen, wenn User wirklich free ist UND nicht in einer gekündigten Periode
+          (!subscription?.cancelAtPeriodEnd) && (
+            <Button 
+              onClick={handleUpgrade}
+              disabled={actionLoading}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {actionLoading ? "Wird verarbeitet..." : "Jetzt upgraden - 9,99€/Monat"}
+            </Button>
+          )
         )}
       </div>
 
