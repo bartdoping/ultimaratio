@@ -23,6 +23,15 @@ export async function GET() {
         role: true,
         emailVerifiedAt: true,
         createdAt: true,
+        subscriptionStatus: true,
+        subscription: {
+          select: {
+            status: true,
+            currentPeriodEnd: true,
+            cancelAtPeriodEnd: true,
+            stripeSubscriptionId: true
+          }
+        },
         _count: {
           select: {
             attempts: true,

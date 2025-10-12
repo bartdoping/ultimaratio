@@ -14,6 +14,13 @@ type User = {
   role: "user" | "admin"
   emailVerifiedAt: string | null
   createdAt: string
+  subscriptionStatus: "free" | "pro"
+  subscription?: {
+    status: string
+    currentPeriodEnd: string | null
+    cancelAtPeriodEnd: boolean
+    stripeSubscriptionId: string | null
+  } | null
   _count: {
     attempts: number
     purchases: number
@@ -150,9 +157,37 @@ export default function UsersList() {
                     <span>•</span>
                     <span>Versuche: {user._count.attempts}</span>
                     <span>•</span>
-                    <span>Käufe: {user._count.purchases}</span>
-                    <span>•</span>
                     <span>Decks: {user._count.decks}</span>
+                  </div>
+                  
+                  {/* Abonnement-Status */}
+                  <div className="mb-2">
+                    {user.subscriptionStatus === "pro" ? (
+                      <div className="flex items-center gap-2">
+                        <Badge variant="default" className="bg-green-600 hover:bg-green-700">
+                          <span className="mr-1">👑</span>
+                          Pro-User
+                        </Badge>
+                        {user.subscription?.currentPeriodEnd && (
+                          <span className="text-xs text-muted-foreground">
+                            Nächste Abbuchung: {new Date(user.subscription.currentPeriodEnd).toLocaleDateString("de-DE", {
+                              year: "numeric",
+                              month: "long",
+                              day: "numeric"
+                            })}
+                          </span>
+                        )}
+                        {user.subscription?.cancelAtPeriodEnd && (
+                          <Badge variant="outline" className="text-orange-600">
+                            Gekündigt
+                          </Badge>
+                        )}
+                      </div>
+                    ) : (
+                      <Badge variant="secondary">
+                        Kostenlos
+                      </Badge>
+                    )}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     <span className="font-mono bg-gray-100 px-2 py-1 rounded">ID: {user.id}</span>
