@@ -92,11 +92,36 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
       }, { capture: true })
 
       // Verhindere alle Shortcuts
+      let lastKeyTime = 0
+      let lastKeyCombo = ''
+      
       document.addEventListener('keydown', (e) => {
+        const now = Date.now()
+        const keyCombo = `${e.ctrlKey ? 'ctrl+' : ''}${e.altKey ? 'alt+' : ''}${e.shiftKey ? 'shift+' : ''}${e.metaKey ? 'meta+' : ''}${e.key}`
+        
+        // Verhindere mehrfache Popups für dieselbe Kombination
+        if (now - lastKeyTime < 1000 && lastKeyCombo === keyCombo) {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Nur bei echten Tastenkombinationen reagieren (nicht bei einzelnen Modifier-Tasten)
+        const isSingleModifier = (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key === 'Control') ||
+                                (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && e.key === 'Alt') ||
+                                (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Shift') ||
+                                (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.key === 'Meta')
+        
+        if (isSingleModifier) {
+          return // Ignoriere einzelne Modifier-Tasten
+        }
+        
         // Alle Ctrl/Alt/Cmd Kombinationen blockieren
         if (e.ctrlKey || e.altKey || e.metaKey) {
           e.preventDefault()
-          alert('⚠️ ACHTUNG: Tastenkombinationen sind während der Prüfung nicht erlaubt!')
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
       }, { capture: true })

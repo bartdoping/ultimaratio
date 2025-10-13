@@ -93,11 +93,37 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
       }, { capture: true })
 
       // Verhindere F12, Ctrl+Shift+I, Ctrl+U, etc.
+      let lastKeyTime = 0
+      let lastKeyCombo = ''
+      
       document.addEventListener('keydown', (e) => {
+        const now = Date.now()
+        const keyCombo = `${e.ctrlKey ? 'ctrl+' : ''}${e.altKey ? 'alt+' : ''}${e.shiftKey ? 'shift+' : ''}${e.metaKey ? 'meta+' : ''}${e.key}`
+        
+        // Verhindere mehrfache Popups für dieselbe Kombination
+        if (now - lastKeyTime < 1000 && lastKeyCombo === keyCombo) {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Nur bei echten Tastenkombinationen reagieren (nicht bei einzelnen Modifier-Tasten)
+        const hasModifier = e.ctrlKey || e.altKey || e.shiftKey || e.metaKey
+        const isSingleModifier = (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key === 'Control') ||
+                                (e.altKey && !e.ctrlKey && !e.shiftKey && !e.metaKey && e.key === 'Alt') ||
+                                (e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey && e.key === 'Shift') ||
+                                (e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.key === 'Meta')
+        
+        if (isSingleModifier) {
+          return // Ignoriere einzelne Modifier-Tasten
+        }
+        
         // F12
         if (e.key === 'F12') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -105,6 +131,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.shiftKey && e.key === 'I') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -112,6 +140,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 'u') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -119,6 +149,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 's') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -126,6 +158,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 'a') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -133,6 +167,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 'c') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -140,6 +176,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 'v') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -147,6 +185,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.ctrlKey && e.key === 'x') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -154,6 +194,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.key === 'PrintScreen') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
         
@@ -161,6 +203,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         if (e.altKey && e.key === 'PrintScreen') {
           e.preventDefault()
           e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
           return false
         }
       }, { capture: true })
