@@ -258,13 +258,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         WebkitUserSelect: 'none',
         MozUserSelect: 'none',
         msUserSelect: 'none',
-        WebkitTouchCallout: 'none',
-        WebkitUserDrag: 'none',
-        KhtmlUserDrag: 'none',
-        MozUserDrag: 'none',
-        OUserDrag: 'none',
-        userDrag: 'none'
-      }}
+        WebkitTouchCallout: 'none'
+      } as React.CSSProperties}
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
       onSelectStart={(e) => e.preventDefault()}
