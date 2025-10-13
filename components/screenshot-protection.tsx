@@ -1,0 +1,275 @@
+"use client"
+
+import { useEffect, useState } from "react"
+import { useSession } from "next-auth/react"
+
+interface ScreenshotProtectionProps {
+  children: React.ReactNode
+}
+
+export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
+  const { data: session } = useSession()
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    // Prüfe ob User Admin ist
+    const adminEmails = ["info@ultima-rat.io", "admin@fragenkreuzen.de"]
+    const isAdminUser = session?.user?.email && adminEmails.includes(session.user.email)
+    setIsAdmin(!!isAdminUser)
+
+    // Nur für Non-Admin-User: Screenshot-Schutz aktivieren
+    if (!isAdminUser) {
+      enableScreenshotProtection()
+    }
+  }, [session])
+
+  const enableScreenshotProtection = () => {
+    // 1. CSS-basierte Schutzmaßnahmen
+    const style = document.createElement('style')
+    style.textContent = `
+      /* Verhindere Screenshots durch CSS */
+      body {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+      }
+      
+      /* Verhindere Kontextmenü */
+      * {
+        -webkit-context-menu: none !important;
+        -moz-context-menu: none !important;
+        context-menu: none !important;
+      }
+      
+      /* Verhindere Drag & Drop */
+      * {
+        -webkit-user-drag: none !important;
+        -khtml-user-drag: none !important;
+        -moz-user-drag: none !important;
+        -o-user-drag: none !important;
+        user-drag: none !important;
+      }
+      
+      /* Verhindere Textauswahl */
+      * {
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+      
+      /* Verhindere Bildspeicherung */
+      img {
+        -webkit-user-drag: none !important;
+        -khtml-user-drag: none !important;
+        -moz-user-drag: none !important;
+        -o-user-drag: none !important;
+        user-drag: none !important;
+        pointer-events: none !important;
+      }
+      
+      /* Verhindere Rechtsklick */
+      * {
+        -webkit-touch-callout: none !important;
+        -webkit-user-select: none !important;
+        -khtml-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+        user-select: none !important;
+      }
+    `
+    document.head.appendChild(style)
+
+    // 2. JavaScript-basierte Schutzmaßnahmen
+    const preventScreenshot = () => {
+      // Verhindere Rechtsklick
+      document.addEventListener('contextmenu', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        return false
+      }, { capture: true })
+
+      // Verhindere F12, Ctrl+Shift+I, Ctrl+U, etc.
+      document.addEventListener('keydown', (e) => {
+        // F12
+        if (e.key === 'F12') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+Shift+I (Developer Tools)
+        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+U (View Source)
+        if (e.ctrlKey && e.key === 'u') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+S (Save)
+        if (e.ctrlKey && e.key === 's') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+A (Select All)
+        if (e.ctrlKey && e.key === 'a') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+C (Copy)
+        if (e.ctrlKey && e.key === 'c') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+V (Paste)
+        if (e.ctrlKey && e.key === 'v') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Ctrl+X (Cut)
+        if (e.ctrlKey && e.key === 'x') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Print Screen
+        if (e.key === 'PrintScreen') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+        
+        // Alt+Print Screen
+        if (e.altKey && e.key === 'PrintScreen') {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+      }, { capture: true })
+
+      // Verhindere Textauswahl
+      document.addEventListener('selectstart', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        return false
+      }, { capture: true })
+
+      // Verhindere Drag & Drop
+      document.addEventListener('dragstart', (e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        return false
+      }, { capture: true })
+
+      // Verhindere Bildspeicherung
+      document.addEventListener('dragstart', (e) => {
+        if (e.target instanceof HTMLImageElement) {
+          e.preventDefault()
+          e.stopPropagation()
+          return false
+        }
+      }, { capture: true })
+
+      // Verhindere Screenshot-Apps (Android/iOS)
+      if (navigator.userAgent.includes('Mobile')) {
+        // Verhindere Screenshot auf mobilen Geräten
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            // Seite ist versteckt - möglicherweise Screenshot
+            document.body.style.display = 'none'
+            setTimeout(() => {
+              document.body.style.display = 'block'
+            }, 100)
+          }
+        })
+      }
+
+      // Verhindere Developer Tools
+      let devtools = false
+      const threshold = 160
+      
+      setInterval(() => {
+        if (window.outerHeight - window.innerHeight > threshold || 
+            window.outerWidth - window.innerWidth > threshold) {
+          if (!devtools) {
+            devtools = true
+            // Developer Tools erkannt - Seite neu laden
+            window.location.reload()
+          }
+        } else {
+          devtools = false
+        }
+      }, 500)
+
+      // Verhindere Screenshot durch Canvas-Manipulation
+      const originalToDataURL = HTMLCanvasElement.prototype.toDataURL
+      HTMLCanvasElement.prototype.toDataURL = function() {
+        return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='
+      }
+
+      // Verhindere Screenshot durch getImageData
+      const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData
+      CanvasRenderingContext2D.prototype.getImageData = function() {
+        return new ImageData(new Uint8ClampedArray(4), 1, 1)
+      }
+    }
+
+    // Schutz aktivieren
+    preventScreenshot()
+
+    // Cleanup-Funktion
+    return () => {
+      // Entferne Event Listener beim Unmount
+      document.removeEventListener('contextmenu', preventScreenshot)
+      document.removeEventListener('keydown', preventScreenshot)
+      document.removeEventListener('selectstart', preventScreenshot)
+      document.removeEventListener('dragstart', preventScreenshot)
+    }
+  }
+
+  // Für Admins: Kein Schutz
+  if (isAdmin) {
+    return <>{children}</>
+  }
+
+  // Für Non-Admin-User: Schutz aktiviert
+  return (
+    <div 
+      style={{
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        MozUserSelect: 'none',
+        msUserSelect: 'none',
+        WebkitTouchCallout: 'none',
+        WebkitUserDrag: 'none',
+        KhtmlUserDrag: 'none',
+        MozUserDrag: 'none',
+        OUserDrag: 'none',
+        userDrag: 'none'
+      }}
+      onContextMenu={(e) => e.preventDefault()}
+      onDragStart={(e) => e.preventDefault()}
+      onSelectStart={(e) => e.preventDefault()}
+    >
+      {children}
+    </div>
+  )
+}

@@ -1,0 +1,415 @@
+/* Screenshot- und Screenrecording-Schutz */
+
+/* Verhindere Textauswahl */
+* {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Verhindere Kontextmenü */
+* {
+  -webkit-context-menu: none !important;
+  -moz-context-menu: none !important;
+  context-menu: none !important;
+}
+
+/* Verhindere Drag & Drop */
+* {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Verhindere Bildspeicherung */
+img {
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+  pointer-events: none !important;
+}
+
+/* Verhindere Rechtsklick */
+* {
+  -webkit-touch-callout: none !important;
+  -webkit-user-select: none !important;
+  -khtml-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Tricks */
+body {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+/* Verhindere Screenshot auf mobilen Geräten */
+@media (max-width: 768px) {
+  body {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    -webkit-touch-callout: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+}
+
+/* Verhindere Screenshot durch Canvas-Manipulation */
+canvas {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Verhindere Screenshot durch Video-Elemente */
+video {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Verhindere Screenshot durch iframe */
+iframe {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Verhindere Screenshot durch SVG */
+svg {
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  user-select: none !important;
+  -webkit-user-drag: none !important;
+  -khtml-user-drag: none !important;
+  -moz-user-drag: none !important;
+  -o-user-drag: none !important;
+  user-drag: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Animationen */
+@keyframes screenshot-protection {
+  0% { opacity: 1; }
+  50% { opacity: 0.8; }
+  100% { opacity: 1; }
+}
+
+.screenshot-protected {
+  animation: screenshot-protection 0.1s infinite;
+}
+
+/* Verhindere Screenshot durch CSS-Filter */
+.screenshot-protected * {
+  filter: blur(0px) !important;
+  -webkit-filter: blur(0px) !important;
+}
+
+/* Verhindere Screenshot durch CSS-Transform */
+.screenshot-protected {
+  transform: translateZ(0) !important;
+  -webkit-transform: translateZ(0) !important;
+}
+
+/* Verhindere Screenshot durch CSS-Overflow */
+.screenshot-protected {
+  overflow: hidden !important;
+}
+
+/* Verhindere Screenshot durch CSS-Position */
+.screenshot-protected {
+  position: relative !important;
+}
+
+/* Verhindere Screenshot durch CSS-Z-Index */
+.screenshot-protected {
+  z-index: 999999 !important;
+}
+
+/* Verhindere Screenshot durch CSS-Background */
+.screenshot-protected {
+  background: transparent !important;
+}
+
+/* Verhindere Screenshot durch CSS-Border */
+.screenshot-protected {
+  border: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Box-Shadow */
+.screenshot-protected {
+  box-shadow: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Shadow */
+.screenshot-protected {
+  text-shadow: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Outline */
+.screenshot-protected {
+  outline: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Cursor */
+.screenshot-protected {
+  cursor: default !important;
+}
+
+/* Verhindere Screenshot durch CSS-Pointer-Events */
+.screenshot-protected {
+  pointer-events: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Visibility */
+.screenshot-protected {
+  visibility: visible !important;
+}
+
+/* Verhindere Screenshot durch CSS-Display */
+.screenshot-protected {
+  display: block !important;
+}
+
+/* Verhindere Screenshot durch CSS-Float */
+.screenshot-protected {
+  float: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Clear */
+.screenshot-protected {
+  clear: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Vertical-Align */
+.screenshot-protected {
+  vertical-align: baseline !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Align */
+.screenshot-protected {
+  text-align: left !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Decoration */
+.screenshot-protected {
+  text-decoration: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Transform */
+.screenshot-protected {
+  text-transform: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Indent */
+.screenshot-protected {
+  text-indent: 0 !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Overflow */
+.screenshot-protected {
+  text-overflow: clip !important;
+}
+
+/* Verhindere Screenshot durch CSS-Text-Overflow */
+.screenshot-protected {
+  text-overflow: clip !important;
+}
+
+/* Verhindere Screenshot durch CSS-White-Space */
+.screenshot-protected {
+  white-space: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Word-Spacing */
+.screenshot-protected {
+  word-spacing: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Letter-Spacing */
+.screenshot-protected {
+  letter-spacing: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Line-Height */
+.screenshot-protected {
+  line-height: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Size */
+.screenshot-protected {
+  font-size: inherit !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Family */
+.screenshot-protected {
+  font-family: inherit !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Weight */
+.screenshot-protected {
+  font-weight: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Style */
+.screenshot-protected {
+  font-style: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Variant */
+.screenshot-protected {
+  font-variant: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Stretch */
+.screenshot-protected {
+  font-stretch: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Size-Adjust */
+.screenshot-protected {
+  font-size-adjust: none !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Smooth */
+.screenshot-protected {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Feature-Settings */
+.screenshot-protected {
+  font-feature-settings: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Language-Override */
+.screenshot-protected {
+  font-language-override: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Optical-Sizing */
+.screenshot-protected {
+  font-optical-sizing: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Palette */
+.screenshot-protected {
+  font-palette: normal !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis */
+.screenshot-protected {
+  font-synthesis: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Weight */
+.screenshot-protected {
+  font-synthesis-weight: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Style */
+.screenshot-protected {
+  font-synthesis-style: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Small-Caps */
+.screenshot-protected {
+  font-synthesis-small-caps: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Emoji */
+.screenshot-protected {
+  font-synthesis-emoji: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Math */
+.screenshot-protected {
+  font-synthesis-math: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Character-Variant */
+.screenshot-protected {
+  font-synthesis-character-variant: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Position */
+.screenshot-protected {
+  font-synthesis-position: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Size */
+.screenshot-protected {
+  font-synthesis-size: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Weight */
+.screenshot-protected {
+  font-synthesis-weight: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Style */
+.screenshot-protected {
+  font-synthesis-style: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Small-Caps */
+.screenshot-protected {
+  font-synthesis-small-caps: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Emoji */
+.screenshot-protected {
+  font-synthesis-emoji: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Math */
+.screenshot-protected {
+  font-synthesis-math: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Character-Variant */
+.screenshot-protected {
+  font-synthesis-character-variant: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Position */
+.screenshot-protected {
+  font-synthesis-position: auto !important;
+}
+
+/* Verhindere Screenshot durch CSS-Font-Synthesis-Size */
+.screenshot-protected {
+  font-synthesis-size: auto !important;
+}

@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import FilteredExamRunner from "@/components/filtered-exam-runner"
+import { ExamProtection } from "@/components/exam-protection"
 
 type Props = { params: Promise<{ attemptId: string }> }
 
@@ -94,16 +95,18 @@ export default async function ExamRunPage({ params }: Props) {
   }))
 
   return (
-    <div className="max-w-5xl mx-auto">
-      <FilteredExamRunner
-        attemptId={attempt.id}
-        examId={exam.id}
-        passPercent={exam.passPercent}
-        allowImmediateFeedback={exam.allowImmediateFeedback}
-        allQuestions={questions}
-        initialAnswers={initialAnswers}
-        initialElapsedSec={attempt.elapsedSec ?? 0}  // Fortsetzen ohne Zeitverlust
-      />
-    </div>
+    <ExamProtection examMode={true}>
+      <div className="max-w-5xl mx-auto">
+        <FilteredExamRunner
+          attemptId={attempt.id}
+          examId={exam.id}
+          passPercent={exam.passPercent}
+          allowImmediateFeedback={exam.allowImmediateFeedback}
+          allQuestions={questions}
+          initialAnswers={initialAnswers}
+          initialElapsedSec={attempt.elapsedSec ?? 0}  // Fortsetzen ohne Zeitverlust
+        />
+      </div>
+    </ExamProtection>
   )
 }
