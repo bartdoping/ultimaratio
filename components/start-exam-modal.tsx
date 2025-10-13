@@ -34,11 +34,7 @@ export default function StartExamModal({
   } | null>(null)
 
   const handlePreview = async () => {
-    if (selectedTagIds.length === 0 && selectedSuperTagIds.length === 0) {
-      setError("Bitte wähle mindestens einen Tag oder Supertag aus")
-      return
-    }
-
+    // Erlaube Preview auch ohne Tag-Auswahl (zeigt alle verfügbaren Fragen)
     try {
       setPreviewLoading(true)
       setError(null)
@@ -173,17 +169,25 @@ export default function StartExamModal({
                 )}
 
                 {/* Tag-Picker */}
-                <TagPicker
-                  value={selectedTagIds}
-                  onChange={setSelectedTagIds}
-                  superTagIds={selectedSuperTagIds}
-                  onSuperTagChange={setSelectedSuperTagIds}
-                  requireAnd={requireAnd}
-                  onRequireAndChange={setRequireAnd}
-                  showLogicToggle={true}
-                  showSearch={true}
-                  examId={examId}
-                />
+                <div className="space-y-2">
+                  <div className="text-sm font-medium">
+                    Tags auswählen (optional)
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Wähle Tags aus, um Fragen zu filtern. Ohne Auswahl werden zufällige Fragen aus allen verfügbaren Fragen gewählt.
+                  </div>
+                  <TagPicker
+                    value={selectedTagIds}
+                    onChange={setSelectedTagIds}
+                    superTagIds={selectedSuperTagIds}
+                    onSuperTagChange={setSelectedSuperTagIds}
+                    requireAnd={requireAnd}
+                    onRequireAndChange={setRequireAnd}
+                    showLogicToggle={true}
+                    showSearch={true}
+                    examId={examId}
+                  />
+                </div>
 
                 {/* Zusätzliche Optionen */}
                 <div className="space-y-4">
@@ -229,6 +233,16 @@ export default function StartExamModal({
                     <div className="text-sm font-medium text-blue-800">
                       Verfügbare Fragen: {preview.total}
                     </div>
+                    {selectedTagIds.length === 0 && selectedSuperTagIds.length === 0 && (
+                      <div className="text-xs text-blue-700">
+                        📋 Alle verfügbaren Fragen werden verwendet (keine Tag-Filterung)
+                      </div>
+                    )}
+                    {selectedTagIds.length > 0 && selectedSuperTagIds.length > 0 && (
+                      <div className="text-xs text-blue-700">
+                        🏷️ Fragen werden nach ausgewählten Tags gefiltert
+                      </div>
+                    )}
                     {typeof limit === "number" && limit > 0 && (
                       <div className="text-xs text-blue-700">
                         Es werden {Math.min(limit, preview.total)} Fragen verwendet
@@ -250,14 +264,14 @@ export default function StartExamModal({
                 <div className="flex gap-2">
                   <Button
                     onClick={handlePreview}
-                    disabled={previewLoading || (selectedTagIds.length === 0 && selectedSuperTagIds.length === 0)}
+                    disabled={previewLoading}
                     variant="outline"
                   >
                     {previewLoading ? "Lade..." : "Vorschau"}
                   </Button>
                   <Button
                     onClick={handleStart}
-                    disabled={loading || (selectedTagIds.length === 0 && selectedSuperTagIds.length === 0)}
+                    disabled={loading}
                   >
                     {loading ? "Starte..." : "Prüfung starten"}
                   </Button>
