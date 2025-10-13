@@ -262,7 +262,6 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
       } as React.CSSProperties}
       onContextMenu={(e) => e.preventDefault()}
       onDragStart={(e) => e.preventDefault()}
-      onSelectStart={(e) => e.preventDefault()}
     >
       {children}
     </div>
