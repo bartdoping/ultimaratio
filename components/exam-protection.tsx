@@ -25,45 +25,11 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
   const enableExamProtection = () => {
     // Erweiterte Schutzmaßnahmen für Prüfungen
     const examProtection = () => {
-      // Verhindere Tab-Wechsel während Prüfung
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
-          // Tab gewechselt - Warnung anzeigen
-          alert('⚠️ ACHTUNG: Tab-Wechsel während der Prüfung ist nicht erlaubt!')
-          // Seite neu laden
-          window.location.reload()
-        }
-      })
+      // Tab-Wechsel-Verhinderung entfernt
 
-      // Verhindere Alt+Tab (Windows) / Cmd+Tab (Mac)
-      document.addEventListener('keydown', (e) => {
-        if (e.altKey && e.key === 'Tab') {
-          e.preventDefault()
-          alert('⚠️ ACHTUNG: Alt+Tab ist während der Prüfung nicht erlaubt!')
-          return false
-        }
-        if (e.metaKey && e.key === 'Tab') {
-          e.preventDefault()
-          alert('⚠️ ACHTUNG: Cmd+Tab ist während der Prüfung nicht erlaubt!')
-          return false
-        }
-      })
+      // Alt+Tab / Cmd+Tab Verhinderung entfernt
 
-      // Verhindere Window-Focus-Verlust
-      let focusLost = false
-      window.addEventListener('blur', () => {
-        focusLost = true
-        setTimeout(() => {
-          if (focusLost) {
-            alert('⚠️ ACHTUNG: Fokus-Verlust während der Prüfung ist nicht erlaubt!')
-            window.location.reload()
-          }
-        }, 1000)
-      })
-
-      window.addEventListener('focus', () => {
-        focusLost = false
-      })
+      // Window-Focus-Verlust-Verhinderung entfernt
 
       // Verhindere Screenshot-Apps auf mobilen Geräten
       if (navigator.userAgent.includes('Mobile')) {
