@@ -118,7 +118,94 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return // Ignoriere einzelne Modifier-Tasten
         }
         
-        // F12
+        // === WINDOWS SCREENSHOT/SCREENRECORDING SHORTCUTS ===
+        
+        // Print Screen (Gesamter Bildschirm)
+        if (e.key === 'PrintScreen') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Alt+Print Screen (Aktives Fenster)
+        if (e.altKey && e.key === 'PrintScreen') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Windows+Print Screen (Screenshot als Datei speichern)
+        if (e.metaKey && e.key === 'PrintScreen') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Windows+Shift+S (Snipping Tool)
+        if (e.metaKey && e.shiftKey && e.key === 'S') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Windows+G (Xbox Game Bar - Screen Recording)
+        if (e.metaKey && e.key === 'g') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // === MACOS SCREENSHOT/SCREENRECORDING SHORTCUTS ===
+        
+        // Cmd+Shift+3 (Gesamter Bildschirm)
+        if (e.metaKey && e.shiftKey && e.key === '3') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Cmd+Shift+4 (Ausgewählter Bereich)
+        if (e.metaKey && e.shiftKey && e.key === '4') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Cmd+Shift+5 (Bildschirmfoto-App)
+        if (e.metaKey && e.shiftKey && e.key === '5') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Cmd+Shift+6 (Touch Bar Screenshot)
+        if (e.metaKey && e.shiftKey && e.key === '6') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // === ALLGEMEINE DEVELOPER TOOLS & BROWSER SHORTCUTS ===
+        
+        // F12 (Developer Tools)
         if (e.key === 'F12') {
           e.preventDefault()
           e.stopPropagation()
@@ -136,6 +223,15 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return false
         }
         
+        // Cmd+Option+I (Developer Tools auf Mac)
+        if (e.metaKey && e.altKey && e.key === 'I') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
         // Ctrl+U (View Source)
         if (e.ctrlKey && e.key === 'u') {
           e.preventDefault()
@@ -145,8 +241,28 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return false
         }
         
+        // Cmd+Option+U (View Source auf Mac)
+        if (e.metaKey && e.altKey && e.key === 'u') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // === COPY/PASTE/SELECT SHORTCUTS ===
+        
         // Ctrl+S (Save)
         if (e.ctrlKey && e.key === 's') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Cmd+S (Save auf Mac)
+        if (e.metaKey && e.key === 's') {
           e.preventDefault()
           e.stopPropagation()
           lastKeyTime = now
@@ -163,8 +279,26 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return false
         }
         
+        // Cmd+A (Select All auf Mac)
+        if (e.metaKey && e.key === 'a') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
         // Ctrl+C (Copy)
         if (e.ctrlKey && e.key === 'c') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
+        // Cmd+C (Copy auf Mac)
+        if (e.metaKey && e.key === 'c') {
           e.preventDefault()
           e.stopPropagation()
           lastKeyTime = now
@@ -181,6 +315,15 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return false
         }
         
+        // Cmd+V (Paste auf Mac)
+        if (e.metaKey && e.key === 'v') {
+          e.preventDefault()
+          e.stopPropagation()
+          lastKeyTime = now
+          lastKeyCombo = keyCombo
+          return false
+        }
+        
         // Ctrl+X (Cut)
         if (e.ctrlKey && e.key === 'x') {
           e.preventDefault()
@@ -190,17 +333,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
           return false
         }
         
-        // Print Screen
-        if (e.key === 'PrintScreen') {
-          e.preventDefault()
-          e.stopPropagation()
-          lastKeyTime = now
-          lastKeyCombo = keyCombo
-          return false
-        }
-        
-        // Alt+Print Screen
-        if (e.altKey && e.key === 'PrintScreen') {
+        // Cmd+X (Cut auf Mac)
+        if (e.metaKey && e.key === 'x') {
           e.preventDefault()
           e.stopPropagation()
           lastKeyTime = now
