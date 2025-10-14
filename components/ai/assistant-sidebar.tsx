@@ -139,9 +139,9 @@ export default function AssistantSidebar(props: {
   }
 
   return (
-    <div className="h-full flex flex-col border-l bg-background">
+    <div className="h-full flex flex-col border-l bg-muted/10">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-3 py-3 pr-2">
+      <div className="flex items-center justify-between border-b bg-background px-3 py-3 pr-2">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -240,65 +240,46 @@ export default function AssistantSidebar(props: {
       </form>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-2 sm:p-3 pr-2 space-y-3">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-3 pr-2 space-y-2">
         {/* Kontext-Hinweis */}
         {context?.stem && (
           <div className="text-xs text-muted-foreground border rounded p-2 bg-muted/30">
             <div className="font-medium">Aktuelle Frage</div>
-            <div className="line-clamp-3">{context.stem}</div>
+            <div className="line-clamp-3 leading-relaxed">{context.stem}</div>
           </div>
         )}
 
         {messages.map((m, i) => {
           const mine = m.role === "user"
           return (
-            <div key={i} className={cn("flex gap-2", mine ? "justify-end" : "justify-start")}>
-              {!mine && (
-                <div className="h-7 w-7 flex-none rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M9 7a3 3 0 1 1 6 0v1h2a2 2 0 0 1 2 2v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V10a2 2 0 0 1 2-2h2V7z" />
-                  </svg>
-                </div>
-              )}
+            <div key={i} className="flex">
               <div
                 className={cn(
-                  "max-w-[80%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap",
-                  mine
-                    ? "bg-blue-600 text-white rounded-br-sm"
-                    : "bg-muted text-foreground rounded-bl-sm"
+                  "w-full rounded-md border bg-background px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed",
+                  mine ? "border-blue-200" : "border-border"
                 )}
               >
                 {m.content}
-                {!mine && (
-                  <div className="mt-2 -mb-1 flex justify-end">
-                    <button
-                      className="text-[11px] text-muted-foreground hover:underline"
-                      onClick={() => copy(m.content)}
-                      title="Antwort kopieren"
-                    >
-                      Kopieren
-                    </button>
-                  </div>
-                )}
+                <div className="mt-2 -mb-1 flex justify-end">
+                  <button
+                    className="text-[11px] text-muted-foreground hover:underline"
+                    onClick={() => copy(m.content)}
+                    title="Antwort kopieren"
+                  >
+                    Kopieren
+                  </button>
+                </div>
               </div>
-              {mine && <div className="h-7 w-7 flex-none rounded-full bg-blue-100 dark:bg-blue-900/30" />}
             </div>
           )
         })}
 
         {/* Thinking bubble */}
         {busy && (
-          <div className="flex gap-2 justify-start">
-            <div className="h-7 w-7 flex-none rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                <path d="M9 7a3 3 0 1 1 6 0v1h2a2 2 0 0 1 2 2v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V10a2 2 0 0 1 2-2h2V7z" />
-              </svg>
-            </div>
-            <div className="max-w-[80%] rounded-2xl px-3 py-2 text-sm bg-muted text-foreground rounded-bl-sm">
-              <div className="flex items-center gap-2">
-                <ThinkingDots />
-                <span className="text-xs text-muted-foreground">formuliert Antwort…</span>
-              </div>
+          <div className="rounded-md border bg-muted px-3 py-2 text-sm">
+            <div className="flex items-center gap-2">
+              <ThinkingDots />
+              <span className="text-xs text-muted-foreground">formuliert Antwort…</span>
             </div>
           </div>
         )}
