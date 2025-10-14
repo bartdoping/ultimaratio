@@ -38,7 +38,14 @@ export default function LayoutWithSidebar({
   useEffect(() => {
     try {
       const saved = localStorage.getItem("ai:sidebarWidth")
-      if (saved) setSidebarWidth(Math.max(260, Math.min(900, Number(saved))))
+      if (saved) {
+        setSidebarWidth(Math.max(260, Math.min(900, Number(saved))))
+      } else if (typeof window !== 'undefined') {
+        // Responsive Startbreite: ca. 30% des Viewports, begrenzt
+        const vw = window.innerWidth
+        const target = Math.max(300, Math.min(520, Math.round(vw * 0.3)))
+        setSidebarWidth(target)
+      }
       const savedCollapsed = localStorage.getItem("ai:sidebarCollapsed")
       if (savedCollapsed) setCollapsed(savedCollapsed === "1")
     } catch {}
@@ -64,8 +71,10 @@ export default function LayoutWithSidebar({
       
       animationFrame = requestAnimationFrame(() => {
         const newWidth = window.innerWidth - e.clientX
-        const minWidth = 260
-        const maxWidth = Math.min(900, window.innerWidth * 0.55)
+        // Dynamische Grenzen je nach Viewport
+        const vw = window.innerWidth
+        const minWidth = Math.max(260, Math.round(vw * 0.2))
+        const maxWidth = Math.min(900, Math.round(vw * 0.45))
         
         // Direkte Berechnung ohne zusätzliche Checks
         const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
@@ -85,7 +94,10 @@ export default function LayoutWithSidebar({
       }
 
       // Nach dem Drag: auf nahe sinnvolle Breiten einrasten (Snap)
-      const snapPoints = [300, 380, 460, 540, 620, 720, 820]
+      // Responsive Snap-Punkte abhängig von Viewport
+      const vw = window.innerWidth
+      const base = Math.max(280, Math.min(520, Math.round(vw * 0.22)))
+      const snapPoints = [base, base + 60, base + 120, base + 180, base + 240].map(n => Math.min(n, Math.round(vw * 0.4)))
       const current = sidebarWidth
       let closest = snapPoints[0]
       for (const p of snapPoints) {
