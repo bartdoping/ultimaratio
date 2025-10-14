@@ -103,7 +103,7 @@ export default function LayoutWithSidebar({
           {/* Desktop Sidebar */}
           <div 
             ref={sidebarRef}
-            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0"
+            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative"
             style={{ 
               width: `${sidebarWidth}px`,
               transition: isDragging ? 'none' : 'width 0.3s ease'
@@ -113,7 +113,7 @@ export default function LayoutWithSidebar({
             <div
               ref={dragRef}
               onMouseDown={handleDragStart}
-              className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-all duration-150 hover:w-2 hover:bg-blue-400"
+              className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-all duration-150 hover:w-2 hover:bg-blue-400 z-10"
               title="Sidebar-Breite anpassen"
             />
             <div className="h-full overflow-y-auto">
