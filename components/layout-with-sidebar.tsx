@@ -112,7 +112,7 @@ export default function LayoutWithSidebar({
   return (
     <div className="flex h-screen">
       {/* Main Content */}
-      <div className="flex-1 h-full overflow-y-auto">
+      <div className="flex-1 min-w-0 h-full overflow-y-auto">
         {children}
       </div>
 
@@ -122,7 +122,7 @@ export default function LayoutWithSidebar({
           {/* Desktop Sidebar */}
           <div 
             ref={sidebarRef}
-            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative"
+            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col"
             style={{ 
               width: `${effectiveWidth}px`,
               transition: isDragging ? 'none' : 'width 0.25s ease'
@@ -133,10 +133,10 @@ export default function LayoutWithSidebar({
               ref={dragRef}
               onMouseDown={handleDragStart}
               onDoubleClick={() => setCollapsed((v) => !v)}
-              className="absolute left-0 top-0 w-1 h-full bg-border hover:bg-blue-500 cursor-col-resize transition-all duration-100 hover:w-1.5 z-10"
+              className="absolute left-0 top-0 w-[3px] h-full bg-border hover:bg-blue-500 cursor-col-resize transition-colors duration-75 z-10"
               title="Sidebar-Breite anpassen"
             />
-            {effectiveWidth > 60 && (
+            {effectiveWidth > 48 && (
               <div className="h-full overflow-y-auto">
                 <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
               </div>
