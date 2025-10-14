@@ -17,6 +17,7 @@ export default function LayoutWithSidebar({
   const [sidebarOpen, setSidebarOpen] = useState(showAssistant)
   const [sidebarWidth, setSidebarWidth] = useState(320) // Standard-Breite
   const [isDragging, setIsDragging] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<HTMLDivElement>(null)
 
@@ -33,6 +34,22 @@ export default function LayoutWithSidebar({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
+  // Persistierte Breite laden/speichern
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("ai:sidebarWidth")
+      if (saved) setSidebarWidth(Math.max(260, Math.min(900, Number(saved))))
+      const savedCollapsed = localStorage.getItem("ai:sidebarCollapsed")
+      if (savedCollapsed) setCollapsed(savedCollapsed === "1")
+    } catch {}
+  }, [])
+  useEffect(() => {
+    try { localStorage.setItem("ai:sidebarWidth", String(sidebarWidth)) } catch {}
+  }, [sidebarWidth])
+  useEffect(() => {
+    try { localStorage.setItem("ai:sidebarCollapsed", collapsed ? "1" : "0") } catch {}
+  }, [collapsed])
+
   // Drag-Funktionalität für Sidebar-Breite - optimiert für Flüssigkeit
   useEffect(() => {
     let animationFrame: number | null = null
@@ -47,8 +64,8 @@ export default function LayoutWithSidebar({
       
       animationFrame = requestAnimationFrame(() => {
         const newWidth = window.innerWidth - e.clientX
-        const minWidth = 280
-        const maxWidth = Math.min(600, window.innerWidth * 0.6)
+        const minWidth = 260
+        const maxWidth = Math.min(900, window.innerWidth * 0.55)
         
         // Direkte Berechnung ohne zusätzliche Checks
         const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
@@ -90,6 +107,8 @@ export default function LayoutWithSidebar({
     setIsDragging(true)
   }
 
+  const effectiveWidth = !sidebarOpen || collapsed ? 0 : sidebarWidth
+
   return (
     <div className="flex h-screen">
       {/* Main Content */}
@@ -105,20 +124,35 @@ export default function LayoutWithSidebar({
             ref={sidebarRef}
             className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative"
             style={{ 
-              width: `${sidebarWidth}px`,
-              transition: isDragging ? 'none' : 'width 0.3s ease'
+              width: `${effectiveWidth}px`,
+              transition: isDragging ? 'none' : 'width 0.25s ease'
             }}
           >
             {/* Drag Handle */}
             <div
               ref={dragRef}
               onMouseDown={handleDragStart}
-              className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-all duration-150 hover:w-2 hover:bg-blue-400 z-10"
+              onDoubleClick={() => setCollapsed((v) => !v)}
+              className="absolute left-0 top-0 w-1 h-full bg-border hover:bg-blue-500 cursor-col-resize transition-all duration-100 hover:w-1.5 z-10"
               title="Sidebar-Breite anpassen"
             />
-            <div className="h-full overflow-y-auto">
-              <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
-            </div>
+            {effectiveWidth > 60 && (
+              <div className="h-full overflow-y-auto">
+                <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+              </div>
+            )}
+            {/* Collapse/Expand Button */}
+            <button
+              onClick={() => setCollapsed((v) => !v)}
+              className="absolute -left-3 top-1/2 -translate-y-1/2 hidden lg:flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm"
+              title={collapsed ? "Sidebar öffnen" : "Sidebar einklappen"}
+            >
+              {collapsed ? (
+                <span className="text-xs">›</span>
+              ) : (
+                <span className="text-xs">‹</span>
+              )}
+            </button>
           </div>
           
           {/* Mobile/Tablet Overlay */}
@@ -157,14 +191,7 @@ export default function LayoutWithSidebar({
         )}
       </button>
 
-      {/* Drag-Hinweis für Desktop */}
-      {sidebarOpen && (
-        <div className="hidden lg:block fixed right-2 top-1/2 transform -translate-y-1/2 z-50">
-          <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded shadow-lg opacity-0 animate-pulse">
-            ← Ziehen zum Anpassen
-          </div>
-        </div>
-      )}
+      {/* Drag-Hinweis entfernt */}
     </div>
   )
 }

@@ -313,22 +313,22 @@ export default function AssistantSidebar(props: {
         </button>
       </div>
 
-      {/* Input */}
+      {/* Input – prominenter */}
       <form
-        className="p-2 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
+        className="p-3 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background/95"
         onSubmit={(e) => {
           e.preventDefault()
           void send()
         }}
       >
         <Input
-          placeholder="Frag den Tutor …"
+          placeholder="Frag den Tutor … (Enter zum Senden)"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={busy}
-          className="flex-1 min-w-0"
+          className="flex-1 min-w-0 h-11 text-[15px]"
         />
-        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto">
+        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto h-11 px-4">
           {busy ? "Senden…" : "Senden"}
         </Button>
       </form>
