@@ -93,16 +93,8 @@ export default function LayoutWithSidebar({
   return (
     <div className="flex h-screen">
       {/* Main Content */}
-      <div 
-        className="flex-1"
-        style={{ 
-          marginRight: sidebarOpen ? `${sidebarWidth}px` : '0px',
-          transition: isDragging ? 'none' : 'margin-right 0.3s ease'
-        }}
-      >
-        <div className="h-full overflow-y-auto">
-          {children}
-        </div>
+      <div className="flex-1 h-full overflow-y-auto">
+        {children}
       </div>
 
       {/* AI Assistant Sidebar - Desktop: als Sidebar, Mobile: als Overlay */}
@@ -111,7 +103,7 @@ export default function LayoutWithSidebar({
           {/* Desktop Sidebar */}
           <div 
             ref={sidebarRef}
-            className="hidden lg:block fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l"
+            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0"
             style={{ 
               width: `${sidebarWidth}px`,
               transition: isDragging ? 'none' : 'width 0.3s ease'
@@ -124,7 +116,9 @@ export default function LayoutWithSidebar({
               className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-all duration-150 hover:w-2 hover:bg-blue-400"
               title="Sidebar-Breite anpassen"
             />
-            <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+            <div className="h-full overflow-y-auto">
+              <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+            </div>
           </div>
           
           {/* Mobile/Tablet Overlay */}
