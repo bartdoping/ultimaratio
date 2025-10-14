@@ -83,6 +83,18 @@ export default function LayoutWithSidebar({
         cancelAnimationFrame(animationFrame)
         animationFrame = null
       }
+
+      // Nach dem Drag: auf nahe sinnvolle Breiten einrasten (Snap)
+      const snapPoints = [300, 380, 460, 540, 620, 720, 820]
+      const current = sidebarWidth
+      let closest = snapPoints[0]
+      for (const p of snapPoints) {
+        if (Math.abs(p - current) < Math.abs(closest - current)) closest = p
+      }
+      // nur snappen, wenn nicht kollabiert
+      if (!collapsed) {
+        setSidebarWidth(Math.max(260, Math.min(900, closest)))
+      }
     }
 
     if (isDragging) {
@@ -108,6 +120,7 @@ export default function LayoutWithSidebar({
   }
 
   const effectiveWidth = !sidebarOpen || collapsed ? 0 : sidebarWidth
+  const isCompact = effectiveWidth > 0 && effectiveWidth < 300
 
   return (
     <div className="flex h-screen">
@@ -133,12 +146,16 @@ export default function LayoutWithSidebar({
               ref={dragRef}
               onMouseDown={handleDragStart}
               onDoubleClick={() => setCollapsed((v) => !v)}
-              className="absolute left-0 top-0 w-[3px] h-full bg-border hover:bg-blue-500 cursor-col-resize transition-colors duration-75 z-10"
+              className="absolute left-0 top-0 h-full cursor-col-resize z-10"
               title="Sidebar-Breite anpassen"
-            />
+              style={{ width: '8px' }}
+            >
+              {/* sichtbarer 3px-Griff, rest transparentes Hit-Area */}
+              <div className="absolute inset-y-0 left-0 w-[3px] bg-border hover:bg-blue-500 transition-colors" />
+            </div>
             {effectiveWidth > 48 && (
               <div className="h-full overflow-y-auto">
-                <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+                <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} compact={isCompact} />
               </div>
             )}
             {/* Collapse/Expand Button */}

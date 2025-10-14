@@ -12,8 +12,9 @@ type AnswerStyle = "concise" | "detailed"
 export default function AssistantSidebar(props: {
   context: any
   onClose?: () => void
+  compact?: boolean
 }) {
-  const { context, onClose } = props
+  const { context, onClose, compact } = props
 
   // --- UI state ---
   const [input, setInput] = useState("")
@@ -219,7 +220,7 @@ export default function AssistantSidebar(props: {
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {/* Kontext-Hinweis */}
         {context?.stem && (
           <div className="text-xs text-muted-foreground border rounded p-2 bg-muted/30">
@@ -313,7 +314,7 @@ export default function AssistantSidebar(props: {
         </button>
       </div>
 
-      {/* Input – prominenter */}
+      {/* Input – prominenter, an Compact-Mode angepasst */}
       <form
         className="p-3 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background/95"
         onSubmit={(e) => {
@@ -322,11 +323,11 @@ export default function AssistantSidebar(props: {
         }}
       >
         <Input
-          placeholder="Frag den Tutor … (Enter zum Senden)"
+          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={busy}
-          className="flex-1 min-w-0 h-11 text-[15px]"
+          className={cn("flex-1 min-w-0 h-11", compact ? "text-[14px]" : "text-[15px]")}
         />
         <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto h-11 px-4">
           {busy ? "Senden…" : "Senden"}
