@@ -138,6 +138,7 @@ export default function LayoutWithSidebar({
             className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col"
             style={{ 
               width: `${effectiveWidth}px`,
+              maxWidth: '40vw',
               transition: isDragging ? 'none' : 'width 0.25s ease'
             }}
           >

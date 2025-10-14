@@ -219,6 +219,26 @@ export default function AssistantSidebar(props: {
         </div>
       </div>
 
+      {/* Eingabe direkt unter dem Header (prominent) */}
+      <form
+        className="px-3 pt-3 pb-2 border-b flex items-center gap-2 bg-background/95 sticky top-0 z-10"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void send()
+        }}
+      >
+        <Input
+          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={busy}
+          className={cn("flex-1 min-w-0 h-12 sm:h-12 text-[16px]")}
+        />
+        <Button type="submit" disabled={busy || !input.trim()} className="h-12 px-5">
+          {busy ? "Senden…" : "Senden"}
+        </Button>
+      </form>
+
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-2 sm:p-3 pr-2 space-y-3">
         {/* Kontext-Hinweis */}
@@ -292,27 +312,7 @@ export default function AssistantSidebar(props: {
         <div ref={endRef} />
       </div>
 
-      {/* Input – prominenter, an Compact-Mode angepasst (weiter nach oben) */}
-      <form
-        className="px-3 pt-3 pb-2 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background/95"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void send()
-        }}
-      >
-        <Input
-          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={busy}
-          className={cn("flex-1 min-w-0 h-12 sm:h-12 text-[16px]", compact ? "text-[15px]" : "text-[16px]")}
-        />
-        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto h-12 px-5">
-          {busy ? "Senden…" : "Senden"}
-        </Button>
-      </form>
-
-      {/* Quick-Prompts – unter das Eingabefeld verschoben, kompakter */}
+      {/* Quick-Prompts – unter dem Chat, minimal */}
       <div className="px-3 pb-3 pt-1 flex flex-wrap gap-2 border-t bg-muted/30">
         <button
           className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
