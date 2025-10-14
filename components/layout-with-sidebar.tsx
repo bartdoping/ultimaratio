@@ -33,36 +33,55 @@ export default function LayoutWithSidebar({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Drag-Funktionalität für Sidebar-Breite
+  // Drag-Funktionalität für Sidebar-Breite - optimiert für Flüssigkeit
   useEffect(() => {
+    let animationFrame: number | null = null
+    
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
       
-      const newWidth = window.innerWidth - e.clientX
-      const minWidth = 280
-      const maxWidth = Math.min(600, window.innerWidth * 0.6)
-      
-      if (newWidth >= minWidth && newWidth <= maxWidth) {
-        setSidebarWidth(newWidth)
+      // Verwende requestAnimationFrame für flüssige Animation
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame)
       }
+      
+      animationFrame = requestAnimationFrame(() => {
+        const newWidth = window.innerWidth - e.clientX
+        const minWidth = 280
+        const maxWidth = Math.min(600, window.innerWidth * 0.6)
+        
+        // Direkte Berechnung ohne zusätzliche Checks
+        const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+        setSidebarWidth(clampedWidth)
+      })
     }
 
     const handleMouseUp = () => {
       setIsDragging(false)
       document.body.style.cursor = 'default'
       document.body.style.userSelect = 'auto'
+      document.body.style.pointerEvents = 'auto'
+      
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame)
+        animationFrame = null
+      }
     }
 
     if (isDragging) {
       document.body.style.cursor = 'col-resize'
       document.body.style.userSelect = 'none'
-      document.addEventListener('mousemove', handleMouseMove)
+      document.body.style.pointerEvents = 'none'
+      document.addEventListener('mousemove', handleMouseMove, { passive: true })
       document.addEventListener('mouseup', handleMouseUp)
     }
 
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
+      if (animationFrame) {
+        cancelAnimationFrame(animationFrame)
+      }
     }
   }, [isDragging])
 
@@ -75,9 +94,10 @@ export default function LayoutWithSidebar({
     <div className="flex h-screen">
       {/* Main Content */}
       <div 
-        className="flex-1 transition-all duration-300"
+        className="flex-1"
         style={{ 
-          marginRight: sidebarOpen ? `${sidebarWidth}px` : '0px' 
+          marginRight: sidebarOpen ? `${sidebarWidth}px` : '0px',
+          transition: isDragging ? 'none' : 'margin-right 0.3s ease'
         }}
       >
         <div className="h-full overflow-y-auto">
@@ -91,14 +111,17 @@ export default function LayoutWithSidebar({
           {/* Desktop Sidebar */}
           <div 
             ref={sidebarRef}
-            className="hidden lg:block fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l transition-all duration-300 ease-in-out"
-            style={{ width: `${sidebarWidth}px` }}
+            className="hidden lg:block fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l"
+            style={{ 
+              width: `${sidebarWidth}px`,
+              transition: isDragging ? 'none' : 'width 0.3s ease'
+            }}
           >
             {/* Drag Handle */}
             <div
               ref={dragRef}
               onMouseDown={handleDragStart}
-              className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-colors duration-200 hover:w-2"
+              className="absolute left-0 top-0 w-1 h-full bg-gray-300 hover:bg-blue-500 cursor-col-resize transition-all duration-150 hover:w-2 hover:bg-blue-400"
               title="Sidebar-Breite anpassen"
             />
             <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
