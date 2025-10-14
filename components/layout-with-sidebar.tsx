@@ -38,17 +38,25 @@ export default function LayoutWithSidebar({
         </div>
       </div>
 
-      {/* AI Assistant Sidebar */}
+      {/* AI Assistant Sidebar - Desktop: als Sidebar, Mobile: als Overlay */}
       {sidebarOpen && (
-        <div className="fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l transition-all duration-300 ease-in-out lg:w-80 md:w-96 w-full max-w-sm">
-          <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
-        </div>
+        <>
+          {/* Desktop Sidebar */}
+          <div className="hidden lg:block fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l transition-all duration-300 ease-in-out w-80">
+            <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+          </div>
+          
+          {/* Mobile/Tablet Overlay */}
+          <div className="lg:hidden fixed right-0 top-0 h-full z-50 bg-background shadow-lg border-l transition-all duration-300 ease-in-out w-full max-w-sm">
+            <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
+          </div>
+        </>
       )}
 
       {/* Mobile Overlay - nur auf sehr kleinen Bildschirmen */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
