@@ -141,7 +141,7 @@ export default function AssistantSidebar(props: {
   return (
     <div className="h-full flex flex-col border-l bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <div className="flex items-center justify-between border-b px-3 py-3 pr-2">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -220,7 +220,7 @@ export default function AssistantSidebar(props: {
       </div>
 
       {/* Body */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-2 sm:p-3 pr-2 space-y-3">
         {/* Kontext-Hinweis */}
         {context?.stem && (
           <div className="text-xs text-muted-foreground border rounded p-2 bg-muted/30">
@@ -292,8 +292,28 @@ export default function AssistantSidebar(props: {
         <div ref={endRef} />
       </div>
 
-      {/* Quick-Prompts */}
-      <div className="px-3 pb-2 flex flex-wrap gap-2 border-t bg-muted/40">
+      {/* Input – prominenter, an Compact-Mode angepasst (weiter nach oben) */}
+      <form
+        className="px-3 pt-3 pb-2 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background/95"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void send()
+        }}
+      >
+        <Input
+          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={busy}
+          className={cn("flex-1 min-w-0 h-12 sm:h-12 text-[16px]", compact ? "text-[15px]" : "text-[16px]")}
+        />
+        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto h-12 px-5">
+          {busy ? "Senden…" : "Senden"}
+        </Button>
+      </form>
+
+      {/* Quick-Prompts – unter das Eingabefeld verschoben, kompakter */}
+      <div className="px-3 pb-3 pt-1 flex flex-wrap gap-2 border-t bg-muted/30">
         <button
           className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
           onClick={() => quickAsk("Gib mir bitte einen Hinweis, wie ich vorgehe – ohne die Lösung zu verraten.")}
@@ -313,26 +333,6 @@ export default function AssistantSidebar(props: {
           <span className="truncate">Merkhilfe</span>
         </button>
       </div>
-
-      {/* Input – prominenter, an Compact-Mode angepasst */}
-      <form
-        className="p-3 border-t flex flex-col sm:flex-row items-stretch sm:items-center gap-2 bg-background/95"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void send()
-        }}
-      >
-        <Input
-          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={busy}
-          className={cn("flex-1 min-w-0 h-11", compact ? "text-[14px]" : "text-[15px]")}
-        />
-        <Button type="submit" disabled={busy || !input.trim()} className="w-full sm:w-auto h-11 px-4">
-          {busy ? "Senden…" : "Senden"}
-        </Button>
-      </form>
     </div>
   )
 }
