@@ -9,10 +9,18 @@ export const runtime = "nodejs"
 export async function GET() {
   try {
     const session = await getServerSession(authOptions)
-    const userId = (session?.user as any)?.id as string | undefined
-    if (!userId) {
+    if (!session?.user?.email) {
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
     }
+
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    })
+    if (!me) {
+      return NextResponse.json({ ok: false, error: "user not found" }, { status: 401 })
+    }
+    const userId = me.id
 
     // Nur eigene, NICHT-automatische Decks
     const decks = await prisma.deck.findMany({
