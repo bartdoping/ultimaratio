@@ -24,8 +24,6 @@ export default function ImageUpload({
 }: ImageUploadProps) {
   const [dragActive, setDragActive] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [url, setUrl] = useState("")
-  const [alt, setAlt] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
 
@@ -72,17 +70,23 @@ export default function ImageUpload({
       })
 
       if (!response.ok) {
-        throw new Error('Upload fehlgeschlagen')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('Upload failed:', response.status, errorData)
+        throw new Error(`Upload fehlgeschlagen: ${errorData.error || 'Unbekannter Fehler'}`)
       }
 
       const result = await response.json()
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Upload fehlgeschlagen')
+      }
       
       // Seite neu laden um Änderungen zu zeigen
       router.refresh()
       
     } catch (error) {
       console.error('Upload error:', error)
-      alert('Fehler beim Hochladen der Datei. Bitte versuchen Sie es erneut.')
+      alert(`Fehler beim Hochladen der Datei: ${error.message || 'Bitte versuchen Sie es erneut.'}`)
     } finally {
       setUploading(false)
     }
@@ -95,37 +99,6 @@ export default function ImageUpload({
     }
   }
 
-  const handleUrlSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (url && url.startsWith('http')) {
-      setUploading(true)
-      try {
-        const formData = new FormData()
-        formData.append('examId', examId)
-        formData.append('qid', questionId)
-        formData.append('url', url)
-        formData.append('alt', alt)
-
-        const response = await fetch('/api/admin/exams/attach-image-by-url', {
-          method: 'POST',
-          body: formData,
-        })
-
-        if (response.ok) {
-          setUrl("")
-          setAlt("")
-          router.refresh()
-        } else {
-          alert('Fehler beim Hinzufügen des Bildes')
-        }
-      } catch (error) {
-        console.error('Error adding image:', error)
-        alert('Fehler beim Hinzufügen des Bildes')
-      } finally {
-        setUploading(false)
-      }
-    }
-  }
 
   const handleRemoveImage = async (mediaId: string) => {
     try {
@@ -233,41 +206,6 @@ export default function ImageUpload({
           </div>
         </div>
 
-        {/* URL-Eingabe */}
-        <div className="border-t pt-4">
-          <form onSubmit={handleUrlSubmit} className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="image-url">Bild-URL</Label>
-                <Input
-                  id="image-url"
-                  type="url"
-                  placeholder="https://example.com/image.jpg"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  disabled={uploading}
-                />
-              </div>
-              <div>
-                <Label htmlFor="image-alt">Alt-Text (optional)</Label>
-                <Input
-                  id="image-alt"
-                  placeholder="Beschreibung des Bildes"
-                  value={alt}
-                  onChange={(e) => setAlt(e.target.value)}
-                  disabled={uploading}
-                />
-              </div>
-            </div>
-            <Button 
-              type="submit" 
-              disabled={!url || uploading}
-              className="w-full sm:w-auto"
-            >
-              {uploading ? 'Wird hinzugefügt...' : 'Bild hinzufügen'}
-            </Button>
-          </form>
-        </div>
       </div>
     </div>
   )
