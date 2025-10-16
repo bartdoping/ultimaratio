@@ -45,7 +45,6 @@ export async function GET(req: Request, ctx: Ctx) {
           order: true,
           tags: {
             select: {
-              id: true,
               tag: {
                 select: {
                   parentId: true
