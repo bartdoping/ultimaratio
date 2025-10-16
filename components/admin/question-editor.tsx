@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+// import { Textarea } from "@/components/ui/textarea"
 
 interface QuestionEditorProps {
   question: {
@@ -86,10 +86,10 @@ export default function QuestionEditor({ question, examId, onUpdate }: QuestionE
       {/* Stem bearbeiten */}
       <div className="space-y-2">
         <Label>Fragestellung (Stem)</Label>
-        <Textarea
+        <textarea
           value={stem}
           onChange={(e) => setStem(e.target.value)}
-          className="min-h-[100px]"
+          className="w-full min-h-[100px] p-3 border border-input rounded-md bg-background text-sm"
           placeholder="Fragestellung eingeben..."
         />
         <Button 
@@ -105,20 +105,20 @@ export default function QuestionEditor({ question, examId, onUpdate }: QuestionE
       {/* Meta-Daten bearbeiten */}
       <div className="space-y-2">
         <Label>Erklärung</Label>
-        <Textarea
+        <textarea
           value={explanation}
           onChange={(e) => setExplanation(e.target.value)}
-          className="min-h-[80px]"
+          className="w-full min-h-[80px] p-3 border border-input rounded-md bg-background text-sm"
           placeholder="Erklärung zur Frage..."
         />
       </div>
 
       <div className="space-y-2">
         <Label>Tipp</Label>
-        <Textarea
+        <textarea
           value={tip}
           onChange={(e) => setTip(e.target.value)}
-          className="min-h-[60px]"
+          className="w-full min-h-[60px] p-3 border border-input rounded-md bg-background text-sm"
           placeholder="Tipp oder Kommentar..."
         />
       </div>
