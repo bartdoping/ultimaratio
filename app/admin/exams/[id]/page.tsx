@@ -7,7 +7,7 @@ import { initCategoriesTables } from "@/lib/init-categories-tables"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import QuestionEditor from "@/components/admin/question-editor"
+// import QuestionEditor from "@/components/admin/question-editor"
 import QuestionShelf from "@/components/admin/question-shelf"
 import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
@@ -581,12 +581,57 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            {/* Frage-Editor */}
-            <QuestionEditor 
-              question={editingValid}
-              examId={id}
-              onUpdate={() => window.location.reload()}
-            />
+            {/* Frage-Editor - Fallback zu Server-Forms */}
+            <div className="space-y-4">
+              {/* Stem bearbeiten */}
+              <form action={updateQuestionStemAction} className="grid gap-2">
+                <input type="hidden" name="examId" value={id} />
+                <input type="hidden" name="qid" value={editingValid.id} />
+                <Label>Fragestellung (Stem)</Label>
+                <textarea 
+                  name="stem" 
+                  defaultValue={editingValid.stem} 
+                  className="w-full min-h-[100px] p-3 border border-input rounded-md bg-background text-sm"
+                  required 
+                />
+                <div><Button type="submit" variant="outline">Fragestellung speichern</Button></div>
+              </form>
+
+              {/* Meta-Daten bearbeiten */}
+              <form action={updateQuestionMetaAction} className="grid gap-2">
+                <input type="hidden" name="examId" value={id} />
+                <input type="hidden" name="qid" value={editingValid.id} />
+                
+                <div className="space-y-2">
+                  <Label>Erklärung</Label>
+                  <textarea 
+                    name="explanation" 
+                    defaultValue={editingValid.explanation || ""} 
+                    className="w-full min-h-[80px] p-3 border border-input rounded-md bg-background text-sm"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Tipp</Label>
+                  <textarea 
+                    name="tip" 
+                    defaultValue={editingValid.tip || ""} 
+                    className="w-full min-h-[60px] p-3 border border-input rounded-md bg-background text-sm"
+                  />
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    name="allowImmediate" 
+                    defaultChecked={editingValid.hasImmediateFeedbackAllowed}
+                  />
+                  <Label>Sofort-Feedback für diese Frage erlauben</Label>
+                </div>
+                
+                <div><Button type="submit" variant="outline">Meta-Daten speichern</Button></div>
+              </form>
+            </div>
 
             {/* Fall-Zuordnung */}
             <form action={assignCaseToQuestionAction} className="flex items-center gap-2 text-sm">

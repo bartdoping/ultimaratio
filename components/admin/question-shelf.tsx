@@ -86,6 +86,30 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     // id ins DataTransfer legen, damit kein State-Verlust bei Re-Renders
     e.dataTransfer.setData("text/plain", id)
     e.dataTransfer.effectAllowed = "move"
+    
+    // Erstelle ein Drag-Image
+    const dragImage = e.currentTarget.cloneNode(true) as HTMLElement
+    dragImage.style.transform = "rotate(5deg) scale(1.1)"
+    dragImage.style.opacity = "0.8"
+    dragImage.style.boxShadow = "0 10px 25px rgba(0,0,0,0.3)"
+    dragImage.style.border = "2px solid #3b82f6"
+    dragImage.style.borderRadius = "8px"
+    dragImage.style.backgroundColor = "#dbeafe"
+    dragImage.style.position = "absolute"
+    dragImage.style.top = "-1000px"
+    dragImage.style.left = "-1000px"
+    dragImage.style.zIndex = "9999"
+    
+    document.body.appendChild(dragImage)
+    e.dataTransfer.setDragImage(dragImage, 0, 0)
+    
+    // Cleanup nach kurzer Zeit
+    setTimeout(() => {
+      if (document.body.contains(dragImage)) {
+        document.body.removeChild(dragImage)
+      }
+    }, 100)
+    
     setDraggingId(id)
   }
 
