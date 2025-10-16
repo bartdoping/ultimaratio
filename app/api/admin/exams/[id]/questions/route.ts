@@ -43,6 +43,16 @@ export async function GET(req: Request, ctx: Ctx) {
           stem: true,
           caseId: true,
           order: true,
+          tags: {
+            select: {
+              id: true,
+              tag: {
+                select: {
+                  isSuper: true
+                }
+              }
+            }
+          }
         },
       }),
     ])
@@ -57,6 +67,8 @@ export async function GET(req: Request, ctx: Ctx) {
         preview: q.stem.slice(0, 120),
         isCase: !!q.caseId,
         order: q.order ?? 0,
+        // Prüfe ob Frage normale Tags hat (nicht Supertags)
+        hasTags: q.tags.some(t => !t.tag.isSuper),
       })),
     })
   } catch (e) {

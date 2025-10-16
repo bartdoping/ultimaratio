@@ -10,6 +10,7 @@ type Item = {
   preview: string
   isCase: boolean
   order: number
+  hasTags: boolean
 }
 
 const PAGE_SIZE = 100
@@ -21,6 +22,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     const p = Number(sp.get("qpage") || 1)
     return Number.isFinite(p) && p > 0 ? p : 1
   })
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(sp.get("edit"))
 
   const [items, setItems] = useState<Item[]>([])
   const [total, setTotal] = useState(0)
@@ -48,6 +50,12 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   }
 
   useEffect(() => { load() }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Aktualisiere currentQuestionId wenn sich die URL ändert
+  useEffect(() => {
+    const editParam = sp.get("edit")
+    setCurrentQuestionId(editParam)
+  }, [sp])
 
   // ---------------- Drag & Drop State ----------------
   const [draggingId, setDraggingId] = useState<string | null>(null)
@@ -59,6 +67,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     const params = new URLSearchParams(sp.toString())
     params.set("edit", id)
     params.set("qpage", String(page))
+    setCurrentQuestionId(id)
     router.push(`/admin/exams/${encodeURIComponent(examId)}?${params.toString()}`)
   }
 
@@ -185,6 +194,8 @@ export default function QuestionShelf({ examId }: { examId: string }) {
               const isDragging = draggingId === it.id
               const isOver = overId === it.id && draggingId !== it.id
               const isHovered = hoveredId === it.id
+              const isCurrent = currentQuestionId === it.id
+              const isUntagged = !it.hasTags
               return (
                 <button
                   key={it.id}
@@ -202,10 +213,16 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                   onClick={() => openEditor(it.id)}
                   className={[
                     "h-9 rounded border text-xs font-medium transition-all duration-200",
-                    "flex items-center justify-center select-none cursor-move",
+                    "flex items-center justify-center select-none cursor-move relative",
+                    // Base colors
                     it.isCase
                       ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200"
                       : "bg-muted/40 hover:bg-muted/70",
+                    // Current question (yellow highlight)
+                    isCurrent ? "ring-2 ring-yellow-400 bg-yellow-100 dark:bg-yellow-900/30 border-yellow-400" : "",
+                    // Untagged questions (red highlight)
+                    isUntagged && !isCurrent ? "ring-1 ring-red-400 bg-red-50 dark:bg-red-900/20 border-red-300 text-red-700 dark:text-red-300" : "",
+                    // Drag states
                     isDragging ? "opacity-50 scale-95 shadow-lg transform rotate-2"
                       : isOver ? "ring-2 ring-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105"
                       : isHovered ? "ring-1 ring-gray-400 bg-gray-100 dark:bg-gray-800 scale-105"
@@ -213,6 +230,10 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                   ].join(" ")}
                 >
                   {((page - 1) * PAGE_SIZE) + i + 1}
+                  {/* Tag indicator */}
+                  {isUntagged && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
+                  )}
                 </button>
               )
             })}
@@ -220,12 +241,18 @@ export default function QuestionShelf({ examId }: { examId: string }) {
         )}
       </div>
 
-      {/* Hover-Vorschau */}
+      {/* Verbesserte Hover-Vorschau */}
       {hoverPreview && (
-        <div className="fixed top-4 right-4 max-w-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50">
-          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Vorschau:</div>
-          <div className="text-sm text-gray-900 dark:text-gray-100 line-clamp-3">
+        <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 max-w-md w-full mx-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl p-4 z-50">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Fragenvorschau</div>
+          </div>
+          <div className="text-sm text-gray-900 dark:text-gray-100 leading-relaxed">
             {hoverPreview}
+          </div>
+          <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+            Klicken zum Bearbeiten
           </div>
         </div>
       )}
