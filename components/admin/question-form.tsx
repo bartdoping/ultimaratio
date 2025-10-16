@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
+import CompactTagManager from "@/components/admin/compact-tag-manager"
 
 interface QuestionFormProps {
   question: {
@@ -137,6 +138,14 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
           </Button>
         </div>
       </form>
+
+      {/* Tag-Management */}
+      <div className="mt-6">
+        <CompactTagManager onTagChange={() => {
+          // Optional: Reload question tags if needed
+          console.log('Tags updated')
+        }} />
+      </div>
     </div>
   )
 }

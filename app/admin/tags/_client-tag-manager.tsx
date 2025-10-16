@@ -44,6 +44,16 @@ export default function TagManager({ initialTags }: TagManagerProps) {
     parentId: ""
   })
 
+  // Bearbeitungsmodus
+  const [editingTag, setEditingTag] = useState<string | null>(null)
+  const [editTag, setEditTag] = useState({
+    id: "",
+    name: "",
+    slug: "",
+    isSuper: false,
+    parentId: ""
+  })
+
   const superTags = tags.filter(tag => tag.isSuper)
   const normalTags = tags.filter(tag => !tag.isSuper)
 
@@ -97,6 +107,50 @@ export default function TagManager({ initialTags }: TagManagerProps) {
     }
   }
 
+  const handleUpdateTag = async () => {
+    if (!editTag.name || !editTag.slug) {
+      setError("Name und Slug sind erforderlich")
+      return
+    }
+
+    if (!editTag.isSuper && !editTag.parentId) {
+      setError("Normale Tags müssen einen Supertag haben")
+      return
+    }
+
+    try {
+      setLoading(true)
+      setError(null)
+      setSuccess(null)
+
+      const response = await fetch("/api/admin/tags", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editTag.id,
+          name: editTag.name,
+          slug: editTag.slug,
+          isSuper: editTag.isSuper,
+          parentId: editTag.isSuper ? null : editTag.parentId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to update tag")
+      }
+
+      const data = await response.json()
+      setTags(prev => prev.map(tag => tag.id === editTag.id ? data.tag : tag))
+      setEditingTag(null)
+      setSuccess("Tag erfolgreich aktualisiert")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update tag")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleDeleteTag = async (tagId: string) => {
     if (!confirm("Sind Sie sicher, dass Sie dieses Tag löschen möchten?")) {
       return
@@ -127,6 +181,22 @@ export default function TagManager({ initialTags }: TagManagerProps) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const startEdit = (tag: Tag) => {
+    setEditTag({
+      id: tag.id,
+      name: tag.name,
+      slug: tag.slug,
+      isSuper: tag.isSuper,
+      parentId: tag.parentId || ""
+    })
+    setEditingTag(tag.id)
+  }
+
+  const cancelEdit = () => {
+    setEditingTag(null)
+    setEditTag({ id: "", name: "", slug: "", isSuper: false, parentId: "" })
   }
 
   return (
@@ -216,25 +286,73 @@ export default function TagManager({ initialTags }: TagManagerProps) {
             <div className="space-y-3">
               {superTags.map(superTag => (
                 <div key={superTag.id} className="flex items-center justify-between p-3 border rounded">
-                  <div className="flex items-center gap-3">
-                    <Badge variant="default">🏷️ {superTag.name}</Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {superTag._count?.questionLinks || 0} Fragen
-                    </span>
-                    {superTag.children && superTag.children.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {superTag.children.length} Untertags
-                      </span>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleDeleteTag(superTag.id)}
-                    disabled={loading}
-                  >
-                    Löschen
-                  </Button>
+                  {editingTag === superTag.id ? (
+                    <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <Label>Name</Label>
+                        <Input
+                          value={editTag.name}
+                          onChange={(e) => setEditTag(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Tag Name"
+                        />
+                      </div>
+                      <div>
+                        <Label>Slug</Label>
+                        <Input
+                          value={editTag.slug}
+                          onChange={(e) => setEditTag(prev => ({ ...prev, slug: e.target.value }))}
+                          placeholder="tag-slug"
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          checked={editTag.isSuper}
+                          onCheckedChange={(checked) => setEditTag(prev => ({ ...prev, isSuper: !!checked }))}
+                        />
+                        <Label>Supertag</Label>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button onClick={handleUpdateTag} size="sm" disabled={loading}>
+                          {loading ? "Speichere..." : "Speichern"}
+                        </Button>
+                        <Button onClick={cancelEdit} variant="outline" size="sm">
+                          Abbrechen
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Badge variant="default">🏷️ {superTag.name}</Badge>
+                        <span className="text-sm text-muted-foreground">
+                          {superTag._count?.questionLinks || 0} Fragen
+                        </span>
+                        {superTag.children && superTag.children.length > 0 && (
+                          <span className="text-sm text-muted-foreground">
+                            {superTag.children.length} Untertags
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => startEdit(superTag)}
+                          disabled={loading}
+                        >
+                          Bearbeiten
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteTag(superTag.id)}
+                          disabled={loading}
+                        >
+                          Löschen
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -259,20 +377,85 @@ export default function TagManager({ initialTags }: TagManagerProps) {
               <div className="space-y-2">
                 {childTags.map(tag => (
                   <div key={tag.id} className="flex items-center justify-between p-2 border rounded">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary">{tag.name}</Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {tag._count?.questionLinks || 0} Fragen
-                      </span>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteTag(tag.id)}
-                      disabled={loading}
-                    >
-                      Löschen
-                    </Button>
+                    {editingTag === tag.id ? (
+                      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label>Name</Label>
+                          <Input
+                            value={editTag.name}
+                            onChange={(e) => setEditTag(prev => ({ ...prev, name: e.target.value }))}
+                            placeholder="Tag Name"
+                          />
+                        </div>
+                        <div>
+                          <Label>Slug</Label>
+                          <Input
+                            value={editTag.slug}
+                            onChange={(e) => setEditTag(prev => ({ ...prev, slug: e.target.value }))}
+                            placeholder="tag-slug"
+                          />
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            checked={editTag.isSuper}
+                            onCheckedChange={(checked) => setEditTag(prev => ({ ...prev, isSuper: !!checked }))}
+                          />
+                          <Label>Supertag</Label>
+                        </div>
+                        {!editTag.isSuper && (
+                          <div>
+                            <Label>Supertag</Label>
+                            <Select value={editTag.parentId} onValueChange={(value) => setEditTag(prev => ({ ...prev, parentId: value }))}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Supertag auswählen" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {superTags.map(superTag => (
+                                  <SelectItem key={superTag.id} value={superTag.id}>
+                                    {superTag.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        <div className="flex gap-2">
+                          <Button onClick={handleUpdateTag} size="sm" disabled={loading}>
+                            {loading ? "Speichere..." : "Speichern"}
+                          </Button>
+                          <Button onClick={cancelEdit} variant="outline" size="sm">
+                            Abbrechen
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary">{tag.name}</Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {tag._count?.questionLinks || 0} Fragen
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => startEdit(tag)}
+                            disabled={loading}
+                          >
+                            Bearbeiten
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteTag(tag.id)}
+                            disabled={loading}
+                          >
+                            Löschen
+                          </Button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
