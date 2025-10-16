@@ -18,7 +18,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
     setIsAdmin(!!isAdminUser)
 
     // Nur für Non-Admin-User: Screenshot-Schutz aktivieren
-    if (!isAdminUser) {
+    // ABER: Komplett deaktiviert auf mobilen Geräten um Redirect-Loop zu vermeiden
+    if (!isAdminUser && !navigator.userAgent.includes('Mobile')) {
       enableScreenshotProtection()
     }
   }, [session])
