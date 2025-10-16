@@ -17,11 +17,10 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
     const isAdminUser = session?.user?.email && adminEmails.includes(session.user.email)
     setIsAdmin(!!isAdminUser)
 
-    // Nur für Non-Admin-User: Screenshot-Schutz aktivieren
-    // ABER: Komplett deaktiviert auf mobilen Geräten um Redirect-Loop zu vermeiden
-    if (!isAdminUser && !navigator.userAgent.includes('Mobile')) {
-      enableScreenshotProtection()
-    }
+    // TEMPORÄR DEAKTIVIERT FÜR DEBUGGING
+    // if (!isAdminUser && !navigator.userAgent.includes('Mobile')) {
+    //   enableScreenshotProtection()
+    // }
   }, [session])
 
   const enableScreenshotProtection = () => {
