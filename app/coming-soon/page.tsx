@@ -15,8 +15,13 @@ export default async function ComingSoonPage() {
       "admin@fragenkreuzen.de"
     ]
     
-    // Wenn Admin, weiterleiten zur App
-    if (adminEmails.includes(session.user.email)) {
+    // Test-User für Abo-Testing
+    const testEmails = [
+      "test@fragenkreuzen.de"
+    ]
+    
+    // Wenn Admin oder Test-User, weiterleiten zur App
+    if (adminEmails.includes(session.user.email) || testEmails.includes(session.user.email)) {
       redirect("/")
     }
   }
