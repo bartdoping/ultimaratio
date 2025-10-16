@@ -5,10 +5,15 @@ import prisma from "@/lib/db"
 
 export async function POST(req: NextRequest) {
   try {
+    console.log("Upload API called")
+    
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
+      console.log("No session found")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    console.log("Session found for:", session.user.email)
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -16,6 +21,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (!user || user.role !== "admin") {
+      console.log("User not admin:", user?.role)
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
@@ -24,7 +30,16 @@ export async function POST(req: NextRequest) {
     const examId = formData.get("examId") as string
     const questionId = formData.get("questionId") as string
 
+    console.log("FormData received:", { 
+      hasFile: !!file, 
+      fileName: file?.name, 
+      fileSize: file?.size,
+      examId, 
+      questionId 
+    })
+
     if (!file) {
+      console.log("No file provided")
       return NextResponse.json({ error: "No file provided" }, { status: 400 })
     }
 
@@ -48,24 +63,15 @@ export async function POST(req: NextRequest) {
     const extension = file.name.split('.').pop() || 'jpg'
     const filename = `upload_${timestamp}.${extension}`
 
-    // Speichere in public/media/ (für Entwicklung)
-    // In Produktion würde man hier einen Cloud-Service wie AWS S3 verwenden
-    const fs = require('fs')
-    const path = require('path')
+    // Für Produktion: Verwende Base64-Encoding statt Dateisystem
+    // In einer echten Anwendung würde man hier einen Cloud-Service wie AWS S3 verwenden
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${file.type};base64,${base64}`
     
-    const uploadDir = path.join(process.cwd(), 'public', 'media', 'uploads')
-    
-    // Erstelle Upload-Verzeichnis falls es nicht existiert
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true })
-    }
+    // Erstelle URL (verwende data URL für jetzt)
+    const url = dataUrl
 
-    const filePath = path.join(uploadDir, filename)
-    fs.writeFileSync(filePath, buffer)
-
-    // Erstelle URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const url = `${baseUrl}/media/uploads/${filename}`
+    console.log("Creating media asset with URL:", url.substring(0, 50) + "...")
 
     // Speichere in Datenbank
     const asset = await prisma.mediaAsset.upsert({
@@ -77,6 +83,8 @@ export async function POST(req: NextRequest) {
         kind: "image" 
       },
     })
+
+    console.log("Media asset created:", asset.id)
 
     // Verknüpfe mit Frage falls questionId vorhanden
     if (questionId) {
@@ -97,6 +105,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    console.log("Upload successful, returning response")
+
     return NextResponse.json({ 
       success: true, 
       url: asset.url,
@@ -106,6 +116,9 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error("Upload error:", error)
-    return NextResponse.json({ error: "Upload failed" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Upload failed", 
+      details: error instanceof Error ? error.message : "Unknown error" 
+    }, { status: 500 })
   }
 }
