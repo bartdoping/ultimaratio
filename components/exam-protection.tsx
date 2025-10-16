@@ -31,8 +31,8 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
 
       // Window-Focus-Verlust-Verhinderung entfernt
 
-      // Verhindere Screenshot-Apps auf mobilen Geräten
-      if (navigator.userAgent.includes('Mobile')) {
+      // Verhindere Screenshot-Apps auf mobilen Geräten - nur wenn nicht auf Coming-Soon-Seite
+      if (navigator.userAgent.includes('Mobile') && !window.location.pathname.includes('/coming-soon')) {
         // Verhindere Screenshot durch Page Visibility API
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {

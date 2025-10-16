@@ -366,8 +366,8 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         }
       }, { capture: true })
 
-      // Verhindere Screenshot-Apps (Android/iOS)
-      if (navigator.userAgent.includes('Mobile')) {
+      // Verhindere Screenshot-Apps (Android/iOS) - nur wenn nicht auf Coming-Soon-Seite
+      if (navigator.userAgent.includes('Mobile') && !window.location.pathname.includes('/coming-soon')) {
         // Verhindere Screenshot auf mobilen Geräten
         document.addEventListener('visibilitychange', () => {
           if (document.hidden) {
