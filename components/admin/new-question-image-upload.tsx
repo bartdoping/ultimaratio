@@ -78,7 +78,8 @@ export default function NewQuestionImageUpload({
       
     } catch (error) {
       console.error('Upload error:', error)
-      alert(`Fehler beim Hochladen der Datei: ${error.message || 'Bitte versuchen Sie es erneut.'}`)
+      const errorMessage = error instanceof Error ? error.message : 'Bitte versuchen Sie es erneut.'
+      alert(`Fehler beim Hochladen der Datei: ${errorMessage}`)
     } finally {
       setUploading(false)
     }
