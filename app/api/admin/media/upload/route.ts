@@ -77,13 +77,20 @@ export async function POST(req: NextRequest) {
     // Für Produktion: Verwende Base64-Encoding statt Dateisystem
     // In einer echten Anwendung würde man hier einen Cloud-Service wie AWS S3 verwenden
     const base64 = buffer.toString('base64')
-    const dataUrl = `data:${file.type};base64,${base64}`
     
-    // Erstelle URL (verwende data URL für jetzt)
-    const url = dataUrl
+    // Erstelle eine kürzere URL für die Datenbank
+    const url = `/media/upload_${timestamp}.${extension}`
+    
+    // Speichere Base64-Daten in einem separaten Feld oder externen Service
+    // Für jetzt verwenden wir eine einfache URL-Struktur
 
     console.log("Creating media asset with URL:", url.substring(0, 50) + "...")
 
+    // Temporärer Speicher für Base64-Daten (in Produktion würde man Redis oder ähnliches verwenden)
+    const tempStorage = global as any
+    if (!tempStorage.uploadCache) tempStorage.uploadCache = new Map()
+    tempStorage.uploadCache.set(url, base64)
+    
     // Speichere in Datenbank
     const asset = await prisma.mediaAsset.upsert({
       where: { url },
