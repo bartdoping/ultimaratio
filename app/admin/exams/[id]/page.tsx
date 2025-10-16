@@ -38,7 +38,6 @@ async function updateExamAction(formData: FormData) {
   const slug = String(formData.get("slug") || "")
   const description = String(formData.get("description") || "")
   const passPercent = Number(formData.get("passPercent") || 60)
-  const allowImmediateFeedback = formData.get("allowImmediateFeedback") === "on"
   const isPublished = formData.get("isPublished") === "on"
   const categoryId = String(formData.get("categoryId") || "")
 
@@ -49,7 +48,7 @@ async function updateExamAction(formData: FormData) {
       slug,
       description,
       passPercent,
-      allowImmediateFeedback,
+      allowImmediateFeedback: true,
       isPublished,
       categoryId: categoryId || null,
     },
@@ -735,10 +734,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </select>
           </div>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="allowImmediateFeedback" defaultChecked={exam.allowImmediateFeedback} />
-              Sofort-Feedback global
-            </label>
+            <div className="text-sm text-muted-foreground">
+              ✓ Sofort-Feedback global ist automatisch aktiviert
+            </div>
             <label className="flex items-center gap-2">
               <input type="checkbox" name="isPublished" defaultChecked={exam.isPublished} />
               Veröffentlicht

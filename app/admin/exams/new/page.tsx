@@ -17,7 +17,7 @@ async function createExamAction(formData: FormData) {
   const isPublished = formData.get("isPublished") === "on"
 
   const exam = await prisma.exam.create({
-    data: { title, slug, description, passPercent, allowImmediateFeedback, isPublished }
+    data: { title, slug, description, passPercent, allowImmediateFeedback: true, isPublished }
   })
   redirect(`/admin/exams/${exam.id}`)
 }
@@ -45,9 +45,9 @@ export default async function NewExamPage() {
           <Input id="passPercent" name="passPercent" type="number" defaultValue={60} />
         </div>
         <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" name="allowImmediateFeedback" /> Sofort-Feedback global erlauben
-          </label>
+          <div className="text-sm text-muted-foreground">
+            ✓ Sofort-Feedback global ist automatisch aktiviert
+          </div>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="isPublished" /> Veröffentlicht
           </label>
