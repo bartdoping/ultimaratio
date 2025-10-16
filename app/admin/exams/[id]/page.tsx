@@ -13,7 +13,7 @@ import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
-import JsonUpload from "@/components/admin/json-upload"
+import JsonUploadSimple from "@/components/admin/json-upload-simple"
 import Link from "next/link"
 
 /**
@@ -781,16 +781,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           
           {/* JSON-Upload */}
           <div className="mb-4 p-3 bg-muted/50 rounded border">
-            <JsonUpload 
-              examId={id} 
-              onUpload={(jsonData) => {
-                // JSON in Textarea einfügen
-                const textarea = document.querySelector('textarea[name="bulk"]') as HTMLTextAreaElement
-                if (textarea) {
-                  textarea.value = jsonData
-                }
-              }}
-            />
+            <JsonUploadSimple />
           </div>
 
           <form action={bulkImportAction} className="space-y-2">
