@@ -52,6 +52,8 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   // ---------------- Drag & Drop State ----------------
   const [draggingId, setDraggingId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [hoverPreview, setHoverPreview] = useState<string | null>(null)
 
   function openEditor(id: string) {
     const params = new URLSearchParams(sp.toString())
@@ -121,6 +123,20 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     setOverId(null)
   }
 
+  // Hover-Handler für Vorschau
+  function onTileMouseEnter(id: string) {
+    setHoveredId(id)
+    const item = items.find(i => i.id === id)
+    if (item) {
+      setHoverPreview(item.preview)
+    }
+  }
+
+  function onTileMouseLeave() {
+    setHoveredId(null)
+    setHoverPreview(null)
+  }
+
   // Fallback: Container-Events erlauben Drop generell
   function onGridDragOver(e: React.DragEvent<HTMLDivElement>) {
     e.preventDefault()
@@ -144,6 +160,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
             {items.map((it, i) => {
               const isDragging = draggingId === it.id
               const isOver = overId === it.id && draggingId !== it.id
+              const isHovered = hoveredId === it.id
               return (
                 <button
                   key={it.id}
@@ -156,16 +173,19 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                   onDragLeave={(e) => onTileDragLeave(e, it.id)}
                   onDrop={(e) => onTileDrop(e, it.id)}
                   onDragEnd={onDragEnd}
+                  onMouseEnter={() => onTileMouseEnter(it.id)}
+                  onMouseLeave={onTileMouseLeave}
                   onClick={() => openEditor(it.id)}
                   className={[
-                    "h-9 rounded border text-xs font-medium",
-                    "flex items-center justify-center select-none",
+                    "h-9 rounded border text-xs font-medium transition-all duration-200",
+                    "flex items-center justify-center select-none cursor-move",
                     it.isCase
                       ? "bg-blue-50 border-blue-300 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200"
                       : "bg-muted/40 hover:bg-muted/70",
-                    isDragging ? "opacity-60"
-                      : isOver ? "ring-2 ring-blue-500"
-                      : "",
+                    isDragging ? "opacity-50 scale-95 shadow-lg transform rotate-2"
+                      : isOver ? "ring-2 ring-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105"
+                      : isHovered ? "ring-1 ring-gray-400 bg-gray-100 dark:bg-gray-800 scale-105"
+                      : "hover:scale-105 hover:shadow-md",
                   ].join(" ")}
                 >
                   {((page - 1) * PAGE_SIZE) + i + 1}
@@ -175,6 +195,16 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           </div>
         )}
       </div>
+
+      {/* Hover-Vorschau */}
+      {hoverPreview && (
+        <div className="fixed top-4 right-4 max-w-sm bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-3 z-50">
+          <div className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Vorschau:</div>
+          <div className="text-sm text-gray-900 dark:text-gray-100 line-clamp-3">
+            {hoverPreview}
+          </div>
+        </div>
+      )}
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between">

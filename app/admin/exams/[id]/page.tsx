@@ -7,6 +7,7 @@ import { initCategoriesTables } from "@/lib/init-categories-tables"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import QuestionEditor from "@/components/admin/question-editor"
 import QuestionShelf from "@/components/admin/question-shelf"
 import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
@@ -580,14 +581,12 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            {/* Stem bearbeiten */}
-            <form action={updateQuestionStemAction} className="grid gap-2">
-              <input type="hidden" name="examId" value={id} />
-              <input type="hidden" name="qid" value={editingValid.id} />
-              <Label>Fragestellung (Stem)</Label>
-              <Input name="stem" defaultValue={editingValid.stem} required />
-              <div><Button type="submit" variant="outline">Fragestellung speichern</Button></div>
-            </form>
+            {/* Frage-Editor */}
+            <QuestionEditor 
+              question={editingValid}
+              examId={id}
+              onUpdate={() => window.location.reload()}
+            />
 
             {/* Fall-Zuordnung */}
             <form action={assignCaseToQuestionAction} className="flex items-center gap-2 text-sm">
