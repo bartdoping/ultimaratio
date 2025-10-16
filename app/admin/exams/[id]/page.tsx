@@ -13,6 +13,7 @@ import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
+import JsonUpload from "@/components/admin/json-upload"
 import Link from "next/link"
 
 /**
@@ -367,6 +368,7 @@ async function duplicateQuestionAction(formData: FormData) {
  *   ]
  * }
  */
+
 async function bulkImportAction(formData: FormData) {
   "use server"
   await requireAdmin()
@@ -743,6 +745,22 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <Button type="submit">Prüfungsdaten speichern</Button>
         </form>
 
+        {/* JSON-Download für gesamte Fragensammlung */}
+        <div className="rounded border p-3 space-y-2" id="json-download">
+          <h3 className="font-medium">Fragensammlung exportieren</h3>
+          <p className="text-xs text-muted-foreground mb-2">
+            Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
+          </p>
+          <Link 
+            href={`/api/admin/exams/${exam.id}/download-json`}
+            className="inline-flex w-full"
+          >
+            <Button variant="outline" className="w-full">
+              📥 JSON herunterladen
+            </Button>
+          </Link>
+        </div>
+
         {/* Neue Frage anlegen (mit Bild & 5 Optionen) */}
         <div className="rounded border p-3 space-y-2" id="new-question">
           <h3 className="font-medium">Neue Frage</h3>
@@ -760,6 +778,21 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <p className="text-xs text-muted-foreground mb-2">
             Füge JSON im unten beschriebenen Format ein. Fälle können über <code>caseTitle</code> zugeordnet werden.
           </p>
+          
+          {/* JSON-Upload */}
+          <div className="mb-4 p-3 bg-muted/50 rounded border">
+            <JsonUpload 
+              examId={id} 
+              onUpload={(jsonData) => {
+                // JSON in Textarea einfügen
+                const textarea = document.querySelector('textarea[name="bulk"]') as HTMLTextAreaElement
+                if (textarea) {
+                  textarea.value = jsonData
+                }
+              }}
+            />
+          </div>
+
           <form action={bulkImportAction} className="space-y-2">
             <input type="hidden" name="examId" value={id} />
             <textarea
