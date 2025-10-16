@@ -563,6 +563,24 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <QuestionShelf examId={id} />
         </section>
 
+        {/* JSON-Download für gesamte Fragensammlung */}
+        <section className="space-y-3">
+          <div className="rounded border p-4 bg-blue-50 dark:bg-blue-950/20">
+            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📥 Fragensammlung exportieren</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+              Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
+            </p>
+            <Link 
+              href={`/api/admin/exams/${exam.id}/download-json`}
+              className="inline-flex"
+            >
+              <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+                📥 JSON herunterladen
+              </Button>
+            </Link>
+          </div>
+        </section>
+
         {/* Editor der ausgewählten Frage (optional) */}
         {editingValid && (
           <section className="rounded border p-4 space-y-4" id="edit-question">
@@ -745,21 +763,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <Button type="submit">Prüfungsdaten speichern</Button>
         </form>
 
-        {/* JSON-Download für gesamte Fragensammlung */}
-        <div className="rounded border p-3 space-y-2" id="json-download">
-          <h3 className="font-medium">Fragensammlung exportieren</h3>
-          <p className="text-xs text-muted-foreground mb-2">
-            Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
-          </p>
-          <Link 
-            href={`/api/admin/exams/${exam.id}/download-json`}
-            className="inline-flex w-full"
-          >
-            <Button variant="outline" className="w-full">
-              📥 JSON herunterladen
-            </Button>
-          </Link>
-        </div>
 
         {/* Neue Frage anlegen (mit Bild & 5 Optionen) */}
         <div className="rounded border p-3 space-y-2" id="new-question">
