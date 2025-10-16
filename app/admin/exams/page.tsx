@@ -38,7 +38,6 @@ export default async function AdminExamsPage() {
       slug: true, 
       title: true, 
       isPublished: true, 
-      priceCents: true,
       categoryId: true,
       category: {
         select: {

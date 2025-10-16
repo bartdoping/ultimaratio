@@ -10,7 +10,6 @@ interface Exam {
   slug: string
   title: string
   isPublished: boolean
-  priceCents: number | null
   categoryId: string | null
   category: {
     id: string
@@ -47,7 +46,7 @@ export default function AdminExamsList({
           <div>
             <div className="font-medium">{e.title}</div>
             <div className="text-sm text-muted-foreground">
-              {e.slug} · {((e.priceCents || 0) / 100).toFixed(2)} € · {e.isPublished ? "veröffentlicht" : "Entwurf"}
+              {e.slug} · {e.isPublished ? "veröffentlicht" : "Entwurf"}
             </div>
           </div>
           <div className="flex items-center gap-2">

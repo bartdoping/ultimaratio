@@ -37,7 +37,6 @@ async function updateExamAction(formData: FormData) {
   const title = String(formData.get("title") || "")
   const slug = String(formData.get("slug") || "")
   const description = String(formData.get("description") || "")
-  const priceCents = Number(formData.get("priceCents") || 0)
   const passPercent = Number(formData.get("passPercent") || 60)
   const allowImmediateFeedback = formData.get("allowImmediateFeedback") === "on"
   const isPublished = formData.get("isPublished") === "on"
@@ -49,7 +48,6 @@ async function updateExamAction(formData: FormData) {
       title,
       slug,
       description,
-      priceCents,
       passPercent,
       allowImmediateFeedback,
       isPublished,
@@ -716,15 +714,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             <Label htmlFor="description">Beschreibung</Label>
             <Input id="description" name="description" defaultValue={exam.description ?? ""} />
           </div>
-          <div className="flex gap-3">
-            <div className="grow">
-              <Label htmlFor="priceCents">Preis (Cent)</Label>
-              <Input id="priceCents" name="priceCents" type="number" defaultValue={exam.priceCents || 0} />
-            </div>
-            <div className="grow">
-              <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
-              <Input id="passPercent" name="passPercent" type="number" defaultValue={exam.passPercent} />
-            </div>
+          <div>
+            <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
+            <Input id="passPercent" name="passPercent" type="number" defaultValue={exam.passPercent} />
           </div>
           <div>
             <Label htmlFor="categoryId">Kategorie</Label>
