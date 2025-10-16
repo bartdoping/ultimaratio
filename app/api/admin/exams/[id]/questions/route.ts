@@ -48,7 +48,7 @@ export async function GET(req: Request, ctx: Ctx) {
               id: true,
               tag: {
                 select: {
-                  isSuper: true
+                  parentId: true
                 }
               }
             }
@@ -68,7 +68,7 @@ export async function GET(req: Request, ctx: Ctx) {
         isCase: !!q.caseId,
         order: q.order ?? 0,
         // Prüfe ob Frage normale Tags hat (nicht Supertags)
-        hasTags: q.tags.some(t => !t.tag.isSuper),
+        hasTags: q.tags.some(t => t.tag.parentId !== null),
       })),
     })
   } catch (e) {
