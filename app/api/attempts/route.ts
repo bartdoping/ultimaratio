@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   // Benutzer ermitteln
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, subscriptionStatus: true },
   })
   if (!me) {
     return NextResponse.json({ ok: false, error: "user not found" }, { status: 401 })
@@ -53,13 +53,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "exam not found" }, { status: 404 })
   }
 
-  // Kauf checken
-  const hasPurchase = await prisma.purchase.findUnique({
-    where: { userId_examId: { userId: me.id, examId } },
-    select: { id: true },
-  })
-  if (!hasPurchase) {
-    return NextResponse.json({ ok: false, error: "not purchased" }, { status: 403 })
+  // Abo-Status prüfen (Pro-User haben Zugang zu allen Prüfungen)
+  if (me.subscriptionStatus !== "pro") {
+    return NextResponse.json({ 
+      ok: false, 
+      error: "subscription_required",
+      message: "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!"
+    }, { status: 403 })
   }
 
   // Gibt es bereits einen offenen Versuch? -> reuse (nur wenn keine Filter angewendet werden)

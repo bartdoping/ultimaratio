@@ -60,25 +60,15 @@ export default async function ExamsListPage() {
     }
   })
 
-  // Aktivierte Exams des eingeloggten Users (als Set für O(1)-Lookup)
-  let activatedExamIds = new Set<string>()
+  // Pro-User haben Zugang zu allen Prüfungen
+  let hasAccess = false;
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
       select: { id: true, subscriptionStatus: true },
     })
     if (me) {
-      // Pro-User haben alle Prüfungen aktiviert
-      if (me.subscriptionStatus === "pro") {
-        activatedExamIds = new Set(exams.map(e => e.id))
-      } else {
-        // Free-User haben nur gekaufte Prüfungen aktiviert (für Rückwärtskompatibilität)
-        const purchases = await prisma.purchase.findMany({
-          where: { userId: me.id },
-          select: { examId: true },
-        })
-        activatedExamIds = new Set(purchases.map(p => p.examId))
-      }
+      hasAccess = me.subscriptionStatus === "pro";
     }
   }
 
@@ -92,7 +82,7 @@ export default async function ExamsListPage() {
       <ExamsCategorized 
         categories={categories}
         examsWithoutCategory={examsWithoutCategory}
-        activatedExamIds={activatedExamIds}
+        hasAccess={hasAccess}
       />
     </div>
   )

@@ -17,10 +17,18 @@ export async function POST(req: Request) {
   try {
     // Auth
     const session = await getServerSession(authOptions)
-    const userId = session?.user?.id as string | undefined
-    if (!userId) {
+    if (!session?.user?.email) {
       return NextResponse.json({ error: "unauthorized" }, { status: 401 })
     }
+
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true, subscriptionStatus: true },
+    })
+    if (!me) {
+      return NextResponse.json({ error: "user not found" }, { status: 401 })
+    }
+    const userId = me.id
 
     // Prüfe Tageslimit für Free-User
     const canUseQuestion = await incrementQuestionUsage(userId)
@@ -48,13 +56,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "question not found" }, { status: 404 })
     }
 
-    // Zugriff prüfen (Kauf vorhanden?)
-    const purchase = await prisma.purchase.findFirst({
-      where: { userId, examId: question.examId },
-      select: { id: true },
-    })
-    if (!purchase) {
-      return NextResponse.json({ error: "no access to exam" }, { status: 403 })
+    // Abo-Status prüfen (Pro-User haben Zugang zu allen Prüfungen)
+    if (me.subscriptionStatus !== "pro") {
+      return NextResponse.json({ 
+        error: "subscription_required",
+        message: "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!"
+      }, { status: 403 })
     }
 
     // Option prüfen (muss zur Frage gehören)

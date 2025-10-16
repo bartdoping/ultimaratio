@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StartExamButton } from "@/components/start-exam-button"
-import { ActivateExamButton } from "@/components/activate-exam-button"
 
 interface Exam {
   id: string
@@ -25,13 +24,13 @@ interface Category {
 interface ExamsCategorizedProps {
   categories: Category[]
   examsWithoutCategory: Exam[]
-  activatedExamIds: Set<string>
+  hasAccess: boolean
 }
 
 export default function ExamsCategorized({ 
   categories, 
   examsWithoutCategory, 
-  activatedExamIds 
+  hasAccess 
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -106,7 +105,7 @@ export default function ExamsCategorized({
 
         <div className="grid gap-4">
           {displayedExams.map((exam) => {
-            const isActivated = activatedExamIds.has(exam.id)
+            const isActivated = hasAccess
             const category = exam.categoryId ? categories.find(c => c.id === exam.categoryId) : null
             
             return (
@@ -144,11 +143,11 @@ export default function ExamsCategorized({
                       Details
                     </Link>
 
-                    <ActivateExamButton 
-                      examId={exam.id}
-                      examTitle={exam.title}
-                      isActivated={isActivated}
-                    />
+                    {!hasAccess && (
+                      <div className="text-sm text-muted-foreground">
+                        Pro-Abonnement erforderlich
+                      </div>
+                    )}
 
                     {isActivated && (
                       <>

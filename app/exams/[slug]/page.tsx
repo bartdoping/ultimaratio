@@ -6,7 +6,7 @@ import { authOptions } from "@/auth";
 import { ConfirmAfterReturn } from "@/components/confirm-after-return";
 import { CheckoutButton } from "@/components/checkout-button";
 import { StartExamButton } from "@/components/start-exam-button";
-import { ActivateExamButton } from "@/components/activate-exam-button";
+;
 
 export const dynamic = "force-dynamic";
 
@@ -57,19 +57,15 @@ export default async function ExamPage({ params }: PageProps) {
     notFound();
   }
 
-  // Prüfen, ob der eingeloggte Nutzer die Prüfung aktiviert hat
-  let hasPurchase = false;
+  // Prüfen, ob der eingeloggte Nutzer Pro-User ist
+  let hasAccess = false;
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true },
+      select: { id: true, subscriptionStatus: true },
     });
     if (me) {
-      const purchase = await prisma.purchase.findUnique({
-        where: { userId_examId: { userId: me.id, examId: exam.id } },
-        select: { id: true },
-      });
-      hasPurchase = !!purchase;
+      hasAccess = me.subscriptionStatus === "pro";
     }
   }
 
@@ -128,17 +124,21 @@ export default async function ExamPage({ params }: PageProps) {
           </div>
         )}
 
-        {!hasPurchase ? (
+        {!hasAccess ? (
           session?.user ? (
             <div className="space-y-2">
-              <ActivateExamButton 
-                examId={exam.id}
-                examTitle={exam.title}
-                isActivated={false}
-              />
-              <p className="text-sm text-muted-foreground">
-                Aktiviere die Prüfung, um sie zu nutzen und in deinen Statistiken zu berücksichtigen.
-              </p>
+              <div className="text-center py-8">
+                <h3 className="text-lg font-semibold mb-2">Pro-Abonnement erforderlich</h3>
+                <p className="text-muted-foreground mb-4">
+                  Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!
+                </p>
+                <Link
+                  href="/dashboard/account"
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Jetzt upgraden
+                </Link>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
@@ -146,10 +146,10 @@ export default async function ExamPage({ params }: PageProps) {
                 href="/login"
                 className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
               >
-                Einloggen, um zu aktivieren
+                Einloggen, um zu starten
               </Link>
               <p className="text-sm text-muted-foreground">
-                Du benötigst ein Konto, um die Prüfung zu aktivieren.
+                Du benötigst ein Konto, um die Prüfung zu nutzen.
               </p>
             </div>
           )
