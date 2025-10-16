@@ -61,16 +61,16 @@ export default function NewQuestionImageUpload({
         body: formData,
       })
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        console.error('Upload failed:', response.status, errorData)
-        throw new Error(`Upload fehlgeschlagen: ${errorData.error || 'Unbekannter Fehler'}`)
-      }
-
       const result = await response.json()
+      console.log('Upload response:', result)
+      
+      if (!response.ok) {
+        console.error('Upload failed:', response.status, result)
+        throw new Error(`Upload fehlgeschlagen: ${result.error || result.details || 'Unbekannter Fehler'}`)
+      }
       
       if (!result.success) {
-        throw new Error(result.error || 'Upload fehlgeschlagen')
+        throw new Error(result.error || result.details || 'Upload fehlgeschlagen')
       }
       
       // Bild zur Liste hinzufügen

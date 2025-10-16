@@ -40,18 +40,29 @@ export async function POST(req: NextRequest) {
 
     if (!file) {
       console.log("No file provided")
-      return NextResponse.json({ error: "No file provided" }, { status: 400 })
+      return NextResponse.json({ 
+        success: false,
+        error: "No file provided" 
+      }, { status: 400 })
     }
 
     // Validiere Dateityp
     if (!file.type.startsWith('image/')) {
-      return NextResponse.json({ error: "Invalid file type" }, { status: 400 })
+      console.log("Invalid file type:", file.type)
+      return NextResponse.json({ 
+        success: false,
+        error: "Invalid file type" 
+      }, { status: 400 })
     }
 
     // Validiere Dateigröße (10MB Limit)
     const maxSize = 10 * 1024 * 1024 // 10MB
     if (file.size > maxSize) {
-      return NextResponse.json({ error: "File too large" }, { status: 400 })
+      console.log("File too large:", file.size)
+      return NextResponse.json({ 
+        success: false,
+        error: "File too large" 
+      }, { status: 400 })
     }
 
     // Konvertiere zu Buffer
@@ -116,9 +127,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error("Upload error:", error)
+    const errorMessage = error instanceof Error ? error.message : "Unknown error"
     return NextResponse.json({ 
+      success: false,
       error: "Upload failed", 
-      details: error instanceof Error ? error.message : "Unknown error" 
+      details: errorMessage 
     }, { status: 500 })
   }
 }
