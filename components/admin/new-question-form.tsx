@@ -81,7 +81,7 @@ export default function NewQuestionForm({ examId }: NewQuestionFormProps) {
             Tags können nach dem Erstellen der Frage zugewiesen werden.
           </p>
           <CompactTagManager 
-            questionId={null} 
+            questionId={undefined} 
             examId={examId}
             onTagChange={() => {}}
             onQuestionTagsUpdate={() => {}}
