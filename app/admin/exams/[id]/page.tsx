@@ -14,6 +14,7 @@ import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
 import JsonUploadSimple from "@/components/admin/json-upload-simple"
+import JsonUploadForm from "@/components/admin/json-upload-form"
 import Link from "next/link"
 
 /**
@@ -379,7 +380,7 @@ async function bulkImportAction(formData: FormData) {
     
     if (!raw) {
       console.error("No bulk data provided")
-      redirect(`/admin/exams/${examId}`)
+      return { success: false, error: "Keine Daten zum Importieren" }
     }
 
     let data: any
@@ -387,7 +388,7 @@ async function bulkImportAction(formData: FormData) {
       data = JSON.parse(raw)
     } catch (parseError) {
       console.error("JSON parse error:", parseError)
-      redirect(`/admin/exams/${examId}`)
+      return { success: false, error: "Ungültiges JSON-Format" }
     }
 
     const cases: Array<{ title: string; vignette?: string; order?: number }> = Array.isArray(data?.cases)
@@ -397,7 +398,7 @@ async function bulkImportAction(formData: FormData) {
     const questions: Array<any> = Array.isArray(data?.questions) ? data.questions : []
     if (questions.length === 0 && cases.length === 0) {
       console.error("No questions or cases to import")
-      redirect(`/admin/exams/${examId}`)
+      return { success: false, error: "Keine Fragen oder Fälle zum Importieren" }
     }
 
     await prisma.$transaction(async (tx) => {
@@ -512,10 +513,14 @@ async function bulkImportAction(formData: FormData) {
     }
     })
 
-    redirect(`/admin/exams/${examId}`)
+    return { 
+      success: true, 
+      message: `${questions.length} Fragen und ${cases.length} Fälle erfolgreich importiert`,
+      examId 
+    }
   } catch (error) {
     console.error("Bulk import error:", error)
-    redirect(`/admin/exams/${examId}`)
+    return { success: false, error: "Fehler beim Importieren der Daten" }
   }
 }
 
@@ -799,34 +804,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             <JsonUploadSimple />
           </div>
 
-          <form action={bulkImportAction} className="space-y-2">
-            <input type="hidden" name="examId" value={id} />
-            <textarea
-              name="bulk"
-              className="input w-full h-64 font-mono text-xs"
-              placeholder={`{
-  "cases": [
-    { "title": "Fall A", "vignette": "Anamnese…", "order": 1 }
-  ],
-  "questions": [
-    {
-      "stem": "Was ist richtig?",
-      "tip": "Denke an …",
-      "explanation": "So merkst du es dir …",
-      "allowImmediate": true,
-      "caseTitle": "Fall A",
-      "images": [{ "url": "https://…/bild.jpg", "alt": "Röntgen" }],
-      "options": [
-        { "text": "Option A", "isCorrect": true, "explanation": "darum…" },
-        { "text": "Option B" },
-        { "text": "Option C" }
-      ]
-    }
-  ]
-}`}
-            />
-            <Button type="submit">Generieren</Button>
-          </form>
+          <JsonUploadForm examId={id} bulkImportAction={bulkImportAction} />
         </div>
       </aside>
     </div>
