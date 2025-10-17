@@ -80,7 +80,7 @@ export default function CompactTagManager({ questionId, onTagChange }: CompactTa
     }
     
     try {
-      const res = await fetch(`/api/admin/questions/${questionId}/tags`, { cache: "no-store" })
+      const res = await fetch(`/api/admin/question-tags?questionId=${questionId}`, { cache: "no-store" })
       const data = await res.json()
       if (res.ok) {
         setQuestionTags(data.tags || [])
@@ -243,6 +243,24 @@ export default function CompactTagManager({ questionId, onTagChange }: CompactTa
       </CardHeader>
       
       <CardContent className="space-y-4">
+        {/* Aktuelle Frage-Tags */}
+        {questionId && (
+          <div className="bg-blue-50 p-3 rounded border">
+            <h4 className="text-sm font-medium mb-2">Aktuelle Frage-Tags:</h4>
+            {questionTags.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {questionTags.map(tag => (
+                  <Badge key={tag.id} variant="default" className="text-xs">
+                    {tag.name}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500">Keine Tags zugewiesen</p>
+            )}
+          </div>
+        )}
+
         {error && (
           <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
             {error}

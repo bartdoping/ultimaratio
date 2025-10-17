@@ -3,10 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ questionId: string }> }
-) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
@@ -23,7 +20,12 @@ export async function GET(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
-    const { questionId } = await params
+    const { searchParams } = new URL(req.url)
+    const questionId = searchParams.get('questionId')
+
+    if (!questionId) {
+      return NextResponse.json({ error: "questionId is required" }, { status: 400 })
+    }
 
     // Lade Tags der Frage
     const questionTags = await prisma.questionTag.findMany({
