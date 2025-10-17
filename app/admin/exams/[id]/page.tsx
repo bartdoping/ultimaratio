@@ -371,28 +371,36 @@ async function duplicateQuestionAction(formData: FormData) {
 
 async function bulkImportAction(formData: FormData) {
   "use server"
-  await requireAdmin()
-  const examId = String(formData.get("examId") || "")
-  const raw = String(formData.get("bulk") || "").trim()
-  if (!raw) redirect(`/admin/exams/${examId}`)
-
-  let data: any
+  let examId = ""
   try {
-    data = JSON.parse(raw)
-  } catch {
-    redirect(`/admin/exams/${examId}`)
-  }
+    await requireAdmin()
+    examId = String(formData.get("examId") || "")
+    const raw = String(formData.get("bulk") || "").trim()
+    
+    if (!raw) {
+      console.error("No bulk data provided")
+      redirect(`/admin/exams/${examId}`)
+    }
 
-  const cases: Array<{ title: string; vignette?: string; order?: number }> = Array.isArray(data?.cases)
-    ? data.cases
-    : []
+    let data: any
+    try {
+      data = JSON.parse(raw)
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError)
+      redirect(`/admin/exams/${examId}`)
+    }
 
-  const questions: Array<any> = Array.isArray(data?.questions) ? data.questions : []
-  if (questions.length === 0 && cases.length === 0) {
-    redirect(`/admin/exams/${examId}`)
-  }
+    const cases: Array<{ title: string; vignette?: string; order?: number }> = Array.isArray(data?.cases)
+      ? data.cases
+      : []
 
-  await prisma.$transaction(async (tx) => {
+    const questions: Array<any> = Array.isArray(data?.questions) ? data.questions : []
+    if (questions.length === 0 && cases.length === 0) {
+      console.error("No questions or cases to import")
+      redirect(`/admin/exams/${examId}`)
+    }
+
+    await prisma.$transaction(async (tx) => {
     // Fälle anlegen/upserten (nach Titel)
     const titleToCaseId = new Map<string, string>()
     for (const c of cases) {
@@ -502,9 +510,13 @@ async function bulkImportAction(formData: FormData) {
         }
       }
     }
-  })
+    })
 
-  redirect(`/admin/exams/${examId}`)
+    redirect(`/admin/exams/${examId}`)
+  } catch (error) {
+    console.error("Bulk import error:", error)
+    redirect(`/admin/exams/${examId}`)
+  }
 }
 
 // ----------------- Page -----------------
