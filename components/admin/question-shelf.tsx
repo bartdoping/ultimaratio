@@ -146,11 +146,13 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     setShowDeleteConfirm(true)
   }
 
-  // Prüfe ob eine Frage ein Duplikat ist
+  // Prüfe ob eine Frage ein Duplikat ist (nur zweite und weitere Fragen)
   const isDuplicate = (questionId: string) => {
     for (const questionIds of duplicates.values()) {
       if (questionIds.includes(questionId) && questionIds.length > 1) {
-        return true
+        // Nur die zweite und weitere Fragen als Duplikat markieren
+        const index = questionIds.indexOf(questionId)
+        return index > 0 // Nur wenn es nicht die erste Frage ist
       }
     }
     return false
@@ -164,6 +166,18 @@ export default function QuestionShelf({ examId }: { examId: string }) {
       }
     }
     return 0
+  }
+
+  // Finde alle Duplikat-Fragen (zweite und weitere)
+  const getAllDuplicateQuestions = () => {
+    const duplicateQuestions: string[] = []
+    for (const questionIds of duplicates.values()) {
+      if (questionIds.length > 1) {
+        // Füge alle außer der ersten hinzu
+        duplicateQuestions.push(...questionIds.slice(1))
+      }
+    }
+    return duplicateQuestions
   }
 
   // ---------------- Drag & Drop State ----------------
@@ -296,7 +310,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           <div className="text-sm text-muted-foreground">Noch keine Fragen erstellt.</div>
         ) : (
           <div
-            className="grid grid-cols-10 gap-2"
+            className="grid grid-cols-5 gap-3"
             onDragOver={onGridDragOver}
           >
             {items.map((it, i) => {
@@ -327,7 +341,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                       }
                     }}
                     className={[
-                      "h-9 rounded border text-xs font-medium transition-all duration-200",
+                      "h-12 rounded border text-sm font-medium transition-all duration-200",
                       "flex items-center justify-center select-none relative",
                       deleteMode ? "cursor-pointer" : "cursor-move",
                       // Base colors
@@ -449,6 +463,22 @@ export default function QuestionShelf({ examId }: { examId: string }) {
               </Button>
             </>
           )}
+          
+          {/* Duplikat-Löschung */}
+          {duplicatesLoaded && duplicates.size > 0 && (
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => {
+                const duplicateQuestions = getAllDuplicateQuestions()
+                setSelectedQuestions(new Set(duplicateQuestions))
+                setShowDeleteConfirm(true)
+              }}
+            >
+              <Copy className="h-4 w-4 mr-1" />
+              Duplikate löschen ({getAllDuplicateQuestions().length})
+            </Button>
+          )}
         </div>
         
         <div className="text-sm text-muted-foreground">
@@ -459,7 +489,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           )}
           {duplicatesLoaded && duplicates.size > 0 && (
             <span className="text-purple-600 ml-2">
-              {duplicates.size} Duplikat-Gruppen gefunden
+              {duplicates.size} Duplikat-Gruppen gefunden ({getAllDuplicateQuestions().length} zu löschende Duplikate)
             </span>
           )}
         </div>
