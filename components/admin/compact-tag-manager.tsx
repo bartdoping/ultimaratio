@@ -22,9 +22,10 @@ interface Tag {
 interface CompactTagManagerProps {
   questionId?: string
   onTagChange?: () => void
+  onQuestionTagsUpdate?: () => void
 }
 
-export default function CompactTagManager({ questionId, onTagChange }: CompactTagManagerProps) {
+export default function CompactTagManager({ questionId, onTagChange, onQuestionTagsUpdate }: CompactTagManagerProps) {
   const [tags, setTags] = useState<Tag[]>([])
   const [questionTags, setQuestionTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(false)
@@ -129,6 +130,7 @@ export default function CompactTagManager({ questionId, onTagChange }: CompactTa
       setShowCreateForm(false)
       setSuccess("Tag erfolgreich erstellt")
       onTagChange?.()
+      onQuestionTagsUpdate?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create tag")
     } finally {
@@ -174,6 +176,7 @@ export default function CompactTagManager({ questionId, onTagChange }: CompactTa
       setEditingTag(null)
       setSuccess("Tag erfolgreich aktualisiert")
       onTagChange?.()
+      onQuestionTagsUpdate?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update tag")
     } finally {
@@ -203,6 +206,7 @@ export default function CompactTagManager({ questionId, onTagChange }: CompactTa
       setTags(prev => prev.filter(tag => tag.id !== tagId))
       setSuccess("Tag erfolgreich gelöscht")
       onTagChange?.()
+      onQuestionTagsUpdate?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete tag")
     } finally {

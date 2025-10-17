@@ -344,7 +344,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           <div className="text-sm text-muted-foreground">Noch keine Fragen erstellt.</div>
         ) : (
           <div
-            className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
             onDragOver={onGridDragOver}
           >
             {items
@@ -378,7 +378,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                       }
                     }}
                     className={[
-                      "h-12 rounded border text-sm font-medium transition-all duration-200",
+                      "h-16 rounded border text-sm font-medium transition-all duration-200",
                       "flex items-center justify-center select-none relative",
                       deleteMode ? "cursor-pointer" : "cursor-move",
                       // Base colors

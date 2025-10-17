@@ -14,9 +14,10 @@ interface QuestionFormProps {
     hasImmediateFeedbackAllowed: boolean
   }
   examId: string
+  onQuestionUpdate?: () => void
 }
 
-export default function QuestionForm({ question, examId }: QuestionFormProps) {
+export default function QuestionForm({ question, examId, onQuestionUpdate }: QuestionFormProps) {
   const [stem, setStem] = useState(question.stem)
   const [explanation, setExplanation] = useState(question.explanation || "")
   const [tip, setTip] = useState(question.tip || "")
@@ -193,7 +194,10 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
           onTagChange={() => {
             // Optional: Reload question tags if needed
             console.log('Tags updated')
-          }} 
+          }}
+          onQuestionTagsUpdate={() => {
+            onQuestionUpdate?.()
+          }}
         />
       </div>
     </div>
