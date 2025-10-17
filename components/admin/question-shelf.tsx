@@ -344,7 +344,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           <div className="text-sm text-muted-foreground">Noch keine Fragen erstellt.</div>
         ) : (
           <div
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2"
             onDragOver={onGridDragOver}
           >
             {items
@@ -357,7 +357,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
               const isCurrent = currentQuestionId === it.id
               const isUntagged = !it.hasTags
               return (
-                <div key={it.id} className="relative group">
+                <div key={it.id} className="relative group w-full">
                   <button
                     title={it.preview || "Frage"}
                     draggable={!deleteMode}
@@ -378,8 +378,9 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                       }
                     }}
                     className={[
-                      "h-16 rounded border text-sm font-medium transition-all duration-200",
+                      "h-12 w-full rounded border text-sm font-medium transition-all duration-200",
                       "flex items-center justify-center select-none relative",
+                      "min-w-0 flex-1",
                       deleteMode ? "cursor-pointer" : "cursor-move",
                       // Base colors
                       it.isCase
