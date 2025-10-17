@@ -92,6 +92,58 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
     }
   }
 
+  const assignTagToQuestion = async (tagId: string) => {
+    if (!questionId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/admin/question-tags', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId, tagId })
+      })
+      if (response.ok) {
+        setSuccess('Tag zugewiesen')
+        loadQuestionTags()
+        onTagChange?.()
+        onQuestionTagsUpdate?.()
+      } else {
+        const error = await response.json()
+        setError(error.error || 'Fehler beim Zuweisen des Tags')
+      }
+    } catch (err) {
+      setError('Fehler beim Zuweisen des Tags')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const removeTagFromQuestion = async (tagId: string) => {
+    if (!questionId) return
+    setLoading(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/admin/question-tags', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ questionId, tagId })
+      })
+      if (response.ok) {
+        setSuccess('Tag entfernt')
+        loadQuestionTags()
+        onTagChange?.()
+        onQuestionTagsUpdate?.()
+      } else {
+        const error = await response.json()
+        setError(error.error || 'Fehler beim Entfernen des Tags')
+      }
+    } catch (err) {
+      setError('Fehler beim Entfernen des Tags')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleCreateTag = async () => {
     if (!newTag.name || !newTag.slug) {
       setError("Name und Slug sind erforderlich")
@@ -249,18 +301,72 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
       <CardContent className="space-y-4">
         {/* Aktuelle Frage-Tags */}
         {questionId && (
-          <div className="bg-blue-50 p-3 rounded border">
-            <h4 className="text-sm font-medium mb-2">Aktuelle Frage-Tags:</h4>
+          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+                📋 Aktuelle Frage-Tags
+              </h4>
+              <span className="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">
+                {questionTags.length} Tag{questionTags.length !== 1 ? 's' : ''}
+              </span>
+            </div>
             {questionTags.length > 0 ? (
-              <div className="flex flex-wrap gap-1">
+              <div className="flex flex-wrap gap-2">
                 {questionTags.map(tag => (
-                  <Badge key={tag.id} variant="default" className="text-xs">
+                  <Badge 
+                    key={tag.id} 
+                    variant="default" 
+                    className="text-xs bg-blue-600 hover:bg-blue-700 text-white cursor-pointer group"
+                    onClick={() => removeTagFromQuestion(tag.id)}
+                    title="Klicken zum Entfernen"
+                  >
                     {tag.name}
+                    <span className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity">×</span>
                   </Badge>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-500">Keine Tags zugewiesen</p>
+              <div className="text-center py-4">
+                <p className="text-sm text-blue-600 dark:text-blue-400 mb-2">
+                  🏷️ Keine Tags zugewiesen
+                </p>
+                <p className="text-xs text-blue-500 dark:text-blue-500">
+                  Füge Tags hinzu, um die Frage zu kategorisieren
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Tag-Zuweisung für einzelne Fragen */}
+        {questionId && (
+          <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="text-sm font-semibold text-green-900 dark:text-green-100">
+                ➕ Tags zuweisen
+              </h4>
+              <span className="text-xs text-green-600 dark:text-green-400">
+                Klicke auf einen Tag zum Hinzufügen
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {normalTags.map(tag => (
+                <Button
+                  key={tag.id}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => assignTagToQuestion(tag.id)}
+                  disabled={loading}
+                  className="text-xs hover:bg-green-100 dark:hover:bg-green-800 border-green-300 dark:border-green-700"
+                >
+                  {tag.name}
+                </Button>
+              ))}
+            </div>
+            {normalTags.length === 0 && (
+              <p className="text-sm text-green-600 dark:text-green-400 text-center py-2">
+                Keine Tags verfügbar. Erstelle zuerst Tags im Hauptbereich.
+              </p>
             )}
           </div>
         )}

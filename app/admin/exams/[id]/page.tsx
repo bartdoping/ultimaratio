@@ -656,7 +656,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* Frage-Editor */}
-            <QuestionForm 
+            <QuestionEditorWrapper 
               question={editingValid}
               examId={id}
             />
