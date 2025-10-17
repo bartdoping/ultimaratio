@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Trash2, X, Check } from "lucide-react"
+import { Trash2, X, Check, Copy } from "lucide-react"
 
 type Item = {
   id: string
@@ -35,6 +35,10 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteMode, setDeleteMode] = useState(false)
+  
+  // Duplikat-Erkennung
+  const [duplicates, setDuplicates] = useState<Map<string, string[]>>(new Map())
+  const [duplicatesLoaded, setDuplicatesLoaded] = useState(false)
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total])
 
@@ -57,6 +61,30 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   }
 
   useEffect(() => { load() }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lade Duplikate
+  const loadDuplicates = async () => {
+    if (duplicatesLoaded) return
+    
+    try {
+      const res = await fetch(`/api/admin/exams/${examId}/duplicates`, { cache: "no-store" })
+      const data = await res.json()
+      if (res.ok && data.duplicates) {
+        const duplicatesMap = new Map<string, string[]>()
+        Object.entries(data.duplicates).forEach(([hash, questionIds]) => {
+          duplicatesMap.set(hash, questionIds as string[])
+        })
+        setDuplicates(duplicatesMap)
+        setDuplicatesLoaded(true)
+      }
+    } catch (error) {
+      console.error("Error loading duplicates:", error)
+    }
+  }
+
+  useEffect(() => {
+    loadDuplicates()
+  }, [examId, duplicatesLoaded])
   
   // Aktualisiere currentQuestionId wenn sich die URL ändert
   useEffect(() => {
@@ -116,6 +144,26 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const handleSingleDelete = (questionId: string) => {
     setSelectedQuestions(new Set([questionId]))
     setShowDeleteConfirm(true)
+  }
+
+  // Prüfe ob eine Frage ein Duplikat ist
+  const isDuplicate = (questionId: string) => {
+    for (const questionIds of duplicates.values()) {
+      if (questionIds.includes(questionId) && questionIds.length > 1) {
+        return true
+      }
+    }
+    return false
+  }
+
+  // Zähle Duplikate für eine Frage
+  const getDuplicateCount = (questionId: string) => {
+    for (const questionIds of duplicates.values()) {
+      if (questionIds.includes(questionId)) {
+        return questionIds.length
+      }
+    }
+    return 0
   }
 
   // ---------------- Drag & Drop State ----------------
@@ -292,17 +340,25 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                       isUntagged && !isCurrent ? "ring-1 ring-red-400 bg-red-50 dark:bg-red-900/20 border-red-300 text-red-700 dark:text-red-300" : "",
                       // Selected questions (green highlight)
                       selectedQuestions.has(it.id) ? "ring-2 ring-green-500 bg-green-100 dark:bg-green-900/30 border-green-500" : "",
-                      // Drag states
-                      isDragging ? "opacity-50 scale-95 shadow-lg transform rotate-2"
-                        : isOver ? "ring-2 ring-blue-500 bg-blue-100 dark:bg-blue-900/30 scale-105"
-                        : isHovered ? "ring-1 ring-gray-400 bg-gray-100 dark:bg-gray-800 scale-105"
-                        : "hover:scale-105 hover:shadow-md",
+                      // Duplicate questions (purple highlight)
+                      isDuplicate(it.id) ? "ring-1 ring-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-300" : "",
+                      // Drag states - BEHOBEN: Entferne scale-105 und andere Verzerrungen
+                      isDragging ? "opacity-50 shadow-lg"
+                        : isOver ? "ring-2 ring-blue-500 bg-blue-100 dark:bg-blue-900/30"
+                        : isHovered ? "ring-1 ring-gray-400 bg-gray-100 dark:bg-gray-800"
+                        : "hover:shadow-md",
                     ].join(" ")}
                   >
                     {((page - 1) * PAGE_SIZE) + i + 1}
                     {/* Tag indicator */}
                     {isUntagged && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
+                    )}
+                    {/* Duplicate indicator */}
+                    {isDuplicate(it.id) && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full border border-white dark:border-gray-800 flex items-center justify-center">
+                        <Copy className="h-2 w-2 text-white" />
+                      </div>
                     )}
                     {/* Selection indicator */}
                     {selectedQuestions.has(it.id) && (
@@ -399,6 +455,11 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           {deleteMode && selectedQuestions.size > 0 && (
             <span className="text-orange-600">
               {selectedQuestions.size} ausgewählt
+            </span>
+          )}
+          {duplicatesLoaded && duplicates.size > 0 && (
+            <span className="text-purple-600 ml-2">
+              {duplicates.size} Duplikat-Gruppen gefunden
             </span>
           )}
         </div>
