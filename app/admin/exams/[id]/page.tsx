@@ -752,6 +752,20 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                 />
                 <Button type="submit" variant="outline" size="sm">Oberarztkommentar speichern</Button>
               </form>
+              
+              {/* Bild-Upload für Oberarztkommentar */}
+              <div className="mt-3">
+                <h4 className="text-xs font-medium text-muted-foreground mb-2">Bilder für Oberarztkommentar:</h4>
+                <ImageUpload
+                  existingImages={editingValid.media.map(m => ({
+                    id: m.media.id,
+                    url: m.media.url,
+                    alt: m.media.alt
+                  }))}
+                  questionId={editingValid.id}
+                  examId={id}
+                />
+              </div>
             </div>
 
             {/* 4. Antwortoptionen */}
@@ -809,61 +823,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               />
             </div>
 
-            {/* Bilder */}
-            <ImageUpload
-              existingImages={editingValid.media.map(m => ({
-                id: m.media.id,
-                url: m.media.url,
-                alt: m.media.alt
-              }))}
-              examId={id}
-              questionId={editingValid.id}
-            />
-
-            {/* Optionen */}
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Antwortoptionen</div>
-              <ul className="space-y-2">
-                {editingValid.options.map((o) => (
-                  <li key={o.id} className="rounded border p-2 space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className={o.isCorrect ? "text-green-600 font-medium" : ""}>
-                        {o.text} {o.isCorrect ? "✓" : ""}
-                      </div>
-                      <form action={setCorrectOptionAction}>
-                        <input type="hidden" name="examId" value={id} />
-                        <input type="hidden" name="qid" value={editingValid.id} />
-                        <input type="hidden" name="oid" value={o.id} />
-                        <Button variant="outline" size="sm">Als korrekt</Button>
-                      </form>
-                    </div>
-
-                    {o.explanation && (
-                      <div className="text-xs text-muted-foreground">
-                        Aktuelle Erklärung: {o.explanation}
-                      </div>
-                    )}
-
-                    <form action={updateOptionAction} className="grid gap-2 sm:grid-cols-2">
-                      <input type="hidden" name="examId" value={id} />
-                      <input type="hidden" name="qid" value={editingValid.id} />
-                      <input type="hidden" name="oid" value={o.id} />
-                      <div className="sm:col-span-2">
-                        <Label>Optionstext</Label>
-                        <Input name="text" defaultValue={o.text} />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <Label>Erklärung (warum richtig/falsch)</Label>
-                        <Input name="explanation" defaultValue={o.explanation ?? ""} placeholder="Erklärung zur Option…" />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <Button variant="outline" size="sm" type="submit">Option speichern</Button>
-                      </div>
-                    </form>
-                  </li>
-                ))}
-              </ul>
-            </div>
 
             {/* Löschen */}
             <div className="pt-2">
@@ -877,52 +836,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
         )}
 
 
-        {/* Exam-Metadaten */}
-        <form action={updateExamAction} className="space-y-3 rounded border p-3">
-          <input type="hidden" name="id" value={exam.id} />
-          <div>
-            <Label htmlFor="title">Titel</Label>
-            <Input id="title" name="title" defaultValue={exam.title} />
-          </div>
-          <div>
-            <Label htmlFor="slug">Slug</Label>
-            <Input id="slug" name="slug" defaultValue={exam.slug} />
-          </div>
-          <div>
-            <Label htmlFor="description">Beschreibung</Label>
-            <Input id="description" name="description" defaultValue={exam.description ?? ""} />
-          </div>
-          <div>
-            <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
-            <Input id="passPercent" name="passPercent" type="number" defaultValue={exam.passPercent} />
-          </div>
-          <div>
-            <Label htmlFor="categoryId">Kategorie</Label>
-            <select 
-              id="categoryId" 
-              name="categoryId" 
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              defaultValue={exam.categoryId || ""}
-            >
-              <option value="">Keine Kategorie</option>
-              {categories.map(category => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-muted-foreground">
-              ✓ Sofort-Feedback global ist automatisch aktiviert
-            </div>
-            <label className="flex items-center gap-2">
-              <input type="checkbox" name="isPublished" defaultChecked={exam.isPublished} />
-              Veröffentlicht
-            </label>
-          </div>
-          <Button type="submit">Prüfungsdaten speichern</Button>
-        </form>
 
 
         {/* Neue Frage anlegen (mit Bild & 5 Optionen) */}

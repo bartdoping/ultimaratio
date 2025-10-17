@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import NewQuestionImageUpload from "./new-question-image-upload"
+import CompactTagManager from "./compact-tag-manager"
 
 interface NewQuestionFormProps {
   examId: string
@@ -39,9 +40,7 @@ export default function NewQuestionForm({ examId }: NewQuestionFormProps) {
         <textarea name="tip" className="input w-full h-16" placeholder="Tipp oder Kommentar…" />
       </div>
 
-      <label className="flex items-center gap-2">
-        <input type="checkbox" name="allowImmediate" /> Sofort-Feedback für diese Frage erlauben
-      </label>
+      {/* Sofort-Feedback ist automatisch aktiviert */}
 
       {/* Bilder */}
       <NewQuestionImageUpload
@@ -72,6 +71,22 @@ export default function NewQuestionForm({ examId }: NewQuestionFormProps) {
             <input type="radio" name="correct" value={String(i)} defaultChecked={i === 0} /> {i + 1}
           </label>
         ))}
+      </div>
+
+      {/* Tag-Management für neue Frage */}
+      <div className="space-y-2">
+        <Label>Tag-Management:</Label>
+        <div className="p-3 bg-muted/50 rounded border">
+          <p className="text-xs text-muted-foreground mb-2">
+            Tags können nach dem Erstellen der Frage zugewiesen werden.
+          </p>
+          <CompactTagManager 
+            questionId={null} 
+            examId={examId}
+            onTagChange={() => {}}
+            onQuestionTagsUpdate={() => {}}
+          />
+        </div>
       </div>
 
       <Button type="submit">Frage anlegen</Button>
