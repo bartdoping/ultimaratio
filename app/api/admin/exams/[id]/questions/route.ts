@@ -68,6 +68,11 @@ export async function GET(req: Request, ctx: Ctx) {
         order: q.order ?? 0,
         // Prüfe ob Frage normale Tags hat (nicht Supertags)
         hasTags: q.tags.some(t => t.tag.parentId !== null),
+        // Debug: Zeige alle Tags für diese Frage
+        debugTags: q.tags.map(t => ({
+          parentId: t.tag.parentId,
+          isNormalTag: t.tag.parentId !== null
+        }))
       })),
     })
   } catch (e) {
