@@ -38,7 +38,8 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
         }, 2000)
       }
     } catch (error) {
-      setResult({ success: false, error: "Unerwarteter Fehler beim Importieren" })
+      console.error("JSON Upload Error:", error)
+      setResult({ success: false, error: `Unerwarteter Fehler: ${error}` })
     } finally {
       setLoading(false)
     }
@@ -97,6 +98,22 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
           </div>
         </Alert>
       )}
+
+      {/* Debug-Informationen */}
+      <details className="text-xs text-muted-foreground">
+        <summary className="cursor-pointer hover:text-foreground">
+          🔍 Debug-Informationen anzeigen
+        </summary>
+        <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">
+          <p><strong>Wo findest du Fehlermeldungen:</strong></p>
+          <ol className="list-decimal list-inside space-y-1 mt-2">
+            <li><strong>Browser-Konsole:</strong> F12 → Console Tab</li>
+            <li><strong>Server-Logs:</strong> Vercel Dashboard → Functions → Logs</li>
+            <li><strong>UI-Feedback:</strong> Rote/grüne Alert-Boxen oben</li>
+          </ol>
+          <p className="mt-2"><strong>Hinweis:</strong> Detaillierte Server-Logs findest du in der Vercel-Konsole.</p>
+        </div>
+      </details>
     </div>
   )
 }
