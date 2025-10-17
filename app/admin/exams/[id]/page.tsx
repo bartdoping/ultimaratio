@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label"
 import QuestionForm from "@/components/admin/question-form"
 import QuestionEditorWrapper from "@/components/admin/question-editor-wrapper"
 import QuestionShelf from "@/components/admin/question-shelf"
-import QuestionEditorTags from "@/components/admin/question-editor-tags"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
@@ -677,8 +676,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               <button className="btn btn-sm" type="submit">Zuordnen</button>
             </form>
 
-            {/* Tag-Editor */}
-            <QuestionEditorTags questionId={editingValid.id} />
 
             {/* Frage-Meta */}
             <form action={updateQuestionMetaAction} className="grid gap-2">
