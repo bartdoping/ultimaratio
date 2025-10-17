@@ -82,7 +82,6 @@ export default function NewQuestionForm({ examId }: NewQuestionFormProps) {
           </p>
           <CompactTagManager 
             questionId={undefined} 
-            examId={examId}
             onTagChange={() => {}}
             onQuestionTagsUpdate={() => {}}
           />
