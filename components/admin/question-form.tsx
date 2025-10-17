@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import CompactTagManager from "@/components/admin/compact-tag-manager"
@@ -22,6 +22,9 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
   const [tip, setTip] = useState(question.tip || "")
   const [allowImmediate, setAllowImmediate] = useState(question.hasImmediateFeedbackAllowed)
   const [saving, setSaving] = useState(false)
+  const [autoSaving, setAutoSaving] = useState(false)
+  const stemDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const metaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Aktualisiere lokale State wenn sich die Frage ändert
   useEffect(() => {
@@ -31,36 +34,37 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
     setAllowImmediate(question.hasImmediateFeedbackAllowed)
   }, [question.id, question.stem, question.explanation, question.tip, question.hasImmediateFeedbackAllowed])
 
-  const handleSaveStem = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    
+  const saveStem = async () => {
+    setAutoSaving(true)
     try {
       const formData = new FormData()
       formData.append('examId', examId)
       formData.append('qid', question.id)
       formData.append('stem', stem)
 
-      const response = await fetch('/api/admin/exams/update-question-stem', {
+      await fetch('/api/admin/exams/update-question-stem', {
         method: 'POST',
         body: formData,
       })
-
-      if (response.ok) {
-        // Erfolgreich gespeichert
-        console.log('Stem saved successfully')
-      }
     } catch (error) {
       console.error('Error saving stem:', error)
+    } finally {
+      setAutoSaving(false)
+    }
+  }
+
+  const handleSaveStem = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await saveStem()
     } finally {
       setSaving(false)
     }
   }
 
-  const handleSaveMeta = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setSaving(true)
-    
+  const saveMeta = async () => {
+    setAutoSaving(true)
     try {
       const formData = new FormData()
       formData.append('examId', examId)
@@ -69,21 +73,58 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
       formData.append('tip', tip)
       formData.append('allowImmediate', allowImmediate ? 'on' : '')
 
-      const response = await fetch('/api/admin/exams/update-question-meta', {
+      await fetch('/api/admin/exams/update-question-meta', {
         method: 'POST',
         body: formData,
       })
-
-      if (response.ok) {
-        // Erfolgreich gespeichert
-        console.log('Meta saved successfully')
-      }
     } catch (error) {
       console.error('Error saving meta:', error)
+    } finally {
+      setAutoSaving(false)
+    }
+  }
+
+  const handleSaveMeta = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSaving(true)
+    try {
+      await saveMeta()
     } finally {
       setSaving(false)
     }
   }
+
+  // Debounced Autosave (600ms) – optional, ohne Buttons zu entfernen
+  useEffect(() => {
+    if (stemDebounceRef.current) clearTimeout(stemDebounceRef.current)
+    stemDebounceRef.current = setTimeout(() => {
+      // Nur speichern, wenn sich der Stem vom ursprünglichen unterscheidet
+      if (question.stem !== stem) {
+        saveStem()
+      }
+    }, 600)
+    return () => {
+      if (stemDebounceRef.current) clearTimeout(stemDebounceRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stem, question.id])
+
+  useEffect(() => {
+    if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current)
+    metaDebounceRef.current = setTimeout(() => {
+      if (
+        question.explanation !== (explanation || "") ||
+        question.tip !== (tip || "") ||
+        question.hasImmediateFeedbackAllowed !== allowImmediate
+      ) {
+        saveMeta()
+      }
+    }, 600)
+    return () => {
+      if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [explanation, tip, allowImmediate, question.id])
 
   return (
     <div className="space-y-4">
@@ -96,10 +137,13 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
           className="w-full min-h-[100px] p-3 border border-input rounded-md bg-background text-sm"
           required 
         />
-        <div>
+        <div className="flex items-center gap-3">
           <Button type="submit" variant="outline" disabled={saving}>
             {saving ? "Speichere..." : "Fragestellung speichern"}
           </Button>
+          <span className="text-xs text-muted-foreground">
+            {autoSaving ? "Autosave..." : "Gespeichert"}
+          </span>
         </div>
       </form>
 
@@ -132,10 +176,13 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
           <Label>Sofort-Feedback für diese Frage erlauben</Label>
         </div>
         
-        <div>
+        <div className="flex items-center gap-3">
           <Button type="submit" variant="outline" disabled={saving}>
             {saving ? "Speichere..." : "Meta-Daten speichern"}
           </Button>
+          <span className="text-xs text-muted-foreground">
+            {autoSaving ? "Autosave..." : "Gespeichert"}
+          </span>
         </div>
       </form>
 

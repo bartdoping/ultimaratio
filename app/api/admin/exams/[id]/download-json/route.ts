@@ -60,35 +60,45 @@ export async function GET(
       }
     })
 
-    // JSON-Format erstellen
-    const jsonData = {
-      cases: questions
-        .filter(q => q.case)
-        .map(q => ({
-          title: q.case!.title,
-          vignette: q.case!.vignette,
-          order: q.case!.order
-        }))
-        .filter((case_, index, arr) => 
-          arr.findIndex(c => c.title === case_.title) === index
-        ), // Duplikate entfernen
-      questions: questions.map(q => ({
-        stem: q.stem,
-        tip: q.tip,
-        explanation: q.explanation,
-        allowImmediate: q.hasImmediateFeedbackAllowed,
-        caseTitle: q.case?.title || undefined,
-        images: q.media.map(m => ({
-          url: m.media.url,
-          alt: m.media.alt
-        })),
-        options: q.options.map(o => ({
-          text: o.text,
-          isCorrect: o.isCorrect,
-          explanation: o.explanation
-        }))
+    // Erkennen, ob überhaupt Fälle existieren
+    const hasCases = questions.some(q => !!q.case)
+
+    const normalizedQuestions = questions.map(q => ({
+      stem: q.stem,
+      tip: q.tip,
+      explanation: q.explanation,
+      allowImmediate: q.hasImmediateFeedbackAllowed,
+      caseTitle: q.case?.title || undefined,
+      images: q.media.map(m => ({
+        url: m.media.url,
+        alt: m.media.alt
+      })),
+      options: q.options.map(o => ({
+        text: o.text,
+        isCorrect: o.isCorrect,
+        explanation: o.explanation
       }))
-    }
+    }))
+
+    const jsonData = hasCases
+      ? {
+          schemaVersion: "1",
+          cases: questions
+            .filter(q => q.case)
+            .map(q => ({
+              title: q.case!.title,
+              vignette: q.case!.vignette,
+              order: q.case!.order
+            }))
+            .filter((case_, index, arr) =>
+              arr.findIndex(c => c.title === case_.title) === index
+            ),
+          questions: normalizedQuestions
+        }
+      : {
+          schemaVersion: "1",
+          questions: normalizedQuestions
+        }
 
     // Dateiname mit Exam-Titel
     const exam = await prisma.exam.findUnique({

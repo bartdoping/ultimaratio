@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Trash2, X, Check, Copy } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 type Item = {
   id: string
@@ -14,7 +15,7 @@ type Item = {
   hasTags: boolean
 }
 
-const PAGE_SIZE = 100
+// Seitengröße ist konfigurierbar
 
 export default function QuestionShelf({ examId }: { examId: string }) {
   const router = useRouter()
@@ -29,6 +30,9 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [pageSize, setPageSize] = useState(100)
+  const [showOnlyUntagged, setShowOnlyUntagged] = useState(false)
+  const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false)
   
   // Löschfunktionalität
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set())
@@ -40,13 +44,13 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const [duplicates, setDuplicates] = useState<Map<string, string[]>>(new Map())
   const [duplicatesLoaded, setDuplicatesLoaded] = useState(false)
 
-  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / PAGE_SIZE)), [total])
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(total / pageSize)), [total, pageSize])
 
   async function load() {
     setLoading(true); setErr(null)
     try {
       const res = await fetch(
-        `/api/admin/exams/${encodeURIComponent(examId)}/questions?page=${page}&pageSize=${PAGE_SIZE}`,
+        `/api/admin/exams/${encodeURIComponent(examId)}/questions?page=${page}&pageSize=${pageSize}`,
         { cache: "no-store" }
       )
       const j = await res.json()
@@ -60,7 +64,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     }
   }
 
-  useEffect(() => { load() }, [page]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lade Duplikate
   const loadDuplicates = async () => {
@@ -304,16 +308,49 @@ export default function QuestionShelf({ examId }: { examId: string }) {
       {err && <div className="text-sm text-red-600">{err}</div>}
 
       <div className="rounded border p-3">
+        {/* Toolbar: Filter + PageSize */}
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={showOnlyUntagged ? "default" : "outline"}
+            onClick={() => setShowOnlyUntagged(v => !v)}
+          >
+            Ohne Tags
+          </Button>
+          <Button
+            size="sm"
+            variant={showOnlyDuplicates ? "default" : "outline"}
+            onClick={() => setShowOnlyDuplicates(v => !v)}
+          >
+            Duplikate
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Pro Seite</span>
+            <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
+              <SelectTrigger className="h-8 w-[90px]">
+                <SelectValue placeholder="100" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="200">200</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
         {loading ? (
           <div className="text-sm text-muted-foreground">Lade…</div>
         ) : items.length === 0 ? (
           <div className="text-sm text-muted-foreground">Noch keine Fragen erstellt.</div>
         ) : (
           <div
-            className="grid grid-cols-5 gap-3"
+            className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3"
             onDragOver={onGridDragOver}
           >
-            {items.map((it, i) => {
+            {items
+              .filter((it) => (showOnlyUntagged ? !it.hasTags : true))
+              .filter((it) => (showOnlyDuplicates ? isDuplicate(it.id) : true))
+              .map((it, i) => {
               const isDragging = draggingId === it.id
               const isOver = overId === it.id && draggingId !== it.id
               const isHovered = hoveredId === it.id
@@ -363,7 +400,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                         : "hover:shadow-md",
                     ].join(" ")}
                   >
-                    {((page - 1) * PAGE_SIZE) + i + 1}
+                    {((page - 1) * pageSize) + i + 1}
                     {/* Tag indicator */}
                     {isUntagged && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>

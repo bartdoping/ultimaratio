@@ -24,12 +24,43 @@ export default function JsonUploadSimple() {
     reader.onload = (e) => {
       const text = e.target?.result as string
       try {
-        JSON.parse(text) // Validiere JSON
+        const parsed = JSON.parse(text) // Validiere JSON
+
+        // Akzeptiere zwei Formen:
+        // A) { questions: [...] }
+        // B) { cases: [...], questions: [...] }
+        const hasQuestions = parsed && Array.isArray(parsed.questions)
+        const hasCases = parsed && Array.isArray(parsed.cases)
+        if (!hasQuestions) {
+          alert('Ungültiges JSON: Feld "questions" fehlt oder ist kein Array.')
+          return
+        }
+
+        // Sanity-Checks zu questions
+        for (let i = 0; i < parsed.questions.length; i++) {
+          const q = parsed.questions[i]
+          if (!q || typeof q.stem !== 'string' || !Array.isArray(q.options)) {
+            alert(`Ungültige Frage an Position ${i + 1}: "stem" oder "options" fehlen.`)
+            return
+          }
+          if (q.options.length < 2) {
+            alert(`Frage ${i + 1} hat weniger als 2 Optionen.`)
+            return
+          }
+        }
+
+        // Für Single-only (kein cases-Array): direkt übernehmen
+        // Für Cases+Questions: ebenfalls direkt übernehmen – Server unterscheidet beim Import
         const textarea = document.querySelector('textarea[name="bulk"]') as HTMLTextAreaElement
         if (textarea) {
-          textarea.value = text
+          textarea.value = JSON.stringify(
+            hasCases ? { cases: parsed.cases, questions: parsed.questions } : { questions: parsed.questions },
+            null,
+            2
+          )
+          alert('JSON geprüft und in die Textbox eingefügt.')
         }
-      } catch {
+      } catch (e) {
         alert('Ungültiges JSON-Format')
       }
     }
