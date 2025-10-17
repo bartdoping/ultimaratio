@@ -20,11 +20,13 @@ interface Tag {
 }
 
 interface CompactTagManagerProps {
+  questionId?: string
   onTagChange?: () => void
 }
 
-export default function CompactTagManager({ onTagChange }: CompactTagManagerProps) {
+export default function CompactTagManager({ questionId, onTagChange }: CompactTagManagerProps) {
   const [tags, setTags] = useState<Tag[]>([])
+  const [questionTags, setQuestionTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
@@ -55,6 +57,10 @@ export default function CompactTagManager({ onTagChange }: CompactTagManagerProp
     loadTags()
   }, [])
 
+  useEffect(() => {
+    loadQuestionTags()
+  }, [questionId])
+
   const loadTags = async () => {
     try {
       const response = await fetch("/api/admin/tags")
@@ -64,6 +70,24 @@ export default function CompactTagManager({ onTagChange }: CompactTagManagerProp
       }
     } catch (err) {
       console.error("Error loading tags:", err)
+    }
+  }
+
+  const loadQuestionTags = async () => {
+    if (!questionId) {
+      setQuestionTags([])
+      return
+    }
+    
+    try {
+      const res = await fetch(`/api/admin/questions/${questionId}/tags`, { cache: "no-store" })
+      const data = await res.json()
+      if (res.ok) {
+        setQuestionTags(data.tags || [])
+      }
+    } catch (err) {
+      console.error("Error loading question tags:", err)
+      setQuestionTags([])
     }
   }
 

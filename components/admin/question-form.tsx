@@ -141,10 +141,13 @@ export default function QuestionForm({ question, examId }: QuestionFormProps) {
 
       {/* Tag-Management */}
       <div className="mt-6">
-        <CompactTagManager onTagChange={() => {
-          // Optional: Reload question tags if needed
-          console.log('Tags updated')
-        }} />
+        <CompactTagManager 
+          questionId={question.id}
+          onTagChange={() => {
+            // Optional: Reload question tags if needed
+            console.log('Tags updated')
+          }} 
+        />
       </div>
     </div>
   )
