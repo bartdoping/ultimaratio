@@ -401,138 +401,153 @@ async function bulkImportAction(formData: FormData) {
       return { success: false, error: "Keine Fragen oder Fälle zum Importieren" }
     }
 
-    await prisma.$transaction(async (tx) => {
-      console.log(`Starting transaction for ${questions.length} questions and ${cases.length} cases`)
-      
-      // Fälle anlegen/upserten (nach Titel)
-      const titleToCaseId = new Map<string, string>()
-      for (const c of cases) {
-        const title = String(c?.title || "").trim()
-        if (!title) continue
-        try {
-          const found = await tx.questionCase.findFirst({
-            where: { examId, title },
-            select: { id: true },
-          })
-          if (found) {
-            titleToCaseId.set(title, found.id)
-            continue
-          }
-          const order = Number.isFinite(c?.order) ? Number(c.order) : 0
-          const created = await tx.questionCase.create({
-            data: { examId, title, vignette: c?.vignette || null, order },
-            select: { id: true, title: true },
-          })
-          titleToCaseId.set(created.title, created.id)
-          console.log(`Created case: ${created.title}`)
-        } catch (caseError) {
-          console.error("Error creating case:", caseError)
-          throw new Error(`Fehler beim Erstellen des Falls "${title}": ${caseError}`)
-        }
-      }
+    // Globale Tags außerhalb der Transaktion laden
+    const globalTags = await prisma.examGlobalTag.findMany({
+      where: { examId },
+      select: { tagId: true }
+    })
+    console.log(`Found ${globalTags.length} global tags for exam ${examId}`)
 
-      // neue Fragen anlegen
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i]
-        const stem = String(q?.stem || "").trim()
-        if (!stem) {
-          console.log(`Skipping question ${i + 1}: empty stem`)
+    // Transaktion in kleineren Chunks aufteilen (max 5 Fragen pro Transaktion)
+    const CHUNK_SIZE = 5
+    const questionChunks = []
+    for (let i = 0; i < questions.length; i += CHUNK_SIZE) {
+      questionChunks.push(questions.slice(i, i + CHUNK_SIZE))
+    }
+
+    console.log(`Processing ${questionChunks.length} chunks of questions`)
+
+    // Fälle zuerst außerhalb der Transaktion erstellen
+    const titleToCaseId = new Map<string, string>()
+    for (const c of cases) {
+      const title = String(c?.title || "").trim()
+      if (!title) continue
+      try {
+        const found = await prisma.questionCase.findFirst({
+          where: { examId, title },
+          select: { id: true },
+        })
+        if (found) {
+          titleToCaseId.set(title, found.id)
           continue
         }
-
-        try {
-          const maxOrder = (await tx.question.aggregate({
-            where: { examId },
-            _max: { order: true },
-          }))._max.order ?? 0
-
-          const allowImmediate = !!q?.allowImmediate
-          const caseTitle = (q?.caseTitle && String(q.caseTitle)) || ""
-          const caseId = caseTitle ? titleToCaseId.get(caseTitle) ?? null : null
-
-          const created = await tx.question.create({
-            data: {
-              examId,
-              stem,
-              explanation: q?.explanation ? String(q.explanation) : null,
-              tip: q?.tip ? String(q.tip) : null,
-              hasImmediateFeedbackAllowed: allowImmediate,
-              type: "single",
-              caseId,
-              order: maxOrder + 1,
-            },
-            select: { id: true },
-          })
-          console.log(`Created question ${i + 1}: ${stem.substring(0, 50)}...`)
-
-          // Optionen (mindestens 2; max 6 akzeptiert, wir nehmen Reihenfolge wie geliefert)
-          const opts: Array<any> = Array.isArray(q?.options) ? q.options : []
-          let atLeastOneCorrect = false
-          const norm = opts.slice(0, 6).map((o: any, i: number) => {
-            const isCorrect = !!o?.isCorrect
-            if (isCorrect) atLeastOneCorrect = true
-            return {
-              questionId: created.id,
-              text: String(o?.text || `Option ${i + 1}`),
-              isCorrect,
-              explanation: o?.explanation ? String(o.explanation) : null,
-              order: i,
-            }
-          })
-          if (norm.length < 2) {
-            norm.push(
-              { questionId: created.id, text: "Option 1", isCorrect: true, explanation: null, order: 0 },
-              { questionId: created.id, text: "Option 2", isCorrect: false, explanation: null, order: 1 },
-            )
-            atLeastOneCorrect = true
-          }
-          if (!atLeastOneCorrect) {
-            // Falls niemand korrekt markiert -> erste korrekt
-            norm[0] = { ...norm[0], isCorrect: true }
-          }
-          await tx.answerOption.createMany({ data: norm })
-          console.log(`Created ${norm.length} options for question ${i + 1}`)
-
-          // Automatisch globale Tags hinzufügen
-          const globalTags = await tx.examGlobalTag.findMany({
-            where: { examId },
-            select: { tagId: true }
-          })
-
-          if (globalTags.length > 0) {
-            await tx.questionTag.createMany({
-              data: globalTags.map(gt => ({
-                questionId: created.id,
-                tagId: gt.tagId
-              }))
-            })
-            console.log(`Added ${globalTags.length} global tags to question ${i + 1}`)
-          }
-
-          // Bilder
-          const images: Array<any> = Array.isArray(q?.images) ? q.images : []
-          if (images.length) {
-            let next = 1
-            for (const img of images) {
-              const url = String(img?.url || "")
-              if (!url.startsWith("http")) continue
-              const asset = await tx.mediaAsset.upsert({
-                where: { url },
-                update: { alt: (img?.alt && String(img.alt)) || null },
-                create: { url, alt: (img?.alt && String(img.alt)) || null, kind: "image" },
-              })
-              await tx.questionMedia.create({
-                data: { questionId: created.id, mediaId: asset.id, order: next++ },
-              })
-            }
-            console.log(`Added ${images.length} images to question ${i + 1}`)
-          }
-        } catch (questionError) {
-          console.error(`Error creating question ${i + 1}:`, questionError)
-          throw new Error(`Fehler beim Erstellen der Frage ${i + 1}: ${questionError}`)
-        }
+        const order = Number.isFinite(c?.order) ? Number(c.order) : 0
+        const created = await prisma.questionCase.create({
+          data: { examId, title, vignette: c?.vignette || null, order },
+          select: { id: true, title: true },
+        })
+        titleToCaseId.set(created.title, created.id)
+        console.log(`Created case: ${created.title}`)
+      } catch (caseError) {
+        console.error("Error creating case:", caseError)
+        throw new Error(`Fehler beim Erstellen des Falls "${title}": ${caseError}`)
       }
-    })
+    }
+
+    // Fragen in Chunks verarbeiten
+    for (let chunkIndex = 0; chunkIndex < questionChunks.length; chunkIndex++) {
+      const chunk = questionChunks[chunkIndex]
+      console.log(`Processing chunk ${chunkIndex + 1}/${questionChunks.length} with ${chunk.length} questions`)
+
+      await prisma.$transaction(async (tx) => {
+        // neue Fragen anlegen (nur für diesen Chunk)
+        for (let i = 0; i < chunk.length; i++) {
+          const q = chunk[i]
+          const stem = String(q?.stem || "").trim()
+          if (!stem) {
+            console.log(`Skipping question ${i + 1}: empty stem`)
+            continue
+          }
+
+          try {
+            const maxOrder = (await tx.question.aggregate({
+              where: { examId },
+              _max: { order: true },
+            }))._max.order ?? 0
+
+            const allowImmediate = !!q?.allowImmediate
+            const caseTitle = (q?.caseTitle && String(q.caseTitle)) || ""
+            const caseId = caseTitle ? titleToCaseId.get(caseTitle) ?? null : null
+
+            const created = await tx.question.create({
+              data: {
+                examId,
+                stem,
+                explanation: q?.explanation ? String(q.explanation) : null,
+                tip: q?.tip ? String(q.tip) : null,
+                hasImmediateFeedbackAllowed: allowImmediate,
+                type: "single",
+                caseId,
+                order: maxOrder + 1,
+              },
+              select: { id: true },
+            })
+            console.log(`Created question ${i + 1}: ${stem.substring(0, 50)}...`)
+
+            // Optionen (mindestens 2; max 6 akzeptiert, wir nehmen Reihenfolge wie geliefert)
+            const opts: Array<any> = Array.isArray(q?.options) ? q.options : []
+            let atLeastOneCorrect = false
+            const norm = opts.slice(0, 6).map((o: any, i: number) => {
+              const isCorrect = !!o?.isCorrect
+              if (isCorrect) atLeastOneCorrect = true
+              return {
+                questionId: created.id,
+                text: String(o?.text || `Option ${i + 1}`),
+                isCorrect,
+                explanation: o?.explanation ? String(o.explanation) : null,
+                order: i,
+              }
+            })
+            if (norm.length < 2) {
+              norm.push(
+                { questionId: created.id, text: "Option 1", isCorrect: true, explanation: null, order: 0 },
+                { questionId: created.id, text: "Option 2", isCorrect: false, explanation: null, order: 1 },
+              )
+              atLeastOneCorrect = true
+            }
+            if (!atLeastOneCorrect) {
+              // Falls niemand korrekt markiert -> erste korrekt
+              norm[0] = { ...norm[0], isCorrect: true }
+            }
+            await tx.answerOption.createMany({ data: norm })
+            console.log(`Created ${norm.length} options for question ${i + 1}`)
+
+            // Automatisch globale Tags hinzufügen (bereits außerhalb der Transaktion geladen)
+            if (globalTags.length > 0) {
+              await tx.questionTag.createMany({
+                data: globalTags.map(gt => ({
+                  questionId: created.id,
+                  tagId: gt.tagId
+                }))
+              })
+              console.log(`Added ${globalTags.length} global tags to question ${i + 1}`)
+            }
+
+            // Bilder
+            const images: Array<any> = Array.isArray(q?.images) ? q.images : []
+            if (images.length) {
+              let next = 1
+              for (const img of images) {
+                const url = String(img?.url || "")
+                if (!url.startsWith("http")) continue
+                const asset = await tx.mediaAsset.upsert({
+                  where: { url },
+                  update: { alt: (img?.alt && String(img.alt)) || null },
+                  create: { url, alt: (img?.alt && String(img.alt)) || null, kind: "image" },
+                })
+                await tx.questionMedia.create({
+                  data: { questionId: created.id, mediaId: asset.id, order: next++ },
+                })
+              }
+              console.log(`Added ${images.length} images to question ${i + 1}`)
+            }
+          } catch (questionError) {
+            console.error(`Error creating question ${i + 1}:`, questionError)
+            throw new Error(`Fehler beim Erstellen der Frage ${i + 1}: ${questionError}`)
+          }
+        }
+      })
+    }
 
     return { 
       success: true, 
