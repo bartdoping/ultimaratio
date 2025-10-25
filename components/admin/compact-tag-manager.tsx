@@ -183,6 +183,7 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
       setSuccess("Tag erfolgreich erstellt")
       onTagChange?.()
       onQuestionTagsUpdate?.()
+      window.dispatchEvent(new CustomEvent('tagUpdated'))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create tag")
     } finally {
@@ -229,6 +230,7 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
       setSuccess("Tag erfolgreich aktualisiert")
       onTagChange?.()
       onQuestionTagsUpdate?.()
+      window.dispatchEvent(new CustomEvent('tagUpdated'))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update tag")
     } finally {
@@ -259,6 +261,7 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
       setSuccess("Tag erfolgreich gelöscht")
       onTagChange?.()
       onQuestionTagsUpdate?.()
+      window.dispatchEvent(new CustomEvent('tagUpdated'))
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to delete tag")
     } finally {

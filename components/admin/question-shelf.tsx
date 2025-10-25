@@ -65,6 +65,29 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   }
 
   useEffect(() => { load() }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Reagiere auf URL-Änderungen (z.B. beim Wechseln zwischen Fragen)
+  useEffect(() => {
+    const currentEdit = sp.get("edit")
+    if (currentEdit !== currentQuestionId) {
+      setCurrentQuestionId(currentEdit)
+      // Lade Tags neu wenn sich die Frage ändert
+      load()
+    }
+  }, [sp, currentQuestionId]) // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Reagiere auf Tag-Updates
+  useEffect(() => {
+    const handleTagUpdate = () => {
+      load()
+    }
+    
+    window.addEventListener('tagUpdated', handleTagUpdate)
+    
+    return () => {
+      window.removeEventListener('tagUpdated', handleTagUpdate)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lade Duplikate
   const loadDuplicates = async () => {
