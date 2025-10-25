@@ -639,7 +639,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             <h2 className="text-lg font-semibold">Fragen-Regal</h2>
             <span className="text-sm text-muted-foreground">Hover = Vorschau · Drag&Drop = Reihenfolge</span>
           </div>
-          <QuestionShelfWrapper examId={id} />
+          <QuestionShelf examId={id} />
         </section>
 
         {/* JSON-Download für gesamte Fragensammlung */}
