@@ -24,7 +24,7 @@ export default function QuestionEditorWrapper({ question, examId, onQuestionUpda
   }
 
   return (
-    <div key={refreshKey}>
+    <div key={`${question.id}-${refreshKey}`}>
       <QuestionForm 
         question={question}
         examId={examId}

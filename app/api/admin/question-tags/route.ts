@@ -57,3 +57,86 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
+
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Prüfe Admin-Status
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true }
+    })
+
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await req.json()
+    const { questionId, tagId } = body
+
+    if (!questionId || !tagId) {
+      return NextResponse.json({ error: "questionId and tagId are required" }, { status: 400 })
+    }
+
+    // Prüfe ob die Zuordnung bereits existiert
+    const existingLink = await prisma.questionTag.findFirst({
+      where: { questionId, tagId }
+    })
+
+    if (existingLink) {
+      return NextResponse.json({ error: "Tag already assigned to question" }, { status: 409 })
+    }
+
+    // Erstelle die Zuordnung
+    await prisma.questionTag.create({
+      data: { questionId, tagId }
+    })
+
+    return NextResponse.json({ success: true })
+
+  } catch (error) {
+    console.error("Assign tag to question error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    // Prüfe Admin-Status
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true }
+    })
+
+    if (!user || user.role !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+    }
+
+    const body = await req.json()
+    const { questionId, tagId } = body
+
+    if (!questionId || !tagId) {
+      return NextResponse.json({ error: "questionId and tagId are required" }, { status: 400 })
+    }
+
+    // Entferne die Zuordnung
+    await prisma.questionTag.deleteMany({
+      where: { questionId, tagId }
+    })
+
+    return NextResponse.json({ success: true })
+
+  } catch (error) {
+    console.error("Remove tag from question error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
