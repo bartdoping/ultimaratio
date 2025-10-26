@@ -196,7 +196,7 @@ export default async function DeckPracticePage({ params }: Props) {
   const initialAnswers = Object.fromEntries(initialAnswersArr.map(a => [a.questionId, a.answerOptionId] as const))
 
   return (
-    <main className="max-w-5xl mx-auto p-6">
+    <main className="w-full p-6">
       <RunnerClient
         attemptId={attempt!.id}
         examId={firstExamId ?? "mixed-auto"}

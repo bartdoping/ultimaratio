@@ -96,7 +96,7 @@ export default async function ExamRunPage({ params }: Props) {
 
   return (
     <ExamProtection examMode={true}>
-      <div className="max-w-5xl mx-auto">
+      <div className="w-full">
         <FilteredExamRunner
           attemptId={attempt.id}
           examId={exam.id}

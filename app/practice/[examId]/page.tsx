@@ -152,7 +152,7 @@ export default async function PracticePage({ params, searchParams }: Props) {
   const initialElapsedSec = attempt.elapsedSec ?? 0
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="w-full">
       <RunnerClient
         attemptId={attempt.id}
         examId={exam.id}
