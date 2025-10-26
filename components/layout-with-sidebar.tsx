@@ -15,7 +15,7 @@ export default function LayoutWithSidebar({
   assistantContext 
 }: LayoutWithSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(showAssistant)
-  const [sidebarWidth, setSidebarWidth] = useState(320) // Standard-Breite
+  const [sidebarWidth, setSidebarWidth] = useState(280) // Standard-Breite
   const [isDragging, setIsDragging] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
@@ -39,11 +39,11 @@ export default function LayoutWithSidebar({
     try {
       const saved = localStorage.getItem("ai:sidebarWidth")
       if (saved) {
-        setSidebarWidth(Math.max(260, Math.min(900, Number(saved))))
+        setSidebarWidth(Math.max(240, Math.min(600, Number(saved))))
       } else if (typeof window !== 'undefined') {
         // Responsive Startbreite: ca. 30% des Viewports, begrenzt
         const vw = window.innerWidth
-        const target = Math.max(300, Math.min(520, Math.round(vw * 0.3)))
+        const target = Math.max(280, Math.min(400, Math.round(vw * 0.25)))
         setSidebarWidth(target)
       }
       const savedCollapsed = localStorage.getItem("ai:sidebarCollapsed")
@@ -73,8 +73,8 @@ export default function LayoutWithSidebar({
         const newWidth = window.innerWidth - e.clientX
         // Dynamische Grenzen je nach Viewport
         const vw = window.innerWidth
-        const minWidth = Math.max(260, Math.round(vw * 0.2))
-        const maxWidth = Math.min(900, Math.round(vw * 0.45))
+        const minWidth = Math.max(240, Math.round(vw * 0.18))
+        const maxWidth = Math.min(600, Math.round(vw * 0.3))
         
         // Direkte Berechnung ohne zusätzliche Checks
         const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
@@ -93,19 +93,18 @@ export default function LayoutWithSidebar({
         animationFrame = null
       }
 
-      // Nach dem Drag: auf nahe sinnvolle Breiten einrasten (Snap)
-      // Responsive Snap-Punkte abhängig von Viewport
+      // Nach dem Drag: nur bei sehr nahen Werten snappen (±10px)
       const vw = window.innerWidth
-      const base = Math.max(280, Math.min(520, Math.round(vw * 0.22)))
-      const snapPoints = [base, base + 60, base + 120, base + 180, base + 240].map(n => Math.min(n, Math.round(vw * 0.4)))
+      const base = Math.max(280, Math.min(400, Math.round(vw * 0.25)))
+      const snapPoints = [base, base + 80, base + 160].map(n => Math.min(n, Math.round(vw * 0.3)))
       const current = sidebarWidth
       let closest = snapPoints[0]
       for (const p of snapPoints) {
         if (Math.abs(p - current) < Math.abs(closest - current)) closest = p
       }
-      // nur snappen, wenn nicht kollabiert
-      if (!collapsed) {
-        setSidebarWidth(Math.max(260, Math.min(900, closest)))
+      // nur snappen wenn sehr nah (±10px) und nicht kollabiert
+      if (!collapsed && Math.abs(closest - current) <= 10) {
+        setSidebarWidth(Math.max(240, Math.min(600, closest)))
       }
     }
 
@@ -150,7 +149,7 @@ export default function LayoutWithSidebar({
             className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col"
             style={{ 
               width: `${effectiveWidth}px`,
-              maxWidth: '40vw',
+              maxWidth: '30vw',
               transition: isDragging ? 'none' : 'width 0.25s ease'
             }}
           >
@@ -161,10 +160,10 @@ export default function LayoutWithSidebar({
               onDoubleClick={() => setCollapsed((v) => !v)}
               className="absolute left-0 top-0 h-full cursor-col-resize z-10"
               title="Sidebar-Breite anpassen"
-              style={{ width: '8px' }}
+              style={{ width: '5px' }}
             >
-              {/* sichtbarer 3px-Griff, rest transparentes Hit-Area */}
-              <div className="absolute inset-y-0 left-0 w-[3px] bg-border hover:bg-blue-500 transition-colors" />
+              {/* sichtbarer 2px-Griff, rest transparentes Hit-Area */}
+              <div className="absolute inset-y-0 left-0 w-[2px] bg-border hover:bg-blue-500 transition-colors" />
             </div>
             {effectiveWidth > 48 && (
               <div className="h-full overflow-y-auto">
@@ -174,13 +173,13 @@ export default function LayoutWithSidebar({
             {/* Collapse/Expand Button */}
             <button
               onClick={() => setCollapsed((v) => !v)}
-              className="absolute -left-3 top-1/2 -translate-y-1/2 hidden lg:flex h-6 w-6 items-center justify-center rounded-full border bg-background shadow-sm"
+              className="absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-lg hover:shadow-xl transition-all"
               title={collapsed ? "Sidebar öffnen" : "Sidebar einklappen"}
             >
               {collapsed ? (
-                <span className="text-xs">›</span>
+                <span className="text-sm font-bold">›</span>
               ) : (
-                <span className="text-xs">‹</span>
+                <span className="text-sm font-bold">‹</span>
               )}
             </button>
           </div>

@@ -219,9 +219,9 @@ export default function AssistantSidebar(props: {
         </div>
       </div>
 
-      {/* Eingabe direkt unter dem Header (prominent) */}
+      {/* Eingabe prominent am unteren Rand */}
       <form
-        className="px-3 pt-3 pb-2 border-b flex items-center gap-2 bg-background/95 sticky top-0 z-10"
+        className="px-3 pt-3 pb-3 border-t flex items-center gap-2 bg-background/95 sticky bottom-0 z-10"
         onSubmit={(e) => {
           e.preventDefault()
           void send()
@@ -232,9 +232,10 @@ export default function AssistantSidebar(props: {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           disabled={busy}
-          className={cn("flex-1 min-w-0 h-12 sm:h-12 text-[16px]")}
+          className={cn("flex-1 min-w-0 h-14 text-[16px]")}
+          autoFocus
         />
-        <Button type="submit" disabled={busy || !input.trim()} className="h-12 px-5">
+        <Button type="submit" disabled={busy || !input.trim()} className="h-14 px-6">
           {busy ? "Senden…" : "Senden"}
         </Button>
       </form>
@@ -252,23 +253,44 @@ export default function AssistantSidebar(props: {
         {messages.map((m, i) => {
           const mine = m.role === "user"
           return (
-            <div key={i} className="flex">
-              <div
-                className={cn(
-                  "w-full rounded-md border bg-background px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed",
-                  mine ? "border-blue-200" : "border-border"
+            <div key={i} className={cn("flex", mine ? "justify-end" : "justify-start")}>
+              <div className="flex items-start gap-2 max-w-[80%]">
+                {/* Avatar */}
+                {!mine && (
+                  <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+                    AI
+                  </div>
                 )}
-              >
-                {m.content}
-                <div className="mt-2 -mb-1 flex justify-end">
-                  <button
-                    className="text-[11px] text-muted-foreground hover:underline"
-                    onClick={() => copy(m.content)}
-                    title="Antwort kopieren"
-                  >
-                    Kopieren
-                  </button>
+                
+                {/* Message Bubble */}
+                <div
+                  className={cn(
+                    "rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed",
+                    mine 
+                      ? "bg-blue-500 text-white rounded-br-md" 
+                      : "bg-muted border rounded-bl-md"
+                  )}
+                >
+                  {m.content}
                 </div>
+                
+                {/* User Avatar */}
+                {mine && (
+                  <div className="h-6 w-6 rounded-full bg-gray-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+                    U
+                  </div>
+                )}
+              </div>
+              
+              {/* Copy Button */}
+              <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                <button
+                  className="text-[11px] text-muted-foreground hover:underline mt-1"
+                  onClick={() => copy(m.content)}
+                  title="Antwort kopieren"
+                >
+                  Kopieren
+                </button>
               </div>
             </div>
           )
@@ -293,24 +315,33 @@ export default function AssistantSidebar(props: {
         <div ref={endRef} />
       </div>
 
-      {/* Quick-Prompts – unter dem Chat, minimal */}
-      <div className="px-3 pb-3 pt-1 flex flex-wrap gap-2 border-t bg-muted/30">
+      {/* Quick-Prompts – verbessert mit Icons */}
+      <div className="px-3 pb-3 pt-2 flex flex-wrap gap-2 border-t bg-muted/30">
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
+          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
           onClick={() => quickAsk("Gib mir bitte einen Hinweis, wie ich vorgehe – ohne die Lösung zu verraten.")}
         >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
           <span className="truncate">Hinweis</span>
         </button>
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
+          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
           onClick={() => quickAsk("Erkläre das Ausschlussverfahren für diese Optionen.")}
         >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+          </svg>
           <span className="truncate">Ausschluss</span>
         </button>
         <button
-          className="text-xs px-2 py-1 rounded bg-white dark:bg-background border hover:bg-accent flex-1 min-w-0"
+          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
           onClick={() => quickAsk("Gib mir eine kurze Merkhilfe zu dieser Frage.")}
         >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2.5-9H19V1h-2v1H7V1H5v1H4.5C3.67 2 3 2.67 3 3.5v15c0 .83.67 1.5 1.5 1.5h15c.83 0 1.5-.67 1.5-1.5v-15c0-.83-.67-1.5-1.5-1.5z"/>
+          </svg>
           <span className="truncate">Merkhilfe</span>
         </button>
       </div>
