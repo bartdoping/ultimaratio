@@ -75,7 +75,7 @@ export default async function ExamsListPage() {
   let openAttempts: Array<{
     id: string
     examId: string
-    createdAt: Date
+    startedAt: Date
     elapsedSec: number | null
   }> = [];
 
@@ -93,10 +93,10 @@ export default async function ExamsListPage() {
         select: { 
           id: true, 
           examId: true, 
-          createdAt: true,
+          startedAt: true,
           elapsedSec: true
         },
-        orderBy: { createdAt: "desc" }
+        orderBy: { startedAt: "desc" }
       })
     }
   }

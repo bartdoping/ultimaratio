@@ -169,7 +169,7 @@ export default async function DashboardPage() {
     select: { 
       id: true, 
       examId: true, 
-      createdAt: true,
+      startedAt: true,
       elapsedSec: true,
       exam: {
         select: {
@@ -180,7 +180,7 @@ export default async function DashboardPage() {
         }
       }
     },
-    orderBy: { createdAt: "desc" }
+    orderBy: { startedAt: "desc" }
   })
 
   return (
@@ -380,7 +380,7 @@ export default async function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {openAttempts.map((attempt) => {
               const exam = attempt.exam
-              const startTime = new Date(attempt.createdAt)
+              const startTime = new Date(attempt.startedAt)
               const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
               
               return (

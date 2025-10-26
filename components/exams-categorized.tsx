@@ -31,7 +31,7 @@ interface ExamsCategorizedProps {
   openAttempts?: Array<{
     id: string
     examId: string
-    createdAt: Date
+    startedAt: Date
     elapsedSec: number | null
   }>
 }
@@ -174,7 +174,7 @@ export default function ExamsCategorized({
                       <h4 className="text-sm font-medium mb-2">Offene Prüfungsdurchläufe ({examOpenAttempts.length})</h4>
                       <div className="space-y-2">
                         {examOpenAttempts.map((attempt) => {
-                          const startTime = new Date(attempt.createdAt)
+                          const startTime = new Date(attempt.startedAt)
                           const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
                           
                           return (
