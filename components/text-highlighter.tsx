@@ -52,25 +52,24 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
   const handleMouseUp = () => {
     if (isSelecting) {
       const selection = window.getSelection()
-      if (selection && selection.toString().trim()) {
+      if (selection && selection.toString().trim() && textRef.current) {
         const selectedText = selection.toString().trim()
+        const range = selection.getRangeAt(0)
         
-        // Finde alle Vorkommen des ausgewählten Textes
-        const occurrences: { start: number; end: number }[] = []
-        let index = 0
-        while ((index = text.indexOf(selectedText, index)) !== -1) {
-          occurrences.push({
-            start: index,
-            end: index + selectedText.length
-          })
-          index += selectedText.length
-        }
+        // Berechne die Position relativ zum Originaltext
+        let start = 0
+        let end = 0
         
-        // Finde das Vorkommen, das am besten zur aktuellen Auswahl passt
-        if (occurrences.length > 0) {
-          // Für jetzt nehmen wir das erste Vorkommen
-          // In einer erweiterten Version könnte man die Position der Maus verwenden
-          const { start, end } = occurrences[0]
+        try {
+          // Erstelle einen Range vom Anfang des Textes bis zum Start der Auswahl
+          const preRange = document.createRange()
+          preRange.setStart(textRef.current.firstChild || textRef.current, 0)
+          preRange.setEnd(range.startContainer, range.startOffset)
+          
+          // Zähle nur die sichtbaren Zeichen (ohne HTML-Tags)
+          const preText = preRange.toString()
+          start = preText.length
+          end = start + selectedText.length
           
           // Prüfe, ob diese Markierung bereits existiert oder überlappt
           const exists = highlights.some(h => 
@@ -79,7 +78,7 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
             (h.start >= start && h.end <= end)     // Vollständig enthalten
           )
           
-          if (!exists) {
+          if (!exists && start >= 0 && end <= text.length) {
             setHistory(prev => [...prev, highlights])
             const newHighlight: Highlight = {
               id: `highlight-${Date.now()}-${Math.random()}`,
@@ -90,6 +89,8 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
 
             setHighlights(prev => [...prev, newHighlight])
           }
+        } catch (error) {
+          console.error('Fehler bei der Position-Berechnung:', error)
         }
       }
       setIsSelecting(false)
