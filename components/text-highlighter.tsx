@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react"
 
 interface Highlight {
   id: string
+  start: number
+  end: number
   text: string
 }
 
@@ -43,12 +45,29 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
     if (selection && selection.toString().trim()) {
       const selectedText = selection.toString().trim()
       
-      // Prüfe, ob diese Markierung bereits existiert
-      const exists = highlights.some(h => h.text === selectedText)
+      // Berechne die Position im ursprünglichen Text
+      const range = selection.getRangeAt(0)
+      const preRange = document.createRange()
+      preRange.setStart(textRef.current!.firstChild!, 0)
+      preRange.setEnd(range.startContainer, range.startOffset)
       
-      if (!exists) {
+      // Zähle nur die sichtbaren Zeichen (ohne HTML-Tags)
+      const preText = preRange.toString()
+      const start = preText.length
+      const end = start + selectedText.length
+      
+      // Prüfe, ob diese Markierung bereits existiert oder überlappt
+      const exists = highlights.some(h => 
+        (h.start <= start && h.end > start) || // Überlappung am Anfang
+        (h.start < end && h.end >= end) ||     // Überlappung am Ende
+        (h.start >= start && h.end <= end)     // Vollständig enthalten
+      )
+      
+      if (!exists && start >= 0 && end <= text.length) {
         const newHighlight: Highlight = {
           id: `highlight-${Date.now()}-${Math.random()}`,
+          start,
+          end,
           text: selectedText
         }
 
@@ -68,54 +87,42 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       return text
     }
 
-    // Erstelle ein Array von Textteilen und Markierungen
+    // Sortiere Markierungen nach Start-Position
+    const sortedHighlights = [...highlights].sort((a, b) => a.start - b.start)
+    
     const parts: React.ReactNode[] = []
-    let remainingText = text
     let lastIndex = 0
 
-    // Sortiere Markierungen nach Position im Text
-    const sortedHighlights = [...highlights].sort((a, b) => {
-      const indexA = text.indexOf(a.text)
-      const indexB = text.indexOf(b.text)
-      return indexA - indexB
-    })
-
     sortedHighlights.forEach((highlight, index) => {
-      const highlightIndex = remainingText.indexOf(highlight.text)
-      
-      if (highlightIndex !== -1) {
-        // Text vor der Markierung
-        if (highlightIndex > 0) {
-          parts.push(
-            <span key={`text-${index}-before`}>
-              {remainingText.slice(0, highlightIndex)}
-            </span>
-          )
-        }
-
-        // Markierter Text
+      // Text vor der Markierung
+      if (highlight.start > lastIndex) {
         parts.push(
-          <mark
-            key={highlight.id}
-            className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600"
-            data-highlight-id={highlight.id}
-            title="Klicken zum Entfernen"
-            onClick={() => removeHighlight(highlight.id)}
-          >
-            {highlight.text}
-          </mark>
+          <span key={`text-${index}`}>
+            {text.slice(lastIndex, highlight.start)}
+          </span>
         )
-
-        // Aktualisiere remainingText für nächste Iteration
-        remainingText = remainingText.slice(highlightIndex + highlight.text.length)
       }
+
+      // Markierter Text
+      parts.push(
+        <mark
+          key={highlight.id}
+          className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600"
+          title="Klicken zum Entfernen"
+          onClick={() => removeHighlight(highlight.id)}
+        >
+          {highlight.text}
+        </mark>
+      )
+
+      lastIndex = highlight.end
     })
 
     // Restlicher Text nach der letzten Markierung
-    if (remainingText.length > 0) {
+    if (lastIndex < text.length) {
       parts.push(
         <span key="text-end">
-          {remainingText}
+          {text.slice(lastIndex)}
         </span>
       )
     }
