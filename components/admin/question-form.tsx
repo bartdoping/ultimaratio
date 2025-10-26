@@ -24,11 +24,16 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
   const [allowImmediate, setAllowImmediate] = useState(question.hasImmediateFeedbackAllowed)
   const [saving, setSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
-  const stemDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const metaDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const abortControllerRef = useRef<AbortController | null>(null)
 
   // Aktualisiere lokale State wenn sich die Frage ändert
   useEffect(() => {
+    // Breche in-flight requests ab wenn sich die Frage ändert
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+    }
+    
     setStem(question.stem)
     setExplanation(question.explanation || "")
     setTip(question.tip || "")
@@ -38,6 +43,9 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
   const saveStem = async () => {
     setAutoSaving(true)
     try {
+      // Erstelle neuen AbortController
+      abortControllerRef.current = new AbortController()
+      
       const formData = new FormData()
       formData.append('examId', examId)
       formData.append('qid', question.id)
@@ -46,9 +54,14 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
       await fetch('/api/admin/exams/update-question-stem', {
         method: 'POST',
         body: formData,
+        signal: abortControllerRef.current.signal,
       })
     } catch (error) {
-      console.error('Error saving stem:', error)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Save stem request aborted')
+      } else {
+        console.error('Error saving stem:', error)
+      }
     } finally {
       setAutoSaving(false)
     }
@@ -67,6 +80,9 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
   const saveMeta = async () => {
     setAutoSaving(true)
     try {
+      // Erstelle neuen AbortController
+      abortControllerRef.current = new AbortController()
+      
       const formData = new FormData()
       formData.append('examId', examId)
       formData.append('qid', question.id)
@@ -77,9 +93,14 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
       await fetch('/api/admin/exams/update-question-meta', {
         method: 'POST',
         body: formData,
+        signal: abortControllerRef.current.signal,
       })
     } catch (error) {
-      console.error('Error saving meta:', error)
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Save meta request aborted')
+      } else {
+        console.error('Error saving meta:', error)
+      }
     } finally {
       setAutoSaving(false)
     }
@@ -95,37 +116,32 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
     }
   }
 
-  // Debounced Autosave (600ms) – optional, ohne Buttons zu entfernen
+  // Einheitlicher Debounced Autosave (600ms)
   useEffect(() => {
-    if (stemDebounceRef.current) clearTimeout(stemDebounceRef.current)
-    stemDebounceRef.current = setTimeout(() => {
-      // Nur speichern, wenn sich der Stem vom ursprünglichen unterscheidet
-      if (question.stem !== stem) {
-        saveStem()
-      }
-    }, 600)
-    return () => {
-      if (stemDebounceRef.current) clearTimeout(stemDebounceRef.current)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stem, question.id])
-
-  useEffect(() => {
-    if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current)
-    metaDebounceRef.current = setTimeout(() => {
-      if (
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    
+    debounceRef.current = setTimeout(async () => {
+      const hasStemChanges = question.stem !== stem
+      const hasMetaChanges = 
         question.explanation !== (explanation || "") ||
         question.tip !== (tip || "") ||
         question.hasImmediateFeedbackAllowed !== allowImmediate
-      ) {
-        saveMeta()
+      
+      if (hasStemChanges && hasMetaChanges) {
+        // Beide ändern sich - speichere beide
+        await Promise.all([saveStem(), saveMeta()])
+      } else if (hasStemChanges) {
+        await saveStem()
+      } else if (hasMetaChanges) {
+        await saveMeta()
       }
     }, 600)
+    
     return () => {
-      if (metaDebounceRef.current) clearTimeout(metaDebounceRef.current)
+      if (debounceRef.current) clearTimeout(debounceRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [explanation, tip, allowImmediate, question.id])
+  }, [stem, explanation, tip, allowImmediate, question.id])
 
   return (
     <div className="space-y-4">

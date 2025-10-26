@@ -135,6 +135,7 @@ model Question {
   reviewItems ReviewItem[]
 
   @@index([examId, order])
+  @@index([examId, caseId])
 }
 
 model AnswerOption {

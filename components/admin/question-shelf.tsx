@@ -66,25 +66,33 @@ export default function QuestionShelf({ examId }: { examId: string }) {
 
   useEffect(() => { load() }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Reagiere auf URL-Änderungen (z.B. beim Wechseln zwischen Fragen)
+  // Reagiere auf URL-Änderungen (nur wenn sich edit-Parameter ändert)
   useEffect(() => {
     const currentEdit = sp.get("edit")
     if (currentEdit !== currentQuestionId) {
       setCurrentQuestionId(currentEdit)
-      // Lade Tags neu wenn sich die Frage ändert
-      load()
+      // Nur laden wenn sich die Frage tatsächlich geändert hat
+      if (currentEdit !== null) {
+        load()
+      }
     }
-  }, [sp, currentQuestionId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sp.get("edit"), currentQuestionId]) // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Reagiere auf Tag-Updates
+  // Reagiere auf Tag-Updates mit Debouncing
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout
+    
     const handleTagUpdate = () => {
-      load()
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        load()
+      }, 300) // 300ms debounce
     }
     
     window.addEventListener('tagUpdated', handleTagUpdate)
     
     return () => {
+      clearTimeout(timeoutId)
       window.removeEventListener('tagUpdated', handleTagUpdate)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -109,15 +117,13 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     }
   }
 
+  // Lade Duplikate nur wenn "Show Duplicates" aktiviert ist
   useEffect(() => {
-    loadDuplicates()
-  }, [examId, duplicatesLoaded])
+    if (showOnlyDuplicates) {
+      loadDuplicates()
+    }
+  }, [showOnlyDuplicates, examId])
   
-  // Aktualisiere currentQuestionId wenn sich die URL ändert
-  useEffect(() => {
-    const editParam = sp.get("edit")
-    setCurrentQuestionId(editParam)
-  }, [sp])
 
   // Löschfunktionen
   const toggleQuestionSelection = (questionId: string) => {

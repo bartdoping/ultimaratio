@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 
+// Cache für Duplikat-Ergebnisse (5 Minuten)
+const duplicatesCache = new Map<string, { data: any, timestamp: number }>()
+const CACHE_DURATION = 5 * 60 * 1000 // 5 Minuten
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -25,16 +29,25 @@ export async function GET(
 
     const { id: examId } = await params
 
-    // Lade alle Fragen mit Optionen
+    // Prüfe Cache
+    const cacheKey = `duplicates-${examId}`
+    const cached = duplicatesCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      return NextResponse.json(cached.data)
+    }
+
+    // Lade nur notwendige Daten für Duplikat-Erkennung
     const questions = await prisma.question.findMany({
       where: { examId },
-      include: {
+      select: {
+        id: true,
+        stem: true,
         options: {
-          orderBy: { order: "asc" },
           select: {
             text: true,
             isCorrect: true
-          }
+          },
+          orderBy: { order: "asc" }
         }
       },
       orderBy: { order: "asc" }
@@ -65,10 +78,18 @@ export async function GET(
       }
     })
 
-    return NextResponse.json({ 
+    const result = { 
       duplicates: Object.fromEntries(duplicates),
       totalDuplicates: Array.from(duplicates.values()).flat().length
+    }
+
+    // Cache das Ergebnis
+    duplicatesCache.set(cacheKey, {
+      data: result,
+      timestamp: Date.now()
     })
+
+    return NextResponse.json(result)
 
   } catch (error) {
     console.error("Get duplicates error:", error)

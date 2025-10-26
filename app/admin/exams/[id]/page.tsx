@@ -467,6 +467,14 @@ async function bulkImportAction(formData: FormData) {
       }
     }
 
+    // Berechne maxOrder einmal außerhalb der Schleife
+    const initialMaxOrder = (await prisma.question.aggregate({
+      where: { examId },
+      _max: { order: true },
+    }))._max.order ?? 0
+    
+    let currentOrder = initialMaxOrder
+
     // Fragen in Chunks verarbeiten
     for (let chunkIndex = 0; chunkIndex < questionChunks.length; chunkIndex++) {
       const chunk = questionChunks[chunkIndex]
@@ -483,10 +491,8 @@ async function bulkImportAction(formData: FormData) {
           }
 
           try {
-            const maxOrder = (await tx.question.aggregate({
-              where: { examId },
-              _max: { order: true },
-            }))._max.order ?? 0
+            // Inkrementiere currentOrder statt Datenbankabfrage
+            currentOrder++
 
             const allowImmediate = !!q?.allowImmediate
             const caseTitle = (q?.caseTitle && String(q.caseTitle)) || ""
@@ -501,7 +507,7 @@ async function bulkImportAction(formData: FormData) {
                 hasImmediateFeedbackAllowed: allowImmediate,
                 type: "single",
                 caseId,
-                order: maxOrder + 1,
+                order: currentOrder,
               },
               select: { id: true },
             })
@@ -723,7 +729,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 2. Fragestellung (Stem) */}
-            <div className="space-y-2" key={`stem-${editingValid.id}`}>
+            <div className="space-y-2">
               <h3 className="text-sm font-medium">2. Fragestellung:</h3>
               <form action={updateQuestionStemAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
@@ -739,7 +745,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 3. Oberarztkommentar */}
-            <div className="space-y-2" key={`tip-${editingValid.id}`}>
+            <div className="space-y-2">
               <h3 className="text-sm font-medium">3. Oberarztkommentar:</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
@@ -799,7 +805,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 5. Zusammenfassende Erläuterung */}
-            <div className="space-y-2" key={`explanation-${editingValid.id}`}>
+            <div className="space-y-2">
               <h3 className="text-sm font-medium">5. Zusammenfassende Erläuterung:</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
