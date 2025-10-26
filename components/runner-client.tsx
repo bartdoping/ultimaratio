@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { AnswerOptions } from "@/components/answer-options"
 import { SubscriptionLimitPopup } from "@/components/subscription-limit-popup"
 import AssistantSidebar from "@/components/ai/assistant-sidebar"
+import { TextHighlighter } from "@/components/text-highlighter"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -971,7 +972,12 @@ const aiContext = useMemo(() => {
                 </div>
               )}
 
-              <p className="text-lg font-semibold leading-relaxed mb-6">{q.stem}</p>
+              <div className="mb-6">
+                <TextHighlighter 
+                  text={q.stem} 
+                  questionId={q.id}
+                />
+              </div>
 
               {/* Oberarztkommentar */}
               {hasTip && (
