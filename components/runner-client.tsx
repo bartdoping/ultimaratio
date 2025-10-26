@@ -258,6 +258,15 @@ export function RunnerClient(props: Props) {
   const [qExpOpen, setQExpOpen] = useState(false)
   const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
 
+  // Question Sidebar State
+  const [questionSidebarOpen, setQuestionSidebarOpen] = useState(() => {
+    if (typeof window === "undefined") return true
+    try {
+      const saved = localStorage.getItem("questionSidebarOpen")
+      return saved !== null ? saved === "true" : true
+    } catch { return true }
+  })
+
   // Markierungen & Filter
   const [flagged, setFlagged] = useState<Record<string, boolean>>(() => {
     if (typeof window === "undefined") return {}
@@ -654,6 +663,7 @@ const aiContext = useMemo(() => {
 
       if (e.key.toLowerCase() === "m") { e.preventDefault(); toggleFlagCurrent(); return }
       if (e.key.toLowerCase() === "u") { e.preventDefault(); goNextTarget(); return }
+      if (e.key.toLowerCase() === "q") { e.preventDefault(); setQuestionSidebarOpen(v => !v); return }
 
       if (e.key === "Enter") { e.preventDefault(); nextInFiltered(1); return }
 
@@ -667,6 +677,13 @@ const aiContext = useMemo(() => {
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lightboxOpen, labOpen, media.length, q.options, answers, idx, filterMode, flagged, filteredIndices])
+
+  // Persist question sidebar state
+  useEffect(() => {
+    try {
+      localStorage.setItem("questionSidebarOpen", String(questionSidebarOpen))
+    } catch {}
+  }, [questionSidebarOpen])
 
   useEffect(() => {
     if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
@@ -734,11 +751,32 @@ const aiContext = useMemo(() => {
     >
       <div className="relative block lg:flex lg:items-start lg:gap-6">
       {/* Left-Rail */}
-      <aside className="hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:w-[16rem] lg:flex-none rounded border p-3 overflow-y-auto">
-        <div className="mb-2 text-sm font-semibold">Fragen</div>
+      <aside className={`hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:flex-none rounded border overflow-y-auto transition-all duration-300 ${
+        questionSidebarOpen ? 'lg:w-[16rem] p-3' : 'lg:w-12 p-1'
+      }`}>
+        {/* Collapse/Expand Button */}
+        <button
+          onClick={() => setQuestionSidebarOpen(!questionSidebarOpen)}
+          className="mb-2 flex items-center justify-center w-full h-8 rounded hover:bg-muted/50 transition-colors"
+          title={questionSidebarOpen ? "Fragen-Regal einklappen (Q)" : "Fragen-Regal ausklappen (Q)"}
+        >
+          {questionSidebarOpen ? (
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+            </svg>
+          ) : (
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+            </svg>
+          )}
+        </button>
 
-        {/* Filter-Chips */}
-        <div className="mb-3 flex flex-wrap gap-2">
+        {questionSidebarOpen && (
+          <>
+            <div className="mb-2 text-sm font-semibold">Fragen</div>
+
+            {/* Filter-Chips */}
+            <div className="mb-3 flex flex-wrap gap-2">
           <Button size="sm" variant={filterMode === "all" ? "default" : "outline"} onClick={() => setFilterMode("all")}>
             Alle ({counts.total})
           </Button>
@@ -795,133 +833,194 @@ const aiContext = useMemo(() => {
           })}
         </div>
 
-        <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
-          <div>✓ Grün = beantwortet</div>
-          <div>• Ring = aktuell</div>
-          <div>★ = markiert</div>
-        </div>
+            <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
+              <div>✓ Grün = beantwortet</div>
+              <div>• Ring = aktuell</div>
+              <div>★ = markiert</div>
+            </div>
+          </>
+        )}
       </aside>
 
       {/* Hauptbereich */}
       <div className="relative lg:flex-1 lg:min-w-0">
         {/* Kopfzeile */}
-        <div className="mb-3 flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center justify-between gap-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden">
-              <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="hidden sm:inline">Fragen</span>
-            </Button>
-            <span>Frage {idx + 1} / {questions.length} ({progress})</span>
-          </div>
-
-          <div className="flex items-center gap-2">
-            {/* Sofort-Feedback: in beiden Modi sichtbar, wenn erlaubt */}
-            {allowImmediateFeedback && (
-              <label className="flex items-center gap-2" title="Wenn an: sofort zeigen, ob richtig/falsch">
-                <input
-                  type="checkbox"
-                  checked={!examMode}
-                  onChange={(e) => setExamMode(!e.target.checked)}
-                />
-                Sofort-Feedback
-              </label>
-            )}
-
-            {mode === "exam" && (
-              <span className="text-xs text-muted-foreground">
-                {examMode ? "Prüfungsmodus aktiv (kein Direktfeedback)" : "Prüfungsmodus: Direktfeedback an"}
-              </span>
-            )}
-
-            {/* Markieren */}
-            <Button
-              variant={isCurrentFlagged ? "default" : "outline"}
-              onClick={toggleFlagCurrent}
-              title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
-              aria-pressed={isCurrentFlagged}
-            >
-              {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
-            </Button>
-
-            {/* In Decks speichern */}
-            <Button variant="outline" onClick={openSaveModal} title="Diese Frage in eigene Decks ablegen">
-              In Decks speichern
-            </Button>
-
-            <Button variant="outline" onClick={() => setLabOpen(true)} title="Laborwerte (L)">Laborwerte</Button>
-
-            <div className="flex items-center gap-2">
-              <span>Zeit: {formatUp(elapsed)}</span>
-              <Button variant="outline" onClick={() => setRunning(r => !r)} title="Timer pausieren/fortsetzen (P)">
-                {running ? "Pause" : "Weiter"}
+        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b mb-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4">
+            {/* Left Section - Progress & Mobile Menu */}
+            <div className="flex items-center gap-4">
+              <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden h-10">
+                <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="hidden sm:inline">Fragen</span>
               </Button>
+              <div className="text-lg font-semibold">
+                Frage {idx + 1} / {questions.length} <span className="text-sm text-muted-foreground">({progress})</span>
+              </div>
+            </div>
+
+            {/* Right Section - Actions */}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Primary Actions */}
+              <div className="flex items-center gap-2">
+                {/* Markieren */}
+                <Button
+                  variant={isCurrentFlagged ? "default" : "outline"}
+                  onClick={toggleFlagCurrent}
+                  title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
+                  aria-pressed={isCurrentFlagged}
+                  className="h-10"
+                >
+                  {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
+                </Button>
+
+                {/* Timer */}
+                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50">
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                  </svg>
+                  <span className="font-mono text-sm">{formatUp(elapsed)}</span>
+                </div>
+              </div>
+
+              {/* Secondary Actions */}
+              <div className="flex items-center gap-2">
+                {/* Sofort-Feedback */}
+                {allowImmediateFeedback && (
+                  <Button
+                    variant={!examMode ? "default" : "outline"}
+                    onClick={() => setExamMode(!examMode)}
+                    title="Sofort-Feedback umschalten"
+                    className="h-10 px-3"
+                  >
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
+                    </svg>
+                    <span className="hidden sm:inline ml-2">Feedback</span>
+                  </Button>
+                )}
+
+                {/* Pause/Weiter */}
+                <Button
+                  variant="outline"
+                  onClick={() => setRunning(r => !r)}
+                  title="Timer pausieren/fortsetzen (P)"
+                  className="h-10 px-3"
+                >
+                  {running ? (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                    </svg>
+                  ) : (
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M8 5v14l11-7z"/>
+                    </svg>
+                  )}
+                  <span className="hidden sm:inline ml-2">{running ? "Pause" : "Weiter"}</span>
+                </Button>
+
+                {/* In Decks speichern */}
+                <Button
+                  variant="outline"
+                  onClick={openSaveModal}
+                  title="Diese Frage in eigene Decks ablegen"
+                  className="h-10 px-3"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                  </svg>
+                  <span className="hidden sm:inline ml-2">Speichern</span>
+                </Button>
+
+                {/* Laborwerte */}
+                <Button
+                  variant="outline"
+                  onClick={() => setLabOpen(true)}
+                  title="Laborwerte (L)"
+                  className="h-10 px-3"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                  </svg>
+                  <span className="hidden sm:inline ml-2">Labor</span>
+                </Button>
+              </div>
             </div>
           </div>
+
+          {/* Mode Indicator */}
+          {mode === "exam" && (
+            <div className="px-4 pb-3">
+              <div className="text-xs text-muted-foreground">
+                {examMode ? "Prüfungsmodus aktiv (kein Direktfeedback)" : "Prüfungsmodus: Direktfeedback an"}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Kartenbereich */}
         {filteredIndices.length === 0 ? (
-          <div className="rounded border bg-secondary/40 p-6 text-sm text-muted-foreground">{noResultsMessage}</div>
+          <div className="rounded-lg border bg-secondary/40 p-8 text-sm text-muted-foreground">{noResultsMessage}</div>
         ) : (
-          <div className="card card-body space-y-4" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-            {(q.caseTitle || q.caseVignette) && (
-              <div className="rounded border bg-secondary/40 p-4 space-y-1">
-                <div className="font-semibold">{q.caseTitle || "Fall"}</div>
-                {q.caseVignette && <div className="text-sm text-muted-foreground whitespace-pre-wrap">{q.caseVignette}</div>}
-              </div>
-            )}
+          <div className="max-w-4xl mx-auto">
+            <div className="rounded-lg border bg-card shadow-sm p-8 space-y-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+              {(q.caseTitle || q.caseVignette) && (
+                <div className="rounded-lg border bg-secondary/40 p-5 space-y-2">
+                  <div className="font-semibold text-lg">{q.caseTitle || "Fall"}</div>
+                  {q.caseVignette && <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{q.caseVignette}</div>}
+                </div>
+              )}
 
-            <p className="font-medium">{q.stem}</p>
+              <p className="text-lg font-semibold leading-relaxed mb-6">{q.stem}</p>
 
-            {/* Oberarztkommentar */}
-            {hasTip && (
-              <div className="rounded border bg-secondary/40">
-                <button
-                  type="button"
-                  onClick={() => setTipOpen(o => !o)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-                  aria-expanded={tipOpen}
-                  aria-controls="tip-content"
-                >
-                  <span>Oberarztkommentar</span>
-                  <svg className={`h-4 w-4 transition-transform ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                  </svg>
-                </button>
-                {tipOpen && (
-                  <div id="tip-content" className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {q.tip}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Medien */}
-            {media.length > 0 && (
-              <div className="flex flex-wrap gap-3">
-                {media.map((m, i) => (
+              {/* Oberarztkommentar */}
+              {hasTip && (
+                <div className="rounded-lg border bg-secondary/40">
                   <button
-                    key={m.id}
                     type="button"
-                    onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
-                    className="group relative rounded border overflow-hidden focus:outline-none focus:ring focus:ring-blue-500 cursor-zoom-in"
-                    title={m.alt || "Bild vergrößern"}
-                    aria-label="Bild vergrößern"
+                    onClick={() => setTipOpen(o => !o)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-base font-medium hover:bg-muted/50 transition-colors"
+                    aria-expanded={tipOpen}
+                    aria-controls="tip-content"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={m.url}
-                      alt={m.alt || ""}
-                      className="h-28 w-40 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                    <span>Oberarztkommentar</span>
+                    <svg className={`h-5 w-5 transition-transform duration-200 ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                    </svg>
                   </button>
-                ))}
-              </div>
-            )}
+                  {tipOpen && (
+                    <div id="tip-content" className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {q.tip}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Medien */}
+              {media.length > 0 && (
+                <div className="flex flex-wrap gap-4">
+                  {media.map((m, i) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => { setLightboxIndex(i); setLightboxOpen(true) }}
+                      className="group relative rounded-lg border-2 overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-zoom-in hover:shadow-md transition-all duration-200"
+                      title={m.alt || "Bild vergrößern"}
+                      aria-label="Bild vergrößern"
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={m.url}
+                        alt={m.alt || ""}
+                        className="h-36 w-48 object-cover transition-transform duration-200 ease-out group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="pointer-events-none absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-200" />
+                    </button>
+                  ))}
+                </div>
+              )}
 
             {/* Optionen */}
             <AnswerOptions
@@ -932,58 +1031,89 @@ const aiContext = useMemo(() => {
               submitting={submitting}
             />
 
-            {/* Frage-Gesamterklärung */}
-            {hasQExplanation && showFeedback && !!given && (
-              <div className="rounded border bg-secondary/40">
-                <button
-                  type="button"
-                  onClick={() => setQExpOpen(v => !v)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-sm font-medium"
-                  aria-expanded={qExpOpen}
-                >
-                  <span>Erklärung</span>
-                  <svg className={`h-4 w-4 transition-transform ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                  </svg>
-                </button>
-                {qExpOpen && (
-                  <div className="px-3 pb-3 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {q.explanation}
-                  </div>
-                )}
-              </div>
-            )}
+              {/* Frage-Gesamterklärung */}
+              {hasQExplanation && showFeedback && !!given && (
+                <div className="rounded-lg border bg-secondary/40">
+                  <button
+                    type="button"
+                    onClick={() => setQExpOpen(v => !v)}
+                    className="w-full flex items-center justify-between px-4 py-3 text-base font-medium hover:bg-muted/50 transition-colors"
+                    aria-expanded={qExpOpen}
+                  >
+                    <span>Zusammenfassende Erläuterung</span>
+                    <svg className={`h-5 w-5 transition-transform duration-200 ${qExpOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                    </svg>
+                  </button>
+                  {qExpOpen && (
+                    <div className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {q.explanation}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
 
         {/* Navigation unten */}
-        <div className="mt-4 flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Button variant="secondary" onClick={() => nextInFiltered(-1)} disabled={atStart} className="flex-1 sm:flex-none">Zurück</Button>
-            <Button variant="outline" onClick={() => nextInFiltered(1)} disabled={atEnd} className="flex-1 sm:flex-none">Weiter</Button>
-          </div>
+        <div className="mt-8 max-w-4xl mx-auto">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg">
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="secondary" 
+                onClick={() => nextInFiltered(-1)} 
+                disabled={atStart} 
+                className="h-12 px-6"
+              >
+                ← Zurück
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => nextInFiltered(1)} 
+                disabled={atEnd} 
+                className="h-12 px-6"
+              >
+                Weiter →
+              </Button>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={goNextTarget}
-              disabled={!hasPrimaryJump}
-              title={
-                filterMode === "flagged"
-                  ? "Zur nächsten markierten Frage springen (U)"
-                  : filterMode === "wrong"
-                  ? "Zur nächsten falschen Frage springen (U)"
-                  : "Zur nächsten offenen Frage springen (U)"
-              }
-            >
-              {primaryJumpLabel}
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="outline"
+                onClick={goNextTarget}
+                disabled={!hasPrimaryJump}
+                title={
+                  filterMode === "flagged"
+                    ? "Zur nächsten markierten Frage springen (U)"
+                    : filterMode === "wrong"
+                    ? "Zur nächsten falschen Frage springen (U)"
+                    : "Zur nächsten offenen Frage springen (U)"
+                }
+                className="h-12 px-6"
+              >
+                {primaryJumpLabel}
+              </Button>
 
-            {mode === "exam" ? (
-              <Button variant="destructive" onClick={finish} disabled={submitting}>Beenden & Auswerten</Button>
-            ) : (
-              <Button variant="secondary" onClick={endPractice}>Session beenden</Button>
-            )}
+              {mode === "exam" ? (
+                <Button 
+                  variant="destructive" 
+                  onClick={finish} 
+                  disabled={submitting}
+                  className="h-12 px-8 text-base font-semibold"
+                >
+                  Beenden & Auswerten
+                </Button>
+              ) : (
+                <Button 
+                  variant="secondary" 
+                  onClick={endPractice}
+                  className="h-12 px-6"
+                >
+                  Session beenden
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       </div>

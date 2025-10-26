@@ -48,6 +48,29 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ===== Exam Mode Specific Styles ===== */
+.exam-card {
+  @apply rounded-lg border-2 border-border bg-card shadow-sm;
+  transition: all 0.2s ease;
+}
+
+.exam-card:hover {
+  @apply shadow-md border-primary/20;
+}
+
+.exam-option {
+  @apply rounded-lg border-2 transition-all duration-200;
+  min-height: 72px;
+}
+
+.exam-option:hover {
+  @apply shadow-sm scale-[1.01];
+}
+
+.exam-option-selected {
+  @apply border-blue-500 bg-blue-50 dark:bg-blue-950/20;
+}
+
 /* ===== Tokens (dein bestehender Block) ===== */
 :root {
   --radius: 0.625rem;
