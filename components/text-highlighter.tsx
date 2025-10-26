@@ -208,10 +208,6 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
           MozUserSelect: 'text',
           msUserSelect: 'text'
         }}
-        onSelectStart={(e: any) => {
-          // Erlaube Textauswahl explizit
-          e.stopPropagation()
-        }}
       >
         {renderTextWithHighlights()}
       </div>
