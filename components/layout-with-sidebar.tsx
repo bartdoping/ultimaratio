@@ -57,9 +57,9 @@ export default function LayoutWithSidebar({
           <div 
             ref={sidebarRef}
             className={`hidden lg:block bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col transition-all duration-300 ${
-              collapsed ? 'w-12' : 'w-80'
+              collapsed ? 'w-12' : 'w-96'
             }`}
-            style={{ height: 'calc(100vh - 2rem)', marginTop: '1rem', marginBottom: '1rem' }}
+            style={{ height: 'calc(50vh - 1rem)', marginTop: '1rem', marginBottom: '1rem' }}
           >
             {!collapsed && (
               <div className="h-full overflow-y-auto">
