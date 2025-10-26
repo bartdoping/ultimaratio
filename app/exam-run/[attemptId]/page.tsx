@@ -96,8 +96,7 @@ export default async function ExamRunPage({ params }: Props) {
 
   return (
     <ExamProtection examMode={true}>
-      <div className="w-full">
-        <FilteredExamRunner
+      <FilteredExamRunner
           attemptId={attempt.id}
           examId={exam.id}
           passPercent={exam.passPercent}
@@ -106,7 +105,6 @@ export default async function ExamRunPage({ params }: Props) {
           initialAnswers={initialAnswers}
           initialElapsedSec={attempt.elapsedSec ?? 0}  // Fortsetzen ohne Zeitverlust
         />
-      </div>
     </ExamProtection>
   )
 }

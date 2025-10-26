@@ -152,8 +152,7 @@ export default async function PracticePage({ params, searchParams }: Props) {
   const initialElapsedSec = attempt.elapsedSec ?? 0
 
   return (
-    <div className="w-full">
-      <RunnerClient
+    <RunnerClient
         attemptId={attempt.id}
         examId={exam.id}
         passPercent={exam.passPercent}
@@ -164,6 +163,5 @@ export default async function PracticePage({ params, searchParams }: Props) {
         mode="practice"
         initialFilterMode="all"
       />
-    </div>
   )
 }

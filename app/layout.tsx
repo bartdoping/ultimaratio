@@ -6,6 +6,7 @@ import { SiteHeader } from "@/components/site-header"
 import { Providers } from "@/components/providers"
 import Footer from "@/components/footer"
 import { ScreenshotProtection } from "@/components/screenshot-protection"
+import { FullWidthLayout } from "@/components/full-width-layout"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -102,9 +103,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
               {/* Main-Content zentriert, gleiches Padding links/rechts */}
               <main className="flex-1 w-full">
-                <div className="mx-auto w-full max-w-7xl px-4 md:px-6 lg:px-8 py-6">
+                <FullWidthLayout>
                   {children}
-                </div>
+                </FullWidthLayout>
               </main>
 
               {/* Footer */}

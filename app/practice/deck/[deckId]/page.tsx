@@ -196,8 +196,7 @@ export default async function DeckPracticePage({ params }: Props) {
   const initialAnswers = Object.fromEntries(initialAnswersArr.map(a => [a.questionId, a.answerOptionId] as const))
 
   return (
-    <main className="w-full p-6">
-      <RunnerClient
+    <RunnerClient
         attemptId={attempt!.id}
         examId={firstExamId ?? "mixed-auto"}
         passPercent={0}
@@ -208,6 +207,5 @@ export default async function DeckPracticePage({ params }: Props) {
         mode="practice"
         initialExamMode={true}
       />
-    </main>
   )
 }
