@@ -4,9 +4,9 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
-import LayoutWithSidebar from "@/components/layout-with-sidebar"
 import { AnswerOptions } from "@/components/answer-options"
 import { SubscriptionLimitPopup } from "@/components/subscription-limit-popup"
+import AssistantSidebar from "@/components/ai/assistant-sidebar"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -745,15 +745,128 @@ const aiContext = useMemo(() => {
   const canShowWrongChip = mode === "practice" || showFeedback
 
   return (
-    <LayoutWithSidebar 
-      showAssistant={true} 
-      assistantContext={aiContext}
-    >
-      <div className="relative block lg:flex lg:items-start lg:gap-6">
-      {/* Left-Rail */}
-      <aside className={`hidden lg:block lg:sticky lg:top-4 lg:h-[calc(100vh-2rem)] lg:flex-none rounded border overflow-y-auto transition-all duration-300 ${
-        questionSidebarOpen ? 'lg:w-[16rem] p-3' : 'lg:w-12 p-1'
-      }`}>
+    <div className="min-h-screen">
+      {/* Header Toolbar - Sticky oben */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4">
+          {/* Left Section - Progress & Mobile Menu */}
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden h-10">
+              <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              <span className="hidden sm:inline">Fragen</span>
+            </Button>
+            <div className="text-lg font-semibold">
+              Frage {idx + 1} / {questions.length} <span className="text-sm text-muted-foreground">({progress})</span>
+            </div>
+          </div>
+
+          {/* Right Section - Actions */}
+          <div className="flex items-center gap-3 flex-wrap">
+            {/* Primary Actions */}
+            <div className="flex items-center gap-2">
+              {/* Markieren */}
+              <Button
+                variant={isCurrentFlagged ? "default" : "outline"}
+                onClick={toggleFlagCurrent}
+                title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
+                aria-pressed={isCurrentFlagged}
+                className="h-10"
+              >
+                {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
+              </Button>
+
+              {/* Timer */}
+              <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50">
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                </svg>
+                <span className="font-mono text-sm">{formatUp(elapsed)}</span>
+              </div>
+            </div>
+
+            {/* Secondary Actions */}
+            <div className="flex items-center gap-2">
+              {/* Sofort-Feedback */}
+              {allowImmediateFeedback && (
+                <Button
+                  variant={!examMode ? "default" : "outline"}
+                  onClick={() => setExamMode(!examMode)}
+                  title="Sofort-Feedback umschalten"
+                  className="h-10 px-3"
+                >
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
+                  </svg>
+                  <span className="hidden sm:inline ml-2">Feedback</span>
+                </Button>
+              )}
+
+              {/* Pause/Weiter */}
+              <Button
+                variant="outline"
+                onClick={() => setRunning(r => !r)}
+                title="Timer pausieren/fortsetzen (P)"
+                className="h-10 px-3"
+              >
+                {running ? (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                  </svg>
+                ) : (
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z"/>
+                  </svg>
+                )}
+                <span className="hidden sm:inline ml-2">{running ? "Pause" : "Weiter"}</span>
+              </Button>
+
+              {/* In Decks speichern */}
+              <Button
+                variant="outline"
+                onClick={openSaveModal}
+                title="Diese Frage in eigene Decks ablegen"
+                className="h-10 px-3"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+                </svg>
+                <span className="hidden sm:inline ml-2">Speichern</span>
+              </Button>
+
+              {/* Laborwerte */}
+              <Button
+                variant="outline"
+                onClick={() => setLabOpen(true)}
+                title="Laborwerte (L)"
+                className="h-10 px-3"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+                </svg>
+                <span className="hidden sm:inline ml-2">Labor</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mode Indicator */}
+        {mode === "exam" && (
+          <div className="px-4 pb-3">
+            <div className="text-xs text-muted-foreground">
+              {examMode ? "Prüfungsmodus aktiv (kein Direktfeedback)" : "Prüfungsmodus: Direktfeedback an"}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Main Content Area with Sidebars */}
+      <div className="flex gap-4 p-4">
+        {/* Left-Rail - Questions Sidebar */}
+        <aside className={`hidden lg:block lg:flex-none rounded border overflow-y-auto transition-all duration-300 ${
+          questionSidebarOpen ? 'lg:w-[16rem] p-3' : 'lg:w-12 p-1'
+        }`} style={{ height: 'calc(50vh - 1rem)' }}>
         {/* Collapse/Expand Button */}
         <button
           onClick={() => setQuestionSidebarOpen(!questionSidebarOpen)}
@@ -840,124 +953,10 @@ const aiContext = useMemo(() => {
             </div>
           </>
         )}
-      </aside>
+        </aside>
 
-      {/* Hauptbereich */}
-      <div className="relative lg:flex-1 lg:min-w-0">
-        {/* Kopfzeile */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b mb-6">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4">
-            {/* Left Section - Progress & Mobile Menu */}
-            <div className="flex items-center gap-4">
-              <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden h-10">
-                <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span className="hidden sm:inline">Fragen</span>
-              </Button>
-              <div className="text-lg font-semibold">
-                Frage {idx + 1} / {questions.length} <span className="text-sm text-muted-foreground">({progress})</span>
-              </div>
-            </div>
-
-            {/* Right Section - Actions */}
-            <div className="flex items-center gap-3 flex-wrap">
-              {/* Primary Actions */}
-              <div className="flex items-center gap-2">
-                {/* Markieren */}
-                <Button
-                  variant={isCurrentFlagged ? "default" : "outline"}
-                  onClick={toggleFlagCurrent}
-                  title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
-                  aria-pressed={isCurrentFlagged}
-                  className="h-10"
-                >
-                  {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
-                </Button>
-
-                {/* Timer */}
-                <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50">
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                  </svg>
-                  <span className="font-mono text-sm">{formatUp(elapsed)}</span>
-                </div>
-              </div>
-
-              {/* Secondary Actions */}
-              <div className="flex items-center gap-2">
-                {/* Sofort-Feedback */}
-                {allowImmediateFeedback && (
-                  <Button
-                    variant={!examMode ? "default" : "outline"}
-                    onClick={() => setExamMode(!examMode)}
-                    title="Sofort-Feedback umschalten"
-                    className="h-10 px-3"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
-                    </svg>
-                    <span className="hidden sm:inline ml-2">Feedback</span>
-                  </Button>
-                )}
-
-                {/* Pause/Weiter */}
-                <Button
-                  variant="outline"
-                  onClick={() => setRunning(r => !r)}
-                  title="Timer pausieren/fortsetzen (P)"
-                  className="h-10 px-3"
-                >
-                  {running ? (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                    </svg>
-                  ) : (
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M8 5v14l11-7z"/>
-                    </svg>
-                  )}
-                  <span className="hidden sm:inline ml-2">{running ? "Pause" : "Weiter"}</span>
-                </Button>
-
-                {/* In Decks speichern */}
-                <Button
-                  variant="outline"
-                  onClick={openSaveModal}
-                  title="Diese Frage in eigene Decks ablegen"
-                  className="h-10 px-3"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
-                  </svg>
-                  <span className="hidden sm:inline ml-2">Speichern</span>
-                </Button>
-
-                {/* Laborwerte */}
-                <Button
-                  variant="outline"
-                  onClick={() => setLabOpen(true)}
-                  title="Laborwerte (L)"
-                  className="h-10 px-3"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                  </svg>
-                  <span className="hidden sm:inline ml-2">Labor</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-
-          {/* Mode Indicator */}
-          {mode === "exam" && (
-            <div className="px-4 pb-3">
-              <div className="text-xs text-muted-foreground">
-                {examMode ? "Prüfungsmodus aktiv (kein Direktfeedback)" : "Prüfungsmodus: Direktfeedback an"}
-              </div>
-            </div>
-          )}
-        </div>
+        {/* Hauptbereich */}
+        <div className="relative flex-1 min-w-0">
 
         {/* Kartenbereich */}
         {filteredIndices.length === 0 ? (
@@ -1409,6 +1408,16 @@ const aiContext = useMemo(() => {
         </div>
       )}
       
+        {/* Right-Rail - KI-Tutor Sidebar */}
+        <aside className={`hidden lg:block lg:flex-none rounded border overflow-hidden transition-all duration-300 ${
+          true ? 'lg:w-96' : 'lg:w-12'
+        }`} style={{ height: 'calc(50vh - 1rem)' }}>
+          <div className="h-full overflow-y-auto">
+            <AssistantSidebar context={aiContext} onClose={() => {}} />
+          </div>
+        </aside>
+      </div>
+
       {/* Subscription Limit Popup */}
       <SubscriptionLimitPopup
         isOpen={showLimitPopup}
@@ -1419,7 +1428,6 @@ const aiContext = useMemo(() => {
         }}
         questionsUsed={subscriptionStatus?.dailyQuestionsUsed || 0}
       />
-      </div>
-    </LayoutWithSidebar>
+    </div>
   )
 }
