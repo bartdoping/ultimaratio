@@ -17,7 +17,9 @@ interface TextHighlighterProps {
 
 export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
+  const [isSelecting, setIsSelecting] = useState(false)
   const textRef = useRef<HTMLDivElement>(null)
+  const hiddenTextRef = useRef<HTMLDivElement>(null)
 
   // Lade gespeicherte Markierungen für diese Frage
   useEffect(() => {
@@ -40,41 +42,47 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
     onHighlightsChange?.(highlights)
   }, [highlights, questionId, onHighlightsChange])
 
-  const handleMouseUp = () => {
-    const selection = window.getSelection()
-    if (selection && selection.toString().trim()) {
-      const selectedText = selection.toString().trim()
-      
-      // Berechne die Position im ursprünglichen Text
-      const range = selection.getRangeAt(0)
-      const preRange = document.createRange()
-      preRange.setStart(textRef.current!.firstChild!, 0)
-      preRange.setEnd(range.startContainer, range.startOffset)
-      
-      // Zähle nur die sichtbaren Zeichen (ohne HTML-Tags)
-      const preText = preRange.toString()
-      const start = preText.length
-      const end = start + selectedText.length
-      
-      // Prüfe, ob diese Markierung bereits existiert oder überlappt
-      const exists = highlights.some(h => 
-        (h.start <= start && h.end > start) || // Überlappung am Anfang
-        (h.start < end && h.end >= end) ||     // Überlappung am Ende
-        (h.start >= start && h.end <= end)     // Vollständig enthalten
-      )
-      
-      if (!exists && start >= 0 && end <= text.length) {
-        const newHighlight: Highlight = {
-          id: `highlight-${Date.now()}-${Math.random()}`,
-          start,
-          end,
-          text: selectedText
-        }
+  const handleMouseDown = () => {
+    setIsSelecting(true)
+  }
 
-        setHighlights(prev => [...prev, newHighlight])
+  const handleMouseUp = () => {
+    if (isSelecting) {
+      const selection = window.getSelection()
+      if (selection && selection.toString().trim() && hiddenTextRef.current) {
+        const selectedText = selection.toString().trim()
+        
+        // Berechne die Position im ursprünglichen Text
+        const range = selection.getRangeAt(0)
+        const preRange = document.createRange()
+        preRange.setStart(hiddenTextRef.current.firstChild!, 0)
+        preRange.setEnd(range.startContainer, range.startOffset)
+        
+        const preText = preRange.toString()
+        const start = preText.length
+        const end = start + selectedText.length
+        
+        // Prüfe, ob diese Markierung bereits existiert oder überlappt
+        const exists = highlights.some(h => 
+          (h.start <= start && h.end > start) || // Überlappung am Anfang
+          (h.start < end && h.end >= end) ||     // Überlappung am Ende
+          (h.start >= start && h.end <= end)     // Vollständig enthalten
+        )
+        
+        if (!exists && start >= 0 && end <= text.length) {
+          const newHighlight: Highlight = {
+            id: `highlight-${Date.now()}-${Math.random()}`,
+            start,
+            end,
+            text: selectedText
+          }
+
+          setHighlights(prev => [...prev, newHighlight])
+        }
+        
+        selection.removeAllRanges()
       }
-      
-      selection.removeAllRanges()
+      setIsSelecting(false)
     }
   }
 
@@ -132,11 +140,29 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
 
   return (
     <div>
+      {/* Unsichtbarer Text für Position-Berechnung */}
+      <div
+        ref={hiddenTextRef}
+        style={{ 
+          position: 'absolute',
+          left: '-9999px',
+          top: '-9999px',
+          visibility: 'hidden',
+          whiteSpace: 'pre-wrap',
+          userSelect: 'text'
+        }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+      >
+        {text}
+      </div>
+
       {/* Text mit Markierungen */}
       <div
         ref={textRef}
         className="select-text cursor-text"
         data-text-highlighter="true"
+        onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         style={{ 
           userSelect: 'text',
