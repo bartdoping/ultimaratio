@@ -15,7 +15,7 @@ export default async function ExamsListPage() {
   // Stelle sicher, dass die Tabellen existieren
   await initCategoriesTables()
 
-  // Alle veröffentlichten Exams mit Kategorien
+  // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl
   const exams = await prisma.exam.findMany({
     where: { isPublished: true },
     orderBy: { createdAt: "desc" },
@@ -29,6 +29,11 @@ export default async function ExamsListPage() {
           id: true,
           name: true,
           color: true
+        }
+      },
+      _count: {
+        select: {
+          questions: true
         }
       }
     },
@@ -55,6 +60,11 @@ export default async function ExamsListPage() {
           slug: true,
           title: true,
           description: true,
+          _count: {
+            select: {
+              questions: true
+            }
+          }
         }
       }
     }

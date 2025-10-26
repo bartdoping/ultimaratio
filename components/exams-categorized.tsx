@@ -12,6 +12,9 @@ interface Exam {
   slug: string
   title: string
   description: string
+  _count: {
+    questions: number
+  }
 }
 
 interface Category {
@@ -129,6 +132,9 @@ export default function ExamsCategorized({
                             {category.name}
                           </Badge>
                         )}
+                        <Badge variant="secondary" className="text-xs">
+                          {exam._count.questions} Frage{exam._count.questions !== 1 ? 'n' : ''}
+                        </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">{exam.description}</p>
                     </div>
