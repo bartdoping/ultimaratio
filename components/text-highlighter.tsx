@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { Button } from "@/components/ui/button"
 
 interface Highlight {
   id: string
@@ -16,7 +15,6 @@ interface TextHighlighterProps {
 
 export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [history, setHistory] = useState<Highlight[][]>([])
   const textRef = useRef<HTMLDivElement>(null)
 
   // Lade gespeicherte Markierungen für diese Frage
@@ -26,14 +24,11 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       try {
         const parsed = JSON.parse(savedHighlights)
         setHighlights(parsed)
-        setHistory([]) // Reset History beim Laden
       } catch (error) {
         console.error('Fehler beim Laden der Markierungen:', error)
       }
     } else {
-      // Reset highlights wenn keine gespeicherten für diese Frage
       setHighlights([])
-      setHistory([])
     }
   }, [questionId])
 
@@ -52,7 +47,6 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       const exists = highlights.some(h => h.text === selectedText)
       
       if (!exists) {
-        setHistory(prev => [...prev, highlights])
         const newHighlight: Highlight = {
           id: `highlight-${Date.now()}-${Math.random()}`,
           text: selectedText
@@ -66,21 +60,7 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
   }
 
   const removeHighlight = (highlightId: string) => {
-    setHistory(prev => [...prev, highlights])
     setHighlights(prev => prev.filter(h => h.id !== highlightId))
-  }
-
-  const clearAllHighlights = () => {
-    setHistory(prev => [...prev, highlights])
-    setHighlights([])
-  }
-
-  const undoLastAction = () => {
-    if (history.length > 0) {
-      const lastState = history[history.length - 1]
-      setHighlights(lastState)
-      setHistory(prev => prev.slice(0, -1))
-    }
   }
 
   const renderTextWithHighlights = () => {
@@ -88,68 +68,63 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       return text
     }
 
-    let result = text
-    
-    // Erstelle Markierungen für jeden markierten Text
-    highlights.forEach((highlight) => {
-      const regex = new RegExp(`(${highlight.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g')
-      result = result.replace(regex, `<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600" data-highlight-id="${highlight.id}" title="Markierung entfernen: &quot;${highlight.text}&quot;">$1</mark>`)
+    // Erstelle ein Array von Textteilen und Markierungen
+    const parts: React.ReactNode[] = []
+    let remainingText = text
+    let lastIndex = 0
+
+    // Sortiere Markierungen nach Position im Text
+    const sortedHighlights = [...highlights].sort((a, b) => {
+      const indexA = text.indexOf(a.text)
+      const indexB = text.indexOf(b.text)
+      return indexA - indexB
     })
 
-    return <span dangerouslySetInnerHTML={{ __html: result }} />
+    sortedHighlights.forEach((highlight, index) => {
+      const highlightIndex = remainingText.indexOf(highlight.text)
+      
+      if (highlightIndex !== -1) {
+        // Text vor der Markierung
+        if (highlightIndex > 0) {
+          parts.push(
+            <span key={`text-${index}-before`}>
+              {remainingText.slice(0, highlightIndex)}
+            </span>
+          )
+        }
+
+        // Markierter Text
+        parts.push(
+          <mark
+            key={highlight.id}
+            className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600"
+            data-highlight-id={highlight.id}
+            title="Klicken zum Entfernen"
+            onClick={() => removeHighlight(highlight.id)}
+          >
+            {highlight.text}
+          </mark>
+        )
+
+        // Aktualisiere remainingText für nächste Iteration
+        remainingText = remainingText.slice(highlightIndex + highlight.text.length)
+      }
+    })
+
+    // Restlicher Text nach der letzten Markierung
+    if (remainingText.length > 0) {
+      parts.push(
+        <span key="text-end">
+          {remainingText}
+        </span>
+      )
+    }
+
+    return parts
   }
 
-  // Event-Handler für das Entfernen von Markierungen
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (target.tagName === 'MARK' && target.dataset.highlightId) {
-        removeHighlight(target.dataset.highlightId)
-      }
-    }
-
-    if (textRef.current) {
-      textRef.current.addEventListener('click', handleClick)
-      return () => {
-        if (textRef.current) {
-          textRef.current.removeEventListener('click', handleClick)
-        }
-      }
-    }
-  }, [highlights])
-
   return (
-    <div className="space-y-2">
-      {/* Markierungs-Tools */}
-      {(highlights.length > 0 || history.length > 0) && (
-        <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg">
-          <span className="text-sm text-muted-foreground">
-            {highlights.length} Markierung{highlights.length !== 1 ? 'en' : ''}
-          </span>
-          {history.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={undoLastAction}
-              className="h-7 px-2 text-xs"
-              title="Letzte Aktion rückgängig machen"
-            >
-              ↶ Rückgängig
-            </Button>
-          )}
-          {highlights.length > 0 && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={clearAllHighlights}
-              className="h-7 px-2 text-xs"
-            >
-              Alle entfernen
-            </Button>
-          )}
-        </div>
-      )}
-
+    <div>
       {/* Text mit Markierungen */}
       <div
         ref={textRef}
@@ -164,11 +139,6 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
         }}
       >
         {renderTextWithHighlights()}
-      </div>
-
-      {/* Anleitung */}
-      <div className="text-xs text-muted-foreground">
-        💡 Text mit der Maus markieren, um gelb hervorzuheben. Klicke auf Markierungen zum Entfernen.
       </div>
     </div>
   )
