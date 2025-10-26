@@ -1,12 +1,10 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 
 interface Highlight {
   id: string
-  start: number
-  end: number
   text: string
 }
 
@@ -18,24 +16,26 @@ interface TextHighlighterProps {
 
 export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [isSelecting, setIsSelecting] = useState(false)
-  const [selectionStart, setSelectionStart] = useState<number | null>(null)
   const [history, setHistory] = useState<Highlight[][]>([])
   const textRef = useRef<HTMLDivElement>(null)
 
-  // Lade gespeicherte Markierungen beim Laden der Komponente
+  // Lade gespeicherte Markierungen für diese Frage
   useEffect(() => {
-    const saved = localStorage.getItem(`highlights-${questionId}`)
-    if (saved) {
+    const savedHighlights = localStorage.getItem(`highlights-${questionId}`)
+    if (savedHighlights) {
       try {
-        const parsedHighlights = JSON.parse(saved)
-        setHighlights(parsedHighlights)
-        onHighlightsChange?.(parsedHighlights)
+        const parsed = JSON.parse(savedHighlights)
+        setHighlights(parsed)
+        setHistory([]) // Reset History beim Laden
       } catch (error) {
-        console.error("Fehler beim Laden der Markierungen:", error)
+        console.error('Fehler beim Laden der Markierungen:', error)
       }
+    } else {
+      // Reset highlights wenn keine gespeicherten für diese Frage
+      setHighlights([])
+      setHistory([])
     }
-  }, [questionId, onHighlightsChange])
+  }, [questionId])
 
   // Speichere Markierungen bei Änderungen
   useEffect(() => {
@@ -43,58 +43,25 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
     onHighlightsChange?.(highlights)
   }, [highlights, questionId, onHighlightsChange])
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0) { // Linke Maustaste
-      setIsSelecting(true)
-    }
-  }
-
   const handleMouseUp = () => {
-    if (isSelecting) {
-      const selection = window.getSelection()
-      if (selection && selection.toString().trim() && textRef.current) {
-        const selectedText = selection.toString().trim()
-        const range = selection.getRangeAt(0)
-        
-        // Berechne die Position relativ zum Originaltext
-        let start = 0
-        let end = 0
-        
-        try {
-          // Erstelle einen Range vom Anfang des Textes bis zum Start der Auswahl
-          const preRange = document.createRange()
-          preRange.setStart(textRef.current.firstChild || textRef.current, 0)
-          preRange.setEnd(range.startContainer, range.startOffset)
-          
-          // Zähle nur die sichtbaren Zeichen (ohne HTML-Tags)
-          const preText = preRange.toString()
-          start = preText.length
-          end = start + selectedText.length
-          
-          // Prüfe, ob diese Markierung bereits existiert oder überlappt
-          const exists = highlights.some(h => 
-            (h.start <= start && h.end > start) || // Überlappung am Anfang
-            (h.start < end && h.end >= end) ||     // Überlappung am Ende
-            (h.start >= start && h.end <= end)     // Vollständig enthalten
-          )
-          
-          if (!exists && start >= 0 && end <= text.length) {
-            setHistory(prev => [...prev, highlights])
-            const newHighlight: Highlight = {
-              id: `highlight-${Date.now()}-${Math.random()}`,
-              start,
-              end,
-              text: selectedText
-            }
-
-            setHighlights(prev => [...prev, newHighlight])
-          }
-        } catch (error) {
-          console.error('Fehler bei der Position-Berechnung:', error)
+    const selection = window.getSelection()
+    if (selection && selection.toString().trim()) {
+      const selectedText = selection.toString().trim()
+      
+      // Prüfe, ob diese Markierung bereits existiert
+      const exists = highlights.some(h => h.text === selectedText)
+      
+      if (!exists) {
+        setHistory(prev => [...prev, highlights])
+        const newHighlight: Highlight = {
+          id: `highlight-${Date.now()}-${Math.random()}`,
+          text: selectedText
         }
+
+        setHighlights(prev => [...prev, newHighlight])
       }
-      setIsSelecting(false)
-      selection?.removeAllRanges()
+      
+      selection.removeAllRanges()
     }
   }
 
@@ -121,48 +88,35 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       return text
     }
 
-    // Sortiere Markierungen nach Start-Position
-    const sortedHighlights = [...highlights].sort((a, b) => a.start - b.start)
+    let result = text
     
-    const parts: React.ReactNode[] = []
-    let lastIndex = 0
-
-    sortedHighlights.forEach((highlight, index) => {
-      // Text vor der Markierung
-      if (highlight.start > lastIndex) {
-        parts.push(
-          <span key={`text-${index}`}>
-            {text.slice(lastIndex, highlight.start)}
-          </span>
-        )
-      }
-
-      // Markierter Text
-      parts.push(
-        <span
-          key={highlight.id}
-          className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600"
-          title={`Markierung entfernen: "${highlight.text}"`}
-          onClick={() => removeHighlight(highlight.id)}
-        >
-          {highlight.text}
-        </span>
-      )
-
-      lastIndex = highlight.end
+    // Erstelle Markierungen für jeden markierten Text
+    highlights.forEach((highlight) => {
+      const regex = new RegExp(`(${highlight.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'g')
+      result = result.replace(regex, `<mark class="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600" data-highlight-id="${highlight.id}" title="Markierung entfernen: &quot;${highlight.text}&quot;">$1</mark>`)
     })
 
-    // Restlicher Text nach der letzten Markierung
-    if (lastIndex < text.length) {
-      parts.push(
-        <span key="text-end">
-          {text.slice(lastIndex)}
-        </span>
-      )
+    return <span dangerouslySetInnerHTML={{ __html: result }} />
+  }
+
+  // Event-Handler für das Entfernen von Markierungen
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (target.tagName === 'MARK' && target.dataset.highlightId) {
+        removeHighlight(target.dataset.highlightId)
+      }
     }
 
-    return parts
-  }
+    if (textRef.current) {
+      textRef.current.addEventListener('click', handleClick)
+      return () => {
+        if (textRef.current) {
+          textRef.current.removeEventListener('click', handleClick)
+        }
+      }
+    }
+  }, [highlights])
 
   return (
     <div className="space-y-2">
@@ -201,7 +155,6 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
         ref={textRef}
         className="select-text cursor-text"
         data-text-highlighter="true"
-        onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
         style={{ 
           userSelect: 'text',
