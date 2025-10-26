@@ -63,26 +63,7 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
         })
       }
 
-      // Verhindere Developer Tools
-      let devtools = false
-      const threshold = 160
-      
-      const checkDevTools = () => {
-        if (window.outerHeight - window.innerHeight > threshold || 
-            window.outerWidth - window.innerWidth > threshold) {
-          if (!devtools) {
-            devtools = true
-            alert('⚠️ ACHTUNG: Developer Tools sind während der Prüfung nicht erlaubt!')
-            // Seite neu laden
-            window.location.reload()
-          }
-        } else {
-          devtools = false
-        }
-      }
-
-      // Prüfe alle 500ms
-      setInterval(checkDevTools, 500)
+      // Developer Tools Schutz entfernt
 
       // Verhindere Kontextmenü
       document.addEventListener('contextmenu', (e) => {
