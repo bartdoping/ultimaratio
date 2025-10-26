@@ -729,7 +729,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 2. Fragestellung (Stem) */}
-            <div className="space-y-2">
+            <div className="space-y-2" key={`stem-${editingValid.id}`}>
               <h3 className="text-sm font-medium">2. Fragestellung:</h3>
               <form action={updateQuestionStemAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
@@ -745,7 +745,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 3. Oberarztkommentar */}
-            <div className="space-y-2">
+            <div className="space-y-2" key={`tip-${editingValid.id}`}>
               <h3 className="text-sm font-medium">3. Oberarztkommentar:</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
@@ -805,7 +805,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 5. Zusammenfassende Erläuterung */}
-            <div className="space-y-2">
+            <div className="space-y-2" key={`explanation-${editingValid.id}`}>
               <h3 className="text-sm font-medium">5. Zusammenfassende Erläuterung:</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
