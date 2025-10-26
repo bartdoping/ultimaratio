@@ -57,29 +57,18 @@ export default function LayoutWithSidebar({
     try { localStorage.setItem("ai:sidebarCollapsed", collapsed ? "1" : "0") } catch {}
   }, [collapsed])
 
-  // Drag-Funktionalität für Sidebar-Breite - optimiert für Flüssigkeit
+  // Vereinfachte Drag-Funktionalität für Sidebar-Breite
   useEffect(() => {
-    let animationFrame: number | null = null
-    
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDragging) return
       
-      // Verwende requestAnimationFrame für flüssige Animation
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame)
-      }
+      const newWidth = window.innerWidth - e.clientX
+      // Einfache, feste Grenzen
+      const minWidth = 240
+      const maxWidth = 500
       
-      animationFrame = requestAnimationFrame(() => {
-        const newWidth = window.innerWidth - e.clientX
-        // Dynamische Grenzen je nach Viewport
-        const vw = window.innerWidth
-        const minWidth = Math.max(240, Math.round(vw * 0.18))
-        const maxWidth = Math.min(600, Math.round(vw * 0.3))
-        
-        // Direkte Berechnung ohne zusätzliche Checks
-        const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
-        setSidebarWidth(clampedWidth)
-      })
+      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
+      setSidebarWidth(clampedWidth)
     }
 
     const handleMouseUp = () => {
@@ -87,25 +76,6 @@ export default function LayoutWithSidebar({
       document.body.style.cursor = 'default'
       document.body.style.userSelect = 'auto'
       document.body.style.pointerEvents = 'auto'
-      
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame)
-        animationFrame = null
-      }
-
-      // Nach dem Drag: nur bei sehr nahen Werten snappen (±10px)
-      const vw = window.innerWidth
-      const base = Math.max(280, Math.min(400, Math.round(vw * 0.25)))
-      const snapPoints = [base, base + 80, base + 160].map(n => Math.min(n, Math.round(vw * 0.3)))
-      const current = sidebarWidth
-      let closest = snapPoints[0]
-      for (const p of snapPoints) {
-        if (Math.abs(p - current) < Math.abs(closest - current)) closest = p
-      }
-      // nur snappen wenn sehr nah (±10px) und nicht kollabiert
-      if (!collapsed && Math.abs(closest - current) <= 10) {
-        setSidebarWidth(Math.max(240, Math.min(600, closest)))
-      }
     }
 
     if (isDragging) {
@@ -119,9 +89,6 @@ export default function LayoutWithSidebar({
     return () => {
       document.removeEventListener('mousemove', handleMouseMove)
       document.removeEventListener('mouseup', handleMouseUp)
-      if (animationFrame) {
-        cancelAnimationFrame(animationFrame)
-      }
     }
   }, [isDragging])
 
