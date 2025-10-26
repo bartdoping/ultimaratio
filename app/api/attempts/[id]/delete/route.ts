@@ -5,7 +5,7 @@ import { prisma } from "@/lib/db"
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions)
@@ -13,7 +13,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Nicht authentifiziert" }, { status: 401 })
     }
 
-    const attemptId = params.id
+    const { id: attemptId } = await params
 
     // Finde den Benutzer
     const user = await prisma.user.findUnique({
