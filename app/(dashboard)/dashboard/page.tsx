@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { SubscriptionSuccessHandler } from "@/components/subscription-success-handler"
+import { DeleteAttemptButton } from "@/components/delete-attempt-button"
 
 export const runtime = "nodejs"
 
@@ -165,9 +166,22 @@ export default async function DashboardPage() {
 
   const openAttempts = await prisma.attempt.findMany({
     where: { userId: me.id, finishedAt: null },
-    select: { id: true, examId: true },
+    select: { 
+      id: true, 
+      examId: true, 
+      createdAt: true,
+      elapsedSec: true,
+      exam: {
+        select: {
+          id: true,
+          title: true,
+          slug: true,
+          description: true
+        }
+      }
+    },
+    orderBy: { createdAt: "desc" }
   })
-  const openByExam = new Map(openAttempts.map(a => [a.examId, a.id]))
 
   return (
     <div className="max-w-5xl mx-auto space-y-8">
@@ -348,51 +362,52 @@ export default async function DashboardPage() {
         </section>
       )}
 
-      {/* Aktivierte Prüfungen */}
+      {/* Aktive Prüfungen */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Aktivierte Prüfungen</h2>
+        <h2 className="text-lg font-semibold">Aktive Prüfungen</h2>
 
-        {purchases.length === 0 ? (
+        {openAttempts.length === 0 ? (
           <Card>
             <CardHeader>
-              <CardTitle>Keine Käufe gefunden</CardTitle>
+              <CardTitle>Keine offenen Prüfungen</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-3">Du hast noch keine Prüfung erworben.</p>
+              <p className="mb-3">Du hast derzeit keine offenen Prüfungsdurchläufe.</p>
               <Link href="/exams" className="underline text-blue-600">Zu den Prüfungen</Link>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {purchases.map((p) => {
-              const e = p.exam
-              const openAttemptId = openByExam.get(e.id) || null
+            {openAttempts.map((attempt) => {
+              const exam = attempt.exam
+              const startTime = new Date(attempt.createdAt)
+              const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
+              
               return (
-                <Card key={e.id}>
+                <Card key={attempt.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base">{e.title}</CardTitle>
-                      <Badge variant="default">Erworben</Badge>
+                      <CardTitle className="text-base">{exam.title}</CardTitle>
+                      <Badge variant="secondary">Offen</Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    {e.description && <p className="text-sm text-muted-foreground">{e.description}</p>}
+                    {exam.description && <p className="text-sm text-muted-foreground">{exam.description}</p>}
+                    
+                    <div className="text-sm text-muted-foreground space-y-1">
+                      <div>Gestartet: {startTime.toLocaleDateString('de-DE')} um {startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</div>
+                      {elapsedMinutes > 0 && <div>Verstrichene Zeit: {elapsedMinutes} Min</div>}
+                    </div>
 
-                    {openAttemptId ? (
-                      <div className="flex items-center gap-3">
-                        <Link href={`/exam-run/${openAttemptId}`}>
-                          <Button>Weiter</Button>
-                        </Link>
-                        <span className="text-sm text-muted-foreground">
-                          Du hast einen offenen Versuch.
-                        </span>
-                      </div>
-                    ) : (
-                      <StartExamButton examId={e.id} />
-                    )}
+                    <div className="flex items-center gap-3">
+                      <Link href={`/exam-run/${attempt.id}`}>
+                        <Button>Weiter</Button>
+                      </Link>
+                      <DeleteAttemptButton attemptId={attempt.id} />
+                    </div>
 
                     <div className="text-xs text-muted-foreground">
-                      <Link href={`/exams/${e.slug}`} className="underline">Details</Link>
+                      <Link href={`/exams/${exam.slug}`} className="underline">Details</Link>
                     </div>
                   </CardContent>
                 </Card>

@@ -72,6 +72,13 @@ export default async function ExamsListPage() {
 
   // Pro-User haben Zugang zu allen Prüfungen
   let hasAccess = false;
+  let openAttempts: Array<{
+    id: string
+    examId: string
+    createdAt: Date
+    elapsedSec: number | null
+  }> = [];
+
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -79,6 +86,18 @@ export default async function ExamsListPage() {
     })
     if (me) {
       hasAccess = me.subscriptionStatus === "pro";
+      
+      // Lade offene Prüfungsdurchläufe für den Benutzer
+      openAttempts = await prisma.attempt.findMany({
+        where: { userId: me.id, finishedAt: null },
+        select: { 
+          id: true, 
+          examId: true, 
+          createdAt: true,
+          elapsedSec: true
+        },
+        orderBy: { createdAt: "desc" }
+      })
     }
   }
 
@@ -93,6 +112,7 @@ export default async function ExamsListPage() {
         categories={categories}
         examsWithoutCategory={examsWithoutCategory}
         hasAccess={hasAccess}
+        openAttempts={openAttempts}
       />
     </div>
   )

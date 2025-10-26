@@ -28,12 +28,19 @@ interface ExamsCategorizedProps {
   categories: Category[]
   examsWithoutCategory: Exam[]
   hasAccess: boolean
+  openAttempts?: Array<{
+    id: string
+    examId: string
+    createdAt: Date
+    elapsedSec: number | null
+  }>
 }
 
 export default function ExamsCategorized({ 
   categories, 
   examsWithoutCategory, 
-  hasAccess 
+  hasAccess,
+  openAttempts = []
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -110,6 +117,7 @@ export default function ExamsCategorized({
           {displayedExams.map((exam) => {
             const isActivated = hasAccess
             const category = exam.categoryId ? categories.find(c => c.id === exam.categoryId) : null
+            const examOpenAttempts = openAttempts.filter(attempt => attempt.examId === exam.id)
             
             return (
               <Card key={exam.id}>
@@ -140,7 +148,7 @@ export default function ExamsCategorized({
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-3">
                   <div className="flex flex-wrap gap-2">
                     <Link
                       className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
@@ -156,17 +164,34 @@ export default function ExamsCategorized({
                     )}
 
                     {isActivated && (
-                      <>
-                        <StartExamButton examId={exam.id} />
-                        <Link 
-                          className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-secondary text-secondary-foreground hover:bg-secondary/80 h-10 px-4 py-2" 
-                          href={`/practice/${exam.id}`}
-                        >
-                          Üben
-                        </Link>
-                      </>
+                      <StartExamButton examId={exam.id} />
                     )}
                   </div>
+
+                  {/* Offene Prüfungsdurchläufe */}
+                  {examOpenAttempts.length > 0 && (
+                    <div className="border-t pt-3">
+                      <h4 className="text-sm font-medium mb-2">Offene Prüfungsdurchläufe ({examOpenAttempts.length})</h4>
+                      <div className="space-y-2">
+                        {examOpenAttempts.map((attempt) => {
+                          const startTime = new Date(attempt.createdAt)
+                          const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
+                          
+                          return (
+                            <div key={attempt.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                              <div className="text-sm">
+                                <div>Gestartet: {startTime.toLocaleDateString('de-DE')} um {startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</div>
+                                {elapsedMinutes > 0 && <div className="text-muted-foreground">Verstrichene Zeit: {elapsedMinutes} Min</div>}
+                              </div>
+                              <Link href={`/exam-run/${attempt.id}`}>
+                                <Button size="sm">Weiter</Button>
+                              </Link>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )
