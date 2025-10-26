@@ -208,7 +208,7 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
           MozUserSelect: 'text',
           msUserSelect: 'text'
         }}
-        onSelectStart={(e) => {
+        onSelectStart={(e: any) => {
           // Erlaube Textauswahl explizit
           e.stopPropagation()
         }}
