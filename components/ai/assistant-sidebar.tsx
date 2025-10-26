@@ -139,9 +139,9 @@ export default function AssistantSidebar(props: {
   }
 
   return (
-    <div className="h-full flex flex-col border-l bg-muted/10">
+    <div className="h-full flex flex-col bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between border-b bg-background px-3 py-3 pr-2">
+      <div className="flex items-center justify-between border-b bg-background px-3 py-3">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded bg-gradient-to-br from-blue-600 to-indigo-600 text-white grid place-items-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
@@ -168,8 +168,8 @@ export default function AssistantSidebar(props: {
 
         {/* Controls */}
         <div className="flex items-center gap-2">
-          {/* Stil-Schalter - nur auf größeren Bildschirmen */}
-          <div className="hidden sm:flex items-center gap-1">
+          {/* Stil-Schalter */}
+          <div className="flex items-center gap-1">
             <Button
               variant={style === "concise" ? "default" : "outline"}
               size="sm"
@@ -197,7 +197,6 @@ export default function AssistantSidebar(props: {
               setError(null)
             }}
             title="Chat zurücksetzen"
-            className="hidden sm:flex"
           >
             Reset
           </Button>
@@ -219,34 +218,13 @@ export default function AssistantSidebar(props: {
         </div>
       </div>
 
-      {/* Eingabe prominent am unteren Rand */}
-      <form
-        className="px-3 pt-3 pb-3 border-t flex items-center gap-2 bg-background/95 sticky bottom-0 z-10"
-        onSubmit={(e) => {
-          e.preventDefault()
-          void send()
-        }}
-      >
-        <Input
-          placeholder={compact ? "Frage eingeben…" : "Frag den Tutor … (Enter zum Senden)"}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          disabled={busy}
-          className={cn("flex-1 min-w-0 h-14 text-[16px]")}
-          autoFocus
-        />
-        <Button type="submit" disabled={busy || !input.trim()} className="h-14 px-6">
-          {busy ? "Senden…" : "Senden"}
-        </Button>
-      </form>
-
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto p-2 sm:p-3 pr-2 space-y-2">
+      {/* Body - Kompakter Chat-Bereich */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 min-h-0">
         {/* Kontext-Hinweis */}
         {context?.stem && (
           <div className="text-xs text-muted-foreground border rounded p-2 bg-muted/30">
             <div className="font-medium">Aktuelle Frage</div>
-            <div className="line-clamp-3 leading-relaxed">{context.stem}</div>
+            <div className="line-clamp-2 leading-relaxed">{context.stem}</div>
           </div>
         )}
 
@@ -254,10 +232,10 @@ export default function AssistantSidebar(props: {
           const mine = m.role === "user"
           return (
             <div key={i} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-              <div className="flex items-start gap-2 max-w-[80%]">
+              <div className="flex items-start gap-2 max-w-[85%]">
                 {/* Avatar */}
                 {!mine && (
-                  <div className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+                  <div className="h-5 w-5 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
                     AI
                   </div>
                 )}
@@ -265,10 +243,10 @@ export default function AssistantSidebar(props: {
                 {/* Message Bubble */}
                 <div
                   className={cn(
-                    "rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap leading-relaxed",
+                    "rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed",
                     mine 
-                      ? "bg-blue-500 text-white rounded-br-md" 
-                      : "bg-muted border rounded-bl-md"
+                      ? "bg-blue-500 text-white" 
+                      : "bg-muted border"
                   )}
                 >
                   {m.content}
@@ -276,21 +254,10 @@ export default function AssistantSidebar(props: {
                 
                 {/* User Avatar */}
                 {mine && (
-                  <div className="h-6 w-6 rounded-full bg-gray-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
+                  <div className="h-5 w-5 rounded-full bg-gray-500 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 mt-1">
                     U
                   </div>
                 )}
-              </div>
-              
-              {/* Copy Button */}
-              <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
-                <button
-                  className="text-[11px] text-muted-foreground hover:underline mt-1"
-                  onClick={() => copy(m.content)}
-                  title="Antwort kopieren"
-                >
-                  Kopieren
-                </button>
               </div>
             </div>
           )
@@ -315,36 +282,59 @@ export default function AssistantSidebar(props: {
         <div ref={endRef} />
       </div>
 
-      {/* Quick-Prompts – verbessert mit Icons */}
-      <div className="px-3 pb-3 pt-2 flex flex-wrap gap-2 border-t bg-muted/30">
-        <button
-          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
-          onClick={() => quickAsk("Gib mir bitte einen Hinweis, wie ich vorgehe – ohne die Lösung zu verraten.")}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-          </svg>
-          <span className="truncate">Hinweis</span>
-        </button>
-        <button
-          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
-          onClick={() => quickAsk("Erkläre das Ausschlussverfahren für diese Optionen.")}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
-          <span className="truncate">Ausschluss</span>
-        </button>
-        <button
-          className="text-sm px-3 py-2 rounded-lg bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-2 flex-1 min-w-0"
-          onClick={() => quickAsk("Gib mir eine kurze Merkhilfe zu dieser Frage.")}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2.5-9H19V1h-2v1H7V1H5v1H4.5C3.67 2 3 2.67 3 3.5v15c0 .83.67 1.5 1.5 1.5h15c.83 0 1.5-.67 1.5-1.5v-15c0-.83-.67-1.5-1.5-1.5z"/>
-          </svg>
-          <span className="truncate">Merkhilfe</span>
-        </button>
+      {/* Quick-Prompts oberhalb des Textfeldes */}
+      <div className="px-3 py-2 border-t bg-muted/30">
+        <div className="flex gap-2">
+          <button
+            className="text-xs px-2 py-1.5 rounded-md bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-1.5 flex-1 min-w-0"
+            onClick={() => quickAsk("Gib mir bitte einen Hinweis, wie ich vorgehe – ohne die Lösung zu verraten.")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+            </svg>
+            <span className="truncate">Hinweis</span>
+          </button>
+          <button
+            className="text-xs px-2 py-1.5 rounded-md bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-1.5 flex-1 min-w-0"
+            onClick={() => quickAsk("Erkläre das Ausschlussverfahren für diese Optionen.")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+            <span className="truncate">Ausschluss</span>
+          </button>
+          <button
+            className="text-xs px-2 py-1.5 rounded-md bg-white dark:bg-background border hover:bg-accent hover:shadow-sm transition-all flex items-center gap-1.5 flex-1 min-w-0"
+            onClick={() => quickAsk("Gib mir eine kurze Merkhilfe zu dieser Frage.")}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M9 11H7v6h2v-6zm4 0h-2v6h2v-6zm4 0h-2v6h2v-6zm2.5-9H19V1h-2v1H7V1H5v1H4.5C3.67 2 3 2.67 3 3.5v15c0 .83.67 1.5 1.5 1.5h15c.83 0 1.5-.67 1.5-1.5v-15c0-.83-.67-1.5-1.5-1.5z"/>
+            </svg>
+            <span className="truncate">Merkhilfe</span>
+          </button>
+        </div>
       </div>
+
+      {/* Eingabe prominent am unteren Rand */}
+      <form
+        className="px-3 py-3 border-t bg-background flex items-center gap-2"
+        onSubmit={(e) => {
+          e.preventDefault()
+          void send()
+        }}
+      >
+        <Input
+          placeholder="Frag den Tutor … (Enter zum Senden)"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          disabled={busy}
+          className={cn("flex-1 min-w-0 h-12 text-sm")}
+          autoFocus
+        />
+        <Button type="submit" disabled={busy || !input.trim()} className="h-12 px-4">
+          {busy ? "..." : "Senden"}
+        </Button>
+      </form>
     </div>
   )
 }

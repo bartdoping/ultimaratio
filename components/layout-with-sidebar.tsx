@@ -15,11 +15,8 @@ export default function LayoutWithSidebar({
   assistantContext 
 }: LayoutWithSidebarProps) {
   const [sidebarOpen, setSidebarOpen] = useState(showAssistant)
-  const [sidebarWidth, setSidebarWidth] = useState(280) // Standard-Breite
-  const [isDragging, setIsDragging] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<HTMLDivElement>(null)
 
   // Toggle Sidebar mit Keyboard Shortcut (Ctrl/Cmd + K)
   useEffect(() => {
@@ -34,76 +31,22 @@ export default function LayoutWithSidebar({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  // Persistierte Breite laden/speichern
+  // Persistierte Collapsed-State laden/speichern
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("ai:sidebarWidth")
-      if (saved) {
-        setSidebarWidth(Math.max(240, Math.min(600, Number(saved))))
-      } else if (typeof window !== 'undefined') {
-        // Responsive Startbreite: ca. 30% des Viewports, begrenzt
-        const vw = window.innerWidth
-        const target = Math.max(280, Math.min(400, Math.round(vw * 0.25)))
-        setSidebarWidth(target)
-      }
       const savedCollapsed = localStorage.getItem("ai:sidebarCollapsed")
       if (savedCollapsed) setCollapsed(savedCollapsed === "1")
     } catch {}
   }, [])
-  useEffect(() => {
-    try { localStorage.setItem("ai:sidebarWidth", String(sidebarWidth)) } catch {}
-  }, [sidebarWidth])
+  
   useEffect(() => {
     try { localStorage.setItem("ai:sidebarCollapsed", collapsed ? "1" : "0") } catch {}
   }, [collapsed])
 
-  // Vereinfachte Drag-Funktionalität für Sidebar-Breite
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      if (!isDragging) return
-      
-      const newWidth = window.innerWidth - e.clientX
-      // Einfache, feste Grenzen
-      const minWidth = 240
-      const maxWidth = 500
-      
-      const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth))
-      setSidebarWidth(clampedWidth)
-    }
-
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      document.body.style.cursor = 'default'
-      document.body.style.userSelect = 'auto'
-      document.body.style.pointerEvents = 'auto'
-    }
-
-    if (isDragging) {
-      document.body.style.cursor = 'col-resize'
-      document.body.style.userSelect = 'none'
-      document.body.style.pointerEvents = 'none'
-      document.addEventListener('mousemove', handleMouseMove, { passive: true })
-      document.addEventListener('mouseup', handleMouseUp)
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove)
-      document.removeEventListener('mouseup', handleMouseUp)
-    }
-  }, [isDragging])
-
-  const handleDragStart = (e: React.MouseEvent) => {
-    e.preventDefault()
-    setIsDragging(true)
-  }
-
-  const effectiveWidth = !sidebarOpen || collapsed ? 0 : sidebarWidth
-  const isCompact = effectiveWidth > 0 && effectiveWidth < 300
-
   return (
-    <div className="flex h-screen">
+    <div className="flex min-h-screen">
       {/* Main Content */}
-      <div className="flex-1 min-w-0 h-full overflow-y-auto">
+      <div className="flex-1 min-w-0 min-h-screen overflow-y-auto">
         {children}
       </div>
 
@@ -113,35 +56,22 @@ export default function LayoutWithSidebar({
           {/* Desktop Sidebar */}
           <div 
             ref={sidebarRef}
-            className="hidden lg:block h-full bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col"
-            style={{ 
-              width: `${effectiveWidth}px`,
-              maxWidth: '30vw',
-              transition: isDragging ? 'none' : 'width 0.25s ease'
-            }}
+            className={`hidden lg:block bg-background shadow-lg border-l flex-shrink-0 relative overflow-hidden flex flex-col transition-all duration-300 ${
+              collapsed ? 'w-12' : 'w-80'
+            }`}
+            style={{ height: 'calc(100vh - 2rem)', marginTop: '1rem', marginBottom: '1rem' }}
           >
-            {/* Drag Handle */}
-            <div
-              ref={dragRef}
-              onMouseDown={handleDragStart}
-              onDoubleClick={() => setCollapsed((v) => !v)}
-              className="absolute left-0 top-0 h-full cursor-col-resize z-10"
-              title="Sidebar-Breite anpassen"
-              style={{ width: '5px' }}
-            >
-              {/* sichtbarer 2px-Griff, rest transparentes Hit-Area */}
-              <div className="absolute inset-y-0 left-0 w-[2px] bg-border hover:bg-blue-500 transition-colors" />
-            </div>
-            {effectiveWidth > 48 && (
+            {!collapsed && (
               <div className="h-full overflow-y-auto">
-                <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} compact={isCompact} />
+                <AssistantSidebar context={assistantContext} onClose={() => setSidebarOpen(false)} />
               </div>
             )}
+            
             {/* Collapse/Expand Button */}
             <button
               onClick={() => setCollapsed((v) => !v)}
               className="absolute -left-4 top-1/2 -translate-y-1/2 hidden lg:flex h-8 w-8 items-center justify-center rounded-full border bg-background shadow-lg hover:shadow-xl transition-all"
-              title={collapsed ? "Sidebar öffnen" : "Sidebar einklappen"}
+              title={collapsed ? "KI-Tutor öffnen" : "KI-Tutor einklappen"}
             >
               {collapsed ? (
                 <span className="text-sm font-bold">›</span>
