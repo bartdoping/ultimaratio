@@ -199,9 +199,19 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
       <div
         ref={textRef}
         className="select-text cursor-text"
+        data-text-highlighter="true"
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
-        style={{ userSelect: 'text' }}
+        style={{ 
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
+          MozUserSelect: 'text',
+          msUserSelect: 'text'
+        }}
+        onSelectStart={(e) => {
+          // Erlaube Textauswahl explizit
+          e.stopPropagation()
+        }}
       >
         {renderTextWithHighlights()}
       </div>

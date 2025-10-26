@@ -53,12 +53,20 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         user-drag: none !important;
       }
       
-      /* Verhindere Textauswahl */
-      * {
+      /* Verhindere Textauswahl (außer für TextHighlighter) */
+      *:not([data-text-highlighter]):not(.select-text) {
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
         -ms-user-select: none !important;
         user-select: none !important;
+      }
+      
+      /* Erlaube Textauswahl für TextHighlighter */
+      [data-text-highlighter], .select-text {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
       }
       
       /* Verhindere Bildspeicherung */
