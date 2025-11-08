@@ -25,12 +25,12 @@ export const metadata: Metadata = {
     "Die Fragenbank für dein Medizinstudium — Übe IMPP-Fragen (2. Staatsexamen) im Prüfungs- oder Übungsmodus mit Fallvignetten, Bildern, Laborwerten, Auswertung und Spaced Repetition.",
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo/fragenkreuzen logo transparent.png", sizes: "any" },
+      { url: "/logo/fragenkreuzen logo transparent.png", sizes: "32x32", type: "image/png" },
+      { url: "/logo/fragenkreuzen logo transparent.png", sizes: "192x192", type: "image/png" },
     ],
     apple: [
-      { url: "/favicon.png", sizes: "180x180", type: "image/png" },
+      { url: "/logo/fragenkreuzen logo transparent.png", sizes: "180x180", type: "image/png" },
     ],
   },
   manifest: "/site.webmanifest",
