@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { CheckCircle, XCircle } from "lucide-react"
+import { CheckCircle, XCircle, Copy, Check } from "lucide-react"
 
 interface JsonUploadFormProps {
   examId: string
@@ -17,6 +17,7 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0, stage: "" })
+  const [promptCopied, setPromptCopied] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -99,6 +100,214 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
   ]
 }`}
           />
+        </div>
+
+        {/* KI-Prompt für JSON-Konvertierung */}
+        <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">🤖 KI-Prompt für JSON-Konvertierung</Label>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const promptText = `Du bist ein Experte für die Konvertierung von medizinischen Prüfungsfragen in ein strukturiertes JSON-Format. Deine Aufgabe ist es, beliebige Prüfungsfragen (Einzelfragen, Fallfragen oder eine Mischung aus beiden) in das folgende exakte JSON-Format zu konvertieren.
+
+## JSON-Format-Spezifikation:
+
+Das JSON-Objekt muss folgende Struktur haben:
+
+\`\`\`json
+{
+  "cases": [
+    {
+      "title": "Titel des Falls (Pflicht)",
+      "vignette": "Vollständiger Falltext mit Anamnese, Befunden, etc. (Optional)",
+      "order": 1
+    }
+  ],
+  "questions": [
+    {
+      "stem": "Vollständiger Fragetext (Pflicht)",
+      "tip": "Tipp oder Kommentar zur Frage (Optional)",
+      "explanation": "Zusammenfassende Erläuterung zur gesamten Frage (Optional)",
+      "allowImmediate": true,
+      "caseTitle": "Titel des zugehörigen Falls (Nur wenn Frage zu einem Fall gehört)",
+      "images": [
+        {
+          "url": "https://vollständige-url-zum-bild.jpg",
+          "alt": "Beschreibung des Bildes"
+        }
+      ],
+      "options": [
+        {
+          "text": "Vollständiger Text der Antwortoption (Pflicht)",
+          "isCorrect": true,
+          "explanation": "Erklärung, warum diese Option richtig/falsch ist (Optional)"
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+## Wichtige Regeln:
+
+1. **Fälle (cases)**: 
+   - Nur erforderlich, wenn Fallfragen vorhanden sind
+   - Jeder Fall benötigt einen eindeutigen "title"
+   - "vignette" enthält den vollständigen Falltext
+   - "order" bestimmt die Reihenfolge (beginnend bei 1)
+
+2. **Fragen (questions)**:
+   - "stem" ist PFLICHT und enthält die vollständige Fragestellung
+   - "caseTitle" muss exakt mit dem "title" eines Falls übereinstimmen, wenn die Frage zu einem Fall gehört
+   - "allowImmediate" ist ein Boolean (true/false) für Sofort-Feedback
+   - Jede Frage benötigt mindestens 2, maximal 6 Optionen
+
+3. **Antwortoptionen (options)**:
+   - "text" ist PFLICHT
+   - "isCorrect" ist ein Boolean (true/false) - mindestens eine Option muss "isCorrect": true haben
+   - "explanation" ist optional und erklärt, warum die Option richtig oder falsch ist
+
+4. **Bilder (images)**:
+   - Nur wenn Bilder vorhanden sind
+   - "url" muss eine vollständige HTTP/HTTPS-URL sein
+   - "alt" ist eine Beschreibung des Bildes
+
+## Beispiele:
+
+### Beispiel 1: Einzelfrage ohne Fall
+\`\`\`json
+{
+  "questions": [
+    {
+      "stem": "Welche Aussage zur Hypertonie ist richtig?",
+      "tip": "Denke an die WHO-Klassifikation",
+      "explanation": "Die Hypertonie wird nach WHO-Kriterien eingeteilt...",
+      "allowImmediate": true,
+      "options": [
+        {
+          "text": "Ein systolischer Blutdruck >140 mmHg definiert eine Hypertonie",
+          "isCorrect": true,
+          "explanation": "Nach WHO-Kriterien liegt eine Hypertonie ab 140/90 mmHg vor"
+        },
+        {
+          "text": "Ein diastolischer Blutdruck >90 mmHg ist immer behandlungsbedürftig",
+          "isCorrect": false,
+          "explanation": "Die Behandlungsindikation hängt von weiteren Faktoren ab"
+        },
+        {
+          "text": "Eine Hypertonie liegt nur bei Werten >160/100 mmHg vor",
+          "isCorrect": false
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+### Beispiel 2: Fallfrage
+\`\`\`json
+{
+  "cases": [
+    {
+      "title": "Fall: 45-jähriger Patient mit Brustschmerzen",
+      "vignette": "Ein 45-jähriger Patient stellt sich in der Notaufnahme vor. Seit 2 Stunden bestehen retrosternale, drückende Schmerzen, die in den linken Arm ausstrahlen. EKG zeigt ST-Hebungen in Ableitung II, III, aVF.",
+      "order": 1
+    }
+  ],
+  "questions": [
+    {
+      "stem": "Welche Diagnose ist am wahrscheinlichsten?",
+      "caseTitle": "Fall: 45-jähriger Patient mit Brustschmerzen",
+      "allowImmediate": false,
+      "options": [
+        {
+          "text": "Akuter Myokardinfarkt",
+          "isCorrect": true,
+          "explanation": "ST-Hebungen in den inferioren Ableitungen sind typisch für einen STEMI"
+        },
+        {
+          "text": "Angina pectoris",
+          "isCorrect": false,
+          "explanation": "Bei Angina pectoris sind keine ST-Hebungen zu erwarten"
+        },
+        {
+          "text": "Lungenembolie",
+          "isCorrect": false
+        }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+### Beispiel 3: Mischung aus Einzelfragen und Fallfragen
+\`\`\`json
+{
+  "cases": [
+    {
+      "title": "Fall A: Notfall",
+      "vignette": "Patient mit akuten Bauchschmerzen...",
+      "order": 1
+    }
+  ],
+  "questions": [
+    {
+      "stem": "Was ist eine Einzelfrage ohne Fall?",
+      "allowImmediate": true,
+      "options": [
+        { "text": "Option 1", "isCorrect": true },
+        { "text": "Option 2", "isCorrect": false }
+      ]
+    },
+    {
+      "stem": "Was ist eine Frage zum Fall?",
+      "caseTitle": "Fall A: Notfall",
+      "allowImmediate": false,
+      "options": [
+        { "text": "Option A", "isCorrect": true },
+        { "text": "Option B", "isCorrect": false }
+      ]
+    }
+  ]
+}
+\`\`\`
+
+## Deine Aufgabe:
+
+Konvertiere die folgenden Prüfungsfragen in das oben beschriebene JSON-Format. Stelle sicher, dass:
+- Alle Pflichtfelder vorhanden sind
+- Das JSON gültig und wohlgeformt ist
+- Falltitel exakt übereinstimmen (caseTitle in questions = title in cases)
+- Mindestens eine Option pro Frage als "isCorrect": true markiert ist
+- Alle Texte vollständig und ungekürzt übernommen werden
+- Optional Felder nur verwendet werden, wenn entsprechende Informationen vorhanden sind
+
+Beginne mit der Konvertierung:`
+                navigator.clipboard.writeText(promptText)
+                setPromptCopied(true)
+                setTimeout(() => setPromptCopied(false), 2000)
+              }}
+              className="h-8"
+            >
+              {promptCopied ? (
+                <>
+                  <Check className="h-3 w-3 mr-1" />
+                  Kopiert!
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3 mr-1" />
+                  Prompt kopieren
+                </>
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Kopiere diesen Prompt und füge ihn in eine KI (ChatGPT, Claude, etc.) ein. Die KI wird dann beliebige Prüfungsfragen automatisch in das korrekte JSON-Format konvertieren.
+          </p>
         </div>
 
         <Button type="submit" disabled={loading || !jsonData.trim()}>
