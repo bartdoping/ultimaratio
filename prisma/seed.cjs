@@ -1,6 +1,8 @@
 // prisma/seed.cjs
 const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
 const prisma = new PrismaClient();
 
@@ -183,17 +185,11 @@ async function main() {
     });
   }
 
-  // 5) Laborwerte
-  const labs = [
-    { name: 'Hb', refRange: '13.5–17.5', unit: 'g/dL', category: 'Hämatologie' },
-    { name: 'Hkt', refRange: '40–52', unit: '%', category: 'Hämatologie' },
-    { name: 'Leukozyten', refRange: '4.0–10.0', unit: 'G/L', category: 'Hämatologie' },
-    { name: 'Kreatinin', refRange: '0.6–1.2', unit: 'mg/dL', category: 'Niere' },
-    { name: 'Kalium', refRange: '3.5–5.1', unit: 'mmol/L', category: 'Elektrolyte' },
-    { name: 'Natrium', refRange: '135–145', unit: 'mmol/L', category: 'Elektrolyte' },
-    { name: 'CRP', refRange: '<5', unit: 'mg/L', category: 'Entzündung' },
-  ];
-  await prisma.labValue.createMany({ data: labs, skipDuplicates: true });
+  // 5) Laborwerte (IMPP H24 „Laborparameter-Tabellen“, Erwachsene + Kinder)
+  const labsPath = path.join(__dirname, '../data/laborwerte-h24.json');
+  const labs = JSON.parse(fs.readFileSync(labsPath, 'utf8'));
+  await prisma.labValue.deleteMany({});
+  await prisma.labValue.createMany({ data: labs });
 
   console.log('Seed fertig. Admin-Login (ab M3):', adminEmail);
 }
