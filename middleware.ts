@@ -123,12 +123,14 @@ export async function middleware(req: NextRequest) {
   
   // Erlaube Coming-Soon-Seite, Login/Register, API-Routen und statische Assets
   if (pathname === "/coming-soon" || 
+      pathname === "/labs" ||
       pathname.startsWith("/login") || 
       pathname.startsWith("/register") || 
       pathname.startsWith("/forgot-password") ||
       pathname.startsWith("/reset") ||
       pathname.startsWith("/verify") ||
       pathname.startsWith("/api/auth") ||
+      pathname.startsWith("/api/labs") ||
       isAllowlisted(req)) {
     return NextResponse.next();
   }

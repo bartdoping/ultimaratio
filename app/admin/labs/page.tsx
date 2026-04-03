@@ -1,10 +1,12 @@
 // app/admin/labs/page.tsx
 import prisma from "@/lib/db"
 import { requireAdmin } from "@/lib/authz"
+import { replaceAllLaborH24FromJson } from "@/lib/import-labor-h24"
 import { redirect } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import Link from "next/link"
 
 async function addLabAction(formData: FormData) {
   "use server"
@@ -25,13 +27,38 @@ async function deleteLabAction(formData: FormData) {
   redirect("/admin/labs")
 }
 
+async function importH24ReplaceAction() {
+  "use server"
+  await requireAdmin()
+  await replaceAllLaborH24FromJson()
+  redirect("/admin/labs")
+}
+
 export default async function AdminLabsPage() {
   await requireAdmin()
   const labs = await prisma.labValue.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] })
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <h1 className="text-2xl font-semibold">Laborwerte</h1>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Laborwerte</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href="/labs" className="text-sm underline text-muted-foreground">
+            Öffentliche Referenztabelle (/labs)
+          </Link>
+          <form action={importH24ReplaceAction}>
+            <Button type="submit" variant="secondary" size="sm">
+              H24 aus JSON importieren (ersetzt alle)
+            </Button>
+          </form>
+        </div>
+      </div>
+
+      <p className="text-sm text-muted-foreground rounded border border-amber-200/80 bg-amber-50 dark:bg-amber-950/30 px-3 py-2">
+        Lädt alle Einträge aus <code className="text-xs">data/laborwerte-h24.json</code> in die Tabelle{" "}
+        <code className="text-xs">LabValue</code> und entfernt zuvor gespeicherte Laborzeilen. Nutzer sehen die Daten
+        unter <Link href="/labs" className="underline">/labs</Link> und in der Prüfung (Taste L).
+      </p>
 
       <form action={addLabAction} className="grid sm:grid-cols-2 gap-3 rounded border p-3">
         <div><Label>Name</Label><Input name="name" required /></div>
