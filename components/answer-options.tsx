@@ -68,7 +68,7 @@ export function AnswerOptions({
             className={`flex items-start space-x-4 p-4 rounded-lg border-2 transition-all duration-200 min-h-[72px] ${
               isSelected 
                 ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-sm' 
-                : 'border-border hover:bg-muted/70 hover:shadow-sm hover:scale-[1.01]'
+                : 'border-border hover:bg-muted/70 hover:shadow-sm'
             } ${isStrikethrough ? 'opacity-60' : ''}`}
           >
             {/* Radio Button */}
