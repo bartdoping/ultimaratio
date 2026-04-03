@@ -47,6 +47,9 @@ type Props = {
   initialExamMode?: boolean
 }
 
+/** Auf `true` setzen, um die KI-Tutor-Box im Prüfungs-/Übungs-Runner wieder anzuzeigen. */
+const SHOW_RUNNER_KI_TUTOR = false
+
 // Zeitformat: mm:ss / hh:mm:ss
 function formatUp(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600)
@@ -1438,14 +1441,17 @@ const aiContext = useMemo(() => {
         </div>
       )}
       
-        {/* Right-Rail - KI-Tutor Sidebar */}
-        <aside className={`hidden lg:block lg:flex-none rounded border overflow-hidden transition-all duration-300 ${
-          true ? 'lg:w-96' : 'lg:w-12'
-        }`} style={{ height: 'calc(50vh - 1rem)' }}>
-          <div className="h-full overflow-y-auto">
-            <AssistantSidebar context={aiContext} onClose={() => {}} />
-          </div>
-        </aside>
+        {/* Right-Rail - KI-Tutor (per SHOW_RUNNER_KI_TUTOR; Prüfung & Üben aktuell ausgeblendet) */}
+        {SHOW_RUNNER_KI_TUTOR && (
+          <aside
+            className="hidden lg:block lg:flex-none lg:w-96 rounded border overflow-hidden transition-all duration-300"
+            style={{ height: "calc(50vh - 1rem)" }}
+          >
+            <div className="h-full overflow-y-auto">
+              <AssistantSidebar context={aiContext} onClose={() => {}} />
+            </div>
+          </aside>
+        )}
       </div>
 
       {/* Subscription Limit Popup */}
