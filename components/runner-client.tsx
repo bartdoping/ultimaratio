@@ -752,116 +752,106 @@ const aiContext = useMemo(() => {
     <div className="min-h-screen">
       {/* Header Toolbar - Sticky oben */}
       <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4">
-          {/* Left Section - Progress & Mobile Menu */}
-          <div className="flex items-center gap-4">
-            <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden h-10">
-              <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <span className="hidden sm:inline">Fragen</span>
-            </Button>
-            <div className="text-lg font-semibold">
-              Frage {idx + 1} / {questions.length} <span className="text-sm text-muted-foreground">({progress})</span>
+        <div className="flex flex-col gap-3 p-4">
+          {/* Obere Zeile: Fortschritt & Mobile Navigation */}
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 min-w-0">
+              <Button variant="outline" onClick={() => setNavOpen(true)} title="Fragenübersicht (F)" className="lg:hidden h-10 shrink-0">
+                <svg className="h-4 w-4 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M3 6h18M3 12h18M3 18h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                <span className="hidden sm:inline">Fragen</span>
+              </Button>
+              <div className="text-lg font-semibold truncate">
+                Frage {idx + 1} / {questions.length} <span className="text-sm text-muted-foreground">({progress})</span>
+              </div>
             </div>
           </div>
 
-          {/* Right Section - Actions */}
-          <div className="flex items-center gap-3 flex-wrap">
-            {/* Primary Actions */}
-            <div className="flex items-center gap-2">
-              {/* Markieren */}
-              <Button
-                variant={isCurrentFlagged ? "default" : "outline"}
-                onClick={toggleFlagCurrent}
-                title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
-                aria-pressed={isCurrentFlagged}
-                className="h-10"
-              >
-                {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
-              </Button>
+          {/* Zentrierte Button-Leiste */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <Button
+              variant={isCurrentFlagged ? "default" : "outline"}
+              onClick={toggleFlagCurrent}
+              title={isCurrentFlagged ? "Markierung entfernen (M)" : "Frage markieren (M)"}
+              aria-pressed={isCurrentFlagged}
+              className="h-10"
+            >
+              {isCurrentFlagged ? "★ Markiert" : "☆ Markieren"}
+            </Button>
 
-              {/* Timer */}
-              <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                </svg>
-                <span className="font-mono text-sm">{formatUp(elapsed)}</span>
-              </div>
+            <div className="flex items-center gap-2 px-3 py-2 rounded-md border bg-muted/50 h-10">
+              <svg className="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+              </svg>
+              <span className="font-mono text-sm tabular-nums">{formatUp(elapsed)}</span>
             </div>
 
-            {/* Secondary Actions */}
-            <div className="flex items-center gap-2">
-              {/* Sofort-Feedback */}
-              {allowImmediateFeedback && (
-                <Button
-                  variant={!examMode ? "default" : "outline"}
-                  onClick={() => setExamMode(!examMode)}
-                  title="Sofort-Feedback umschalten"
-                  className="h-10 px-3"
-                >
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
-                  </svg>
-                  <span className="hidden sm:inline ml-2">Feedback</span>
-                </Button>
+            {allowImmediateFeedback && (
+              <Button
+                variant={!examMode ? "default" : "outline"}
+                onClick={() => setExamMode(!examMode)}
+                title="Sofort-Feedback umschalten"
+                className="h-10 px-3"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M13 2.05v3.03c3.39.49 6 3.39 6 6.92 0 .9-.18 1.75-.48 2.54l2.6 1.53c.56-1.24.88-2.62.88-4.07 0-5.18-3.95-9.45-9-9.95zM12 19c-3.87 0-7-3.13-7-7 0-3.53 2.61-6.43 6-6.92V2.05c-5.06.5-9 4.76-9 9.95 0 5.52 4.47 10 9.99 10 3.31 0 6.24-1.61 8.06-4.09l-2.6-1.53C16.17 17.98 14.21 19 12 19z"/>
+                </svg>
+                <span className="hidden sm:inline ml-2">Feedback</span>
+              </Button>
+            )}
+
+            <Button
+              variant="outline"
+              onClick={() => setRunning(r => !r)}
+              title="Timer pausieren/fortsetzen (P)"
+              className="h-10 px-3"
+            >
+              {running ? (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
               )}
+              <span className="hidden sm:inline ml-2">{running ? "Pause" : "Weiter"}</span>
+            </Button>
 
-              {/* Pause/Weiter */}
-              <Button
-                variant="outline"
-                onClick={() => setRunning(r => !r)}
-                title="Timer pausieren/fortsetzen (P)"
-                className="h-10 px-3"
-              >
-                {running ? (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                  </svg>
-                ) : (
-                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M8 5v14l11-7z"/>
-                  </svg>
-                )}
-                <span className="hidden sm:inline ml-2">{running ? "Pause" : "Weiter"}</span>
-              </Button>
+            <Button
+              variant="outline"
+              onClick={openSaveModal}
+              title="Diese Frage in eigene Decks ablegen"
+              className="h-10 px-3"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+              </svg>
+              <span className="hidden sm:inline ml-2">Speichern</span>
+            </Button>
 
-              {/* In Decks speichern */}
-              <Button
-                variant="outline"
-                onClick={openSaveModal}
-                title="Diese Frage in eigene Decks ablegen"
-                className="h-10 px-3"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
-                </svg>
-                <span className="hidden sm:inline ml-2">Speichern</span>
-              </Button>
-
-              {/* Laborwerte */}
-              <Button
-                variant="outline"
-                onClick={() => setLabOpen(true)}
-                title="Laborwerte (L)"
-                className="h-10 px-3"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
-                </svg>
-                <span className="hidden sm:inline ml-2">Labor</span>
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={() => setLabOpen(true)}
+              title="Laborwerte (L)"
+              className="h-10 px-3"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z"/>
+              </svg>
+              <span className="hidden sm:inline ml-2">Labor</span>
+            </Button>
           </div>
         </div>
 
         {/* Mode Indicator - Klickbar wenn allowImmediateFeedback aktiv */}
         {mode === "exam" && (
-          <div className="px-4 pb-3">
+          <div className="px-4 pb-3 flex justify-center text-center">
             {allowImmediateFeedback ? (
               <button
                 onClick={() => setExamMode(!examMode)}
-                className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center gap-2 group"
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center gap-2 group max-w-2xl"
                 title={examMode ? "Klicken, um Direktfeedback zu aktivieren" : "Klicken, um Prüfungsmodus zu aktivieren"}
               >
                 {examMode ? (
@@ -881,7 +871,7 @@ const aiContext = useMemo(() => {
                 )}
               </button>
             ) : (
-              <div className="text-xs text-muted-foreground">
+              <div className="text-xs text-muted-foreground max-w-2xl">
                 Prüfungsmodus aktiv (kein Direktfeedback)
               </div>
             )}
