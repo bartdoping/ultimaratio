@@ -879,13 +879,21 @@ const aiContext = useMemo(() => {
         )}
       </div>
 
-      {/* Main Content Area with Sidebars: gleiche Zeilenhöhe wie Fragen-Karte (links Fragenliste, rechts Karte) */}
+      {/* Main Content Area: linke Leiste absolute in Hauptspalte → Höhe = Fragenkarte; rechte Spalte (KI) stretcht nicht mit */}
       <div className="p-4 flex flex-col gap-8">
-        <div className="flex gap-4 items-stretch">
+        <div className="flex gap-4 items-start">
+        {/* Hauptspalte: Karteninhalt bestimmt Höhe; Fragenleiste links davon (absolute, scroll bei Überlauf) */}
+        <div
+          className={`relative flex-1 min-w-0 ${
+            questionSidebarOpen ? "lg:pl-[calc(16rem+1rem)]" : "lg:pl-[calc(3rem+1rem)]"
+          }`}
+        >
         {/* Left-Rail - Questions Sidebar */}
-        <aside className={`hidden lg:flex lg:flex-col lg:flex-none min-h-0 overflow-y-auto self-stretch rounded border transition-all duration-300 ${
-          questionSidebarOpen ? 'lg:w-[16rem] p-3' : 'lg:w-12 p-1'
-        }`}>
+        <aside
+          className={`hidden lg:flex lg:flex-col absolute left-0 top-0 bottom-0 z-10 overflow-y-auto rounded border transition-all duration-300 ${
+            questionSidebarOpen ? "lg:w-[16rem] p-3" : "lg:w-12 p-1"
+          }`}
+        >
         {/* Collapse/Expand Button */}
         <button
           onClick={() => setQuestionSidebarOpen(!questionSidebarOpen)}
@@ -973,9 +981,6 @@ const aiContext = useMemo(() => {
           </>
         )}
         </aside>
-
-        {/* Hauptbereich */}
-        <div className="relative flex-1 min-w-0">
 
         {/* Kartenbereich */}
         {filteredIndices.length === 0 ? (
