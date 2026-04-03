@@ -879,12 +879,13 @@ const aiContext = useMemo(() => {
         )}
       </div>
 
-      {/* Main Content Area with Sidebars */}
-      <div className="flex gap-4 p-4">
+      {/* Main Content Area with Sidebars: gleiche Zeilenhöhe wie Fragen-Karte (links Fragenliste, rechts Karte) */}
+      <div className="p-4 flex flex-col gap-8">
+        <div className="flex gap-4 items-stretch">
         {/* Left-Rail - Questions Sidebar */}
-        <aside className={`hidden lg:block lg:flex-none rounded border overflow-y-auto transition-all duration-300 ${
+        <aside className={`hidden lg:flex lg:flex-col lg:flex-none min-h-0 overflow-y-auto self-stretch rounded border transition-all duration-300 ${
           questionSidebarOpen ? 'lg:w-[16rem] p-3' : 'lg:w-12 p-1'
-        }`} style={{ height: 'calc(50vh - 1rem)' }}>
+        }`}>
         {/* Collapse/Expand Button */}
         <button
           onClick={() => setQuestionSidebarOpen(!questionSidebarOpen)}
@@ -1077,9 +1078,23 @@ const aiContext = useMemo(() => {
             </div>
           </div>
         )}
+        </div>
 
-        {/* Navigation unten */}
-        <div className="mt-8 max-w-4xl mx-auto">
+        {/* Right-Rail - KI-Tutor (per SHOW_RUNNER_KI_TUTOR; Prüfung & Üben aktuell ausgeblendet) */}
+        {SHOW_RUNNER_KI_TUTOR && (
+          <aside
+            className="hidden lg:block lg:flex-none lg:w-96 rounded border overflow-hidden transition-all duration-300"
+            style={{ height: "calc(50vh - 1rem)" }}
+          >
+            <div className="h-full overflow-y-auto">
+              <AssistantSidebar context={aiContext} onClose={() => {}} />
+            </div>
+          </aside>
+        )}
+        </div>
+
+        {/* Navigation unten (unter Fragenkarte + Fragenliste, volle Breite wie bisher) */}
+        <div className="max-w-4xl mx-auto w-full">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg">
             <div className="flex items-center gap-3">
               <Button 
@@ -1138,7 +1153,7 @@ const aiContext = useMemo(() => {
             </div>
           </div>
         </div>
-      </div>
+        </div>
 
       {/* Lightbox */}
       {lightboxOpen && media.length > 0 && (
@@ -1430,19 +1445,6 @@ const aiContext = useMemo(() => {
           </div>
         </div>
       )}
-      
-        {/* Right-Rail - KI-Tutor (per SHOW_RUNNER_KI_TUTOR; Prüfung & Üben aktuell ausgeblendet) */}
-        {SHOW_RUNNER_KI_TUTOR && (
-          <aside
-            className="hidden lg:block lg:flex-none lg:w-96 rounded border overflow-hidden transition-all duration-300"
-            style={{ height: "calc(50vh - 1rem)" }}
-          >
-            <div className="h-full overflow-y-auto">
-              <AssistantSidebar context={aiContext} onClose={() => {}} />
-            </div>
-          </aside>
-        )}
-      </div>
 
       {/* Subscription Limit Popup */}
       <SubscriptionLimitPopup
