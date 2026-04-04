@@ -191,12 +191,12 @@ export default async function DashboardPage() {
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
           {srTableExists && (
             <Link href="/sr/settings">
-              <Button variant="outline" className="w-full sm:w-auto">SR-Einstellungen</Button>
+              <Button variant="outline" className="w-full sm:w-auto">Spaced Repetition · Einstellungen</Button>
             </Link>
           )}
           {srTableExists && dueTotal > 0 && (
             <Link href="/sr/all">
-              <Button variant="default" className="w-full sm:w-auto">SR heute: {dueTotal}</Button>
+              <Button variant="default" className="w-full sm:w-auto">Spaced Repetition heute: {dueTotal}</Button>
             </Link>
           )}
           <Link href="/decks">
@@ -250,7 +250,7 @@ export default async function DashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base">{d.title}</CardTitle>
                       <div className="flex items-center gap-2">
-                        {srOn && <Badge variant="secondary">SR aktiv</Badge>}
+                        {srOn && <Badge variant="secondary">Spaced Repetition aktiv</Badge>}
                         {srOn && due > 0 && <Badge variant="default">{due} fällig</Badge>}
                       </div>
                     </div>
@@ -272,26 +272,26 @@ export default async function DashboardPage() {
                         <Button size="sm" className="w-full sm:w-auto">Training</Button>
                       </Link>
 
-                      {/* SR üben: nur klickbarer Link, wenn SR aktiv; sonst disabled Button ohne Link */}
+                      {/* Spaced Repetition üben: nur klickbarer Link, wenn aktiv; sonst disabled Button ohne Link */}
                       {srOn ? (
                         <Link href={`/sr/deck/${d.id}`}>
-                          <Button size="sm" variant="default" className="w-full sm:w-auto">SR üben</Button>
+                          <Button size="sm" variant="default" className="w-full sm:w-auto">Spaced Repetition üben</Button>
                         </Link>
                       ) : (
-                        <Button size="sm" variant="outline" disabled title="SR ist für dieses Deck deaktiviert" className="w-full sm:w-auto">
-                          SR üben
+                        <Button size="sm" variant="outline" disabled title="Spaced Repetition ist für dieses Deck deaktiviert" className="w-full sm:w-auto">
+                          Spaced Repetition üben
                         </Button>
                       )}
                     </div>
                   </CardContent>
 
-                  {/* SR Toggle */}
+                  {/* Spaced Repetition Toggle */}
                   <CardContent className="flex items-center justify-between pt-0">
                     <form action={toggleDeckSRAction} className="flex items-center gap-2">
                       <input type="hidden" name="deckId" value={d.id} />
                       <input type="hidden" name="enable" value={srOn ? "0" : "1"} />
                       <Button size="sm" variant="ghost">
-                        {srOn ? "SR deaktivieren" : "SR aktivieren"}
+                        {srOn ? "Spaced Repetition deaktivieren" : "Spaced Repetition aktivieren"}
                       </Button>
                     </form>
                   </CardContent>
@@ -316,7 +316,7 @@ export default async function DashboardPage() {
                     <div className="flex items-center justify-between gap-2">
                       <CardTitle className="text-base">{d.title}</CardTitle>
                       <div className="flex items-center gap-2">
-                        {srOn && <Badge variant="secondary">SR aktiv</Badge>}
+                        {srOn && <Badge variant="secondary">Spaced Repetition aktiv</Badge>}
                         {srOn && due > 0 && <Badge variant="default">{due} fällig</Badge>}
                       </div>
                     </div>
@@ -336,11 +336,11 @@ export default async function DashboardPage() {
 
                       {srOn ? (
                         <Link href={`/sr/deck/${d.id}`}>
-                          <Button size="sm" variant="default">SR üben</Button>
+                          <Button size="sm" variant="default">Spaced Repetition üben</Button>
                         </Link>
                       ) : (
-                        <Button size="sm" variant="outline" disabled title="SR ist für dieses Deck deaktiviert">
-                          SR üben
+                        <Button size="sm" variant="outline" disabled title="Spaced Repetition ist für dieses Deck deaktiviert">
+                          Spaced Repetition üben
                         </Button>
                       )}
                     </div>
@@ -351,7 +351,7 @@ export default async function DashboardPage() {
                       <input type="hidden" name="deckId" value={d.id} />
                       <input type="hidden" name="enable" value={srOn ? "0" : "1"} />
                       <Button size="sm" variant="ghost">
-                        {srOn ? "SR deaktivieren" : "SR aktivieren"}
+                        {srOn ? "Spaced Repetition deaktivieren" : "Spaced Repetition aktivieren"}
                       </Button>
                     </form>
                   </CardContent>

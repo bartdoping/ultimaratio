@@ -11,7 +11,7 @@ export default async function SRAllPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <h1 className="text-xl font-semibold">SR · Alle aktivierten Decks</h1>
+      <h1 className="text-xl font-semibold">Spaced Repetition · Alle aktivierten Decks</h1>
       {/* ✅ mode wird gesetzt */}
       <SRRunnerClient mode="all" />
     </div>

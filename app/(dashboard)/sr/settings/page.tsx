@@ -272,14 +272,14 @@ export default async function SRSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Global</CardTitle>
-          <CardDescription>Gilt für alle SR-Decks (Limits & Parameter des Algorithmus).</CardDescription>
+          <CardDescription>Gilt für alle Decks mit Spaced Repetition (Limits & Parameter des Algorithmus).</CardDescription>
         </CardHeader>
         <CardContent>
           <form action={saveGlobalAction} className="space-y-6">
             {/* Global aktiv */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
-                <Label className="font-medium">SR global aktivieren</Label>
+                <Label className="font-medium">Spaced Repetition global aktivieren</Label>
                 <InfoBadge text="Wenn deaktiviert, ist Spaced Repetition für dein Konto komplett aus – auch wenn einzelne Decks als aktiv markiert sind." />
               </div>
               <input
@@ -287,7 +287,7 @@ export default async function SRSettingsPage() {
                 name="srEnabled"
                 defaultChecked={global.srEnabled}
                 className="h-5 w-5 accent-current"
-                aria-label="SR global aktivieren"
+                aria-label="Spaced Repetition global aktivieren"
               />
             </div>
 
@@ -355,7 +355,7 @@ export default async function SRSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Decks</CardTitle>
-          <CardDescription>SR je Deck an-/ausschalten. Fällige Karten je Deck werden angezeigt.</CardDescription>
+          <CardDescription>Spaced Repetition je Deck an-/ausschalten. Fällige Karten je Deck werden angezeigt.</CardDescription>
         </CardHeader>
         <CardContent>
           {decks.length === 0 ? (
@@ -371,7 +371,7 @@ export default async function SRSettingsPage() {
                       <div className="flex items-center justify-between">
                         <CardTitle className="text-base">{d.title}</CardTitle>
                         <div className="flex items-center gap-2">
-                          {srOn && <Badge variant="secondary">SR aktiv</Badge>}
+                          {srOn && <Badge variant="secondary">Spaced Repetition aktiv</Badge>}
                           {srOn && due > 0 && <Badge variant="default">{due} fällig</Badge>}
                         </div>
                       </div>
@@ -387,18 +387,18 @@ export default async function SRSettingsPage() {
                         </Link>
                         {srOn ? (
                           <Link href={`/sr/deck/${d.id}`}>
-                            <Button size="sm">SR üben</Button>
+                            <Button size="sm">Spaced Repetition üben</Button>
                           </Link>
                         ) : (
-                          <Button size="sm" variant="outline" disabled title="Aktiviere SR für dieses Deck, um hier zu üben.">
-                            SR üben
+                          <Button size="sm" variant="outline" disabled title="Aktiviere Spaced Repetition für dieses Deck, um hier zu üben.">
+                            Spaced Repetition üben
                           </Button>
                         )}
                         <form action={toggleDeckAction}>
                           <input type="hidden" name="deckId" value={d.id} />
                           <input type="hidden" name="enable" value={srOn ? "0" : "1"} />
                           <Button size="sm" variant="ghost">
-                            {srOn ? "SR deaktivieren" : "SR aktivieren"}
+                            {srOn ? "Spaced Repetition deaktivieren" : "Spaced Repetition aktivieren"}
                           </Button>
                         </form>
                       </div>

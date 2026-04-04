@@ -65,7 +65,7 @@ export default async function SRDeckPage({ params }: Props) {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-      <h1 className="text-xl font-semibold">SR · {deck.title}</h1>
+      <h1 className="text-xl font-semibold">Spaced Repetition · {deck.title}</h1>
       {/* ✅ mode + deckId werden gesetzt */}
       <SRRunnerClient mode="deck" deckId={deckId} />
     </div>
