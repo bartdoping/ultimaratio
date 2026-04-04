@@ -70,6 +70,18 @@ export async function DELETE(_: NextRequest, { params }: Ctx) {
   const me = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
   if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
 
+  const existing = await prisma.deck.findFirst({
+    where: { id, userId: me.id },
+    select: { isAuto: true },
+  })
+  if (!existing) return NextResponse.json({ error: "not found" }, { status: 404 })
+  if (existing.isAuto) {
+    return NextResponse.json(
+      { error: "Automatische Decks können nicht gelöscht werden." },
+      { status: 403 }
+    )
+  }
+
   await prisma.deck.delete({ where: { id, userId: me.id } })
   return NextResponse.json({ ok: true })
 }

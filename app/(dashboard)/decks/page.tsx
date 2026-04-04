@@ -37,6 +37,7 @@ export default async function DecksPage() {
       id: true,
       title: true,
       description: true,
+      isAuto: true,
       createdAt: true,
       _count: { select: { items: true } },
     },
@@ -79,6 +80,11 @@ export default async function DecksPage() {
             <Card key={d.id}>
               <CardHeader>
                 <CardTitle className="text-base">{d.title}</CardTitle>
+                {d.isAuto && (
+                  <p className="text-xs text-muted-foreground font-normal pt-1">
+                    Automatisches Deck – wird vom System gepflegt und kann nicht gelöscht werden.
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
                 {d.description && (
@@ -89,7 +95,7 @@ export default async function DecksPage() {
                 </div>
 
                 {/* Aktionen: Üben / Bearbeiten / Löschen */}
-                <DeckActions deckId={d.id} />
+                <DeckActions deckId={d.id} isAuto={d.isAuto} />
               </CardContent>
             </Card>
           ))}

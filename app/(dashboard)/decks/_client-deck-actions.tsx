@@ -4,9 +4,9 @@ import Link from "next/link"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 
-type Props = { deckId: string }
+type Props = { deckId: string; isAuto?: boolean }
 
-export default function DeckActions({ deckId }: Props) {
+export default function DeckActions({ deckId, isAuto = false }: Props) {
   const [loading, setLoading] = useState(false)
 
   async function handleDelete() {
@@ -34,9 +34,11 @@ export default function DeckActions({ deckId }: Props) {
       <Link href={`/decks/${deckId}`}>
         <Button variant="outline">Bearbeiten</Button>
       </Link>
-      <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-        {loading ? "Löschen…" : "Löschen"}
-      </Button>
+      {!isAuto && (
+        <Button variant="destructive" onClick={handleDelete} disabled={loading}>
+          {loading ? "Löschen…" : "Löschen"}
+        </Button>
+      )}
     </div>
   )
 }
