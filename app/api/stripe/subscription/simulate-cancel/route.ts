@@ -8,6 +8,13 @@ export const runtime = "nodejs"
 
 export async function POST() {
   try {
+    if (
+      process.env.NODE_ENV === "production" &&
+      process.env.ALLOW_SIMULATED_SUBSCRIPTION !== "true"
+    ) {
+      return NextResponse.json({ ok: false, error: "not_found" }, { status: 404 })
+    }
+
     // 1) Auth
     const session = await getServerSession(authOptions)
     if (!session?.user?.email) {

@@ -165,7 +165,6 @@ export default function UsersList() {
                     {user.subscriptionStatus === "pro" ? (
                       <div className="flex items-center gap-2">
                         <Badge variant="default" className="bg-green-600 hover:bg-green-700">
-                          <span className="mr-1">👑</span>
                           Pro-User
                         </Badge>
                         {user.subscription?.currentPeriodEnd && (

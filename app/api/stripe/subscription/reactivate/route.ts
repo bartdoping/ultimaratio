@@ -56,19 +56,31 @@ export async function POST() {
     }
 
     if (!user.subscription?.stripeSubscriptionId) {
-      // User ist Pro, aber hat keine Stripe Subscription (Admin oder Test-User)
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Reaktivierung nicht möglich für diesen Account-Typ." 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Reaktivierung nicht möglich für diesen Account-Typ.",
+        },
+        { status: 400 }
+      )
+    }
+
+    const stripeSubId = user.subscription.stripeSubscriptionId
+
+    if (stripeSubId.startsWith("simulated_")) {
+      await prisma.subscription.update({
+        where: { userId: user.id },
+        data: { cancelAtPeriodEnd: false },
+      })
+      return NextResponse.json({ ok: true, message: "subscription_reactivated" })
     }
 
     // 3) Stripe Subscription reaktivieren
     try {
-      await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
+      await stripe.subscriptions.update(stripeSubId, {
         cancel_at_period_end: false,
       });
-      console.log("Stripe subscription reactivated:", user.subscription.stripeSubscriptionId);
+      console.log("Stripe subscription reactivated:", stripeSubId);
     } catch (stripeError: any) {
       console.error("Stripe reactivation error:", stripeError);
       return NextResponse.json({ 

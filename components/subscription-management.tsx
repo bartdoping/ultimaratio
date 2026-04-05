@@ -36,21 +36,15 @@ export function SubscriptionManagement() {
 
   const fetchSubscriptionStatus = useCallback(async () => {
     try {
-      console.log("Fetching subscription status...")
       const response = await fetch("/api/stripe/subscription/status", {
-        credentials: "include"
+        credentials: "include",
       })
-      console.log("Response status:", response.status)
       const data = await response.json()
-      console.log("Full API response:", data)
-      
+
       if (data.ok) {
-        console.log("Subscription data received:", data.subscription)
-        console.log("isPro:", data.subscription.isPro)
-        console.log("cancelAtPeriodEnd:", data.subscription.cancelAtPeriodEnd)
         setSubscription(data.subscription)
       } else {
-        console.error("API returned error:", data.error)
+        console.error("subscription status:", data.error)
       }
     } catch (error) {
       console.error("Failed to fetch subscription status:", error)
@@ -104,22 +98,17 @@ export function SubscriptionManagement() {
 
     setActionLoading(true)
     try {
-      // Prüfe ob es ein simuliertes Abonnement ist
-      const isSimulated = subscription?.isSimulated
-      const endpoint = isSimulated ? "/api/stripe/subscription/simulate-cancel" : "/api/stripe/subscription/cancel"
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/stripe/subscription/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include"
+        credentials: "include",
       })
       const data = await response.json()
-      
+
       if (data.ok) {
-        const message = isSimulated 
-          ? "Abonnement wurde simuliert gekündigt. (Test-Modus)"
-          : "Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Periode."
-        alert(message)
+        alert(
+          "Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Abrechnungsperiode weiter."
+        )
         fetchSubscriptionStatus()
       } else {
         console.error("Cancel failed:", data)
@@ -140,22 +129,17 @@ export function SubscriptionManagement() {
 
     setActionLoading(true)
     try {
-      // Prüfe ob es ein simuliertes Abonnement ist
-      const isSimulated = subscription?.isSimulated
-      const endpoint = isSimulated ? "/api/stripe/subscription/simulate-reactivate" : "/api/stripe/subscription/reactivate"
-      
-      const response = await fetch(endpoint, {
+      const response = await fetch("/api/stripe/subscription/reactivate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include"
+        credentials: "include",
       })
       const data = await response.json()
-      
+
       if (data.ok) {
-        const message = isSimulated 
-          ? "Abonnement wurde simuliert reaktiviert! (Test-Modus)"
-          : "Abonnement wurde reaktiviert! Die automatische Verlängerung ist wieder aktiv."
-        alert(message)
+        alert(
+          "Abonnement wurde reaktiviert. Die automatische Verlängerung ist wieder aktiv."
+        )
         fetchSubscriptionStatus()
       } else {
         console.error("Reactivation failed:", data)
@@ -186,7 +170,6 @@ export function SubscriptionManagement() {
             Aktueller Status
             {subscription.isPro ? (
               <Badge variant="default" className="bg-green-600">
-                <span className="mr-1">👑</span>
                 Pro
               </Badge>
             ) : (
@@ -305,7 +288,6 @@ export function SubscriptionManagement() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span>👑</span>
               Pro-Abonnement
             </CardTitle>
           </CardHeader>
@@ -340,14 +322,17 @@ export function SubscriptionManagement() {
                     </div>
                   )}
                   {subscription.isSimulated && (
-                    <div className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                      ℹ️ Theoretische Abonnement-Periode (Admin/Test-User)
+                    <div className="text-xs text-muted-foreground border rounded px-2 py-1">
+                      Nur-Entwicklung: simuliertes Abo (kein Stripe-Checkout).
                     </div>
                   )}
                 </div>
               ) : (
                 <div className="text-sm text-muted-foreground">
-                  <span className="text-green-600">✓</span> Pro-Status aktiv (Admin oder Test-User)
+                  <span className="text-green-600">✓</span>{" "}
+                  {subscription.isSimulated
+                    ? "Pro aktiv (lokaler Testeintrag)."
+                    : "Pro aktiv. Abrechnungsdaten erscheinen, sobald Stripe synchronisiert ist."}
                 </div>
               )}
               
@@ -423,7 +408,10 @@ export function SubscriptionManagement() {
               </Button>
             ) : (
               <div className="text-sm text-muted-foreground">
-                <span className="text-green-600">✓</span> Pro-Status aktiv (Admin oder Test-User)
+                <span className="text-green-600">✓</span>{" "}
+                {subscription.isSimulated
+                  ? "Pro aktiv (lokaler Testeintrag)."
+                  : "Kein Kündigen nötig oder Daten werden noch geladen."}
               </div>
             )}
           </div>
@@ -438,21 +426,6 @@ export function SubscriptionManagement() {
           </Button>
         )}
       </div>
-
-      {/* Debug Info - immer sichtbar für Debugging */}
-      {subscription && (
-        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded text-xs">
-          <strong>🔍 Debug Info:</strong><br />
-          isPro: {subscription.isPro ? 'true' : 'false'}<br />
-          cancelAtPeriodEnd: {subscription.cancelAtPeriodEnd ? 'true' : 'false'}<br />
-          nextPaymentDate: {subscription.nextPaymentDate || 'null'}<br />
-          periodStart: {subscription.periodStart || 'null'}<br />
-          isSimulated: {subscription.isSimulated ? 'true' : 'false'}<br />
-          daysRemaining: {subscription.daysRemaining || 'null'}<br />
-          questionsRemaining: {subscription.questionsRemaining}<br />
-          status: {subscription.status}
-        </div>
-      )}
 
       {/* Info */}
       <Alert>

@@ -222,7 +222,7 @@ export default function StoragePage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              👑 Abonnements
+              Abonnements
               <Badge variant="outline">{storageInfo?.totalSubscriptions || 0}</Badge>
             </CardTitle>
             <CardDescription>

@@ -47,24 +47,31 @@ export async function POST(req: Request) {
     }
 
     if (!user.subscription?.stripeSubscriptionId) {
-      // User ist Pro, aber hat keine Stripe Subscription (Admin oder Test-User)
-      console.log("User is pro but has no Stripe subscription, setting to free");
-      
-      // Direkt auf Free setzen
       await prisma.user.update({
         where: { id: user.id },
-        data: { subscriptionStatus: "free" }
-      });
+        data: { subscriptionStatus: "free" },
+      })
 
-      return NextResponse.json({ ok: true, message: "subscription_cancelled_no_stripe" });
+      return NextResponse.json({ ok: true, message: "subscription_cancelled_no_stripe" })
+    }
+
+    const stripeSubId = user.subscription.stripeSubscriptionId
+
+    // Nur lokale Test-Einträge (kein Stripe-API-Call)
+    if (stripeSubId.startsWith("simulated_")) {
+      await prisma.subscription.update({
+        where: { userId: user.id },
+        data: { cancelAtPeriodEnd: true },
+      })
+      return NextResponse.json({ ok: true, message: "subscription_cancelled" })
     }
 
     // 3) Stripe Subscription kündigen
     try {
-      await stripe.subscriptions.update(user.subscription.stripeSubscriptionId, {
+      await stripe.subscriptions.update(stripeSubId, {
         cancel_at_period_end: true,
       });
-      console.log("Stripe subscription cancelled:", user.subscription.stripeSubscriptionId);
+      console.log("Stripe subscription cancelled:", stripeSubId);
     } catch (stripeError: any) {
       console.error("Stripe cancellation error:", stripeError);
       // Continue with DB update even if Stripe fails
