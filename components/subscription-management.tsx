@@ -386,33 +386,32 @@ export function SubscriptionManagement() {
         </Card>
       )}
 
-      {/* Actions */}
-      <div className="flex gap-4">
+      {/* Actions: Kündigen immer anbieten, solange Pro aktiv und keine Kündigung zum Periodenende geplant */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         {subscription.isPro ? (
-          <div className="flex gap-4">
+          <div className="flex flex-col gap-3">
             {subscription.cancelAtPeriodEnd ? (
-              <Button 
+              <Button
                 onClick={handleReactivate}
                 disabled={actionLoading}
                 className="bg-green-600 hover:bg-green-700"
               >
-                {actionLoading ? "Wird reaktiviert..." : "🔄 Abonnement wiederherstellen"}
-              </Button>
-            ) : subscription.nextPaymentDate ? (
-              <Button 
-                variant="destructive" 
-                onClick={handleCancel}
-                disabled={actionLoading}
-              >
-                {actionLoading ? "Wird gekündigt..." : "❌ Abonnement kündigen"}
+                {actionLoading ? "Wird reaktiviert..." : "Abonnement wiederherstellen"}
               </Button>
             ) : (
-              <div className="text-sm text-muted-foreground">
-                <span className="text-green-600">✓</span>{" "}
-                {subscription.isSimulated
-                  ? "Pro aktiv (lokaler Testeintrag)."
-                  : "Kein Kündigen nötig oder Daten werden noch geladen."}
-              </div>
+              <>
+                <Button
+                  variant="destructive"
+                  onClick={handleCancel}
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
+                </Button>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  Die Kündigung gilt zum Ende der aktuellen Abrechnungsperiode; bis dahin bleibt Pro
+                  aktiv. Danach wechselst du automatisch zum kostenlosen Tarif (20 Fragen/Tag).
+                </p>
+              </>
             )}
           </div>
         ) : (
