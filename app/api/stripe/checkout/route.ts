@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/db";
 import stripe from "@/lib/stripe";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 
 export const runtime = "nodejs";
 
@@ -64,7 +65,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "invalid price" }, { status: 400 });
     }
 
-    const base = "https://fragenkreuzen.de";
+    const base = getAppBaseUrl();
 
     const s = await stripe.checkout.sessions.create({
       mode: "payment",

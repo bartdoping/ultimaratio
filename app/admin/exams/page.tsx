@@ -45,6 +45,33 @@ async function setExamVisibleOnExamsPageAction(formData: FormData) {
   revalidatePath("/admin/exams")
 }
 
+/** Einmalpreis für Einzelkauf (Stripe); leer = kein Einzelverkauf. */
+async function updateExamPriceAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  const raw = String(formData.get("priceEur") ?? "").replace(",", ".").trim()
+  if (!examId) return
+
+  let priceCents: number | null = null
+  if (raw !== "") {
+    const n = Number(raw)
+    if (!Number.isFinite(n) || n < 0) {
+      return
+    }
+    priceCents = Math.round(n * 100)
+    if (priceCents === 0) priceCents = null
+  }
+
+  await prisma.exam.update({
+    where: { id: examId },
+    data: { priceCents },
+  })
+  revalidatePath("/exams")
+  revalidatePath("/admin/exams")
+  redirect("/admin/exams")
+}
+
 export default async function AdminExamsPage() {
   await requireAdmin()
   
@@ -60,6 +87,7 @@ export default async function AdminExamsPage() {
       slug: true,
       title: true,
       isPublished: true,
+      priceCents: true,
       isFreeTrialDemo: true,
       ...(examsPageVisibilityColumnReady ? { visibleOnExamsPage: true as const } : {}),
       categoryId: true,
@@ -95,6 +123,13 @@ export default async function AdminExamsPage() {
         <Button asChild><Link href="/admin/exams/create">Neue Prüfung</Link></Button>
       </div>
 
+      <p className="text-sm text-muted-foreground max-w-3xl">
+        <strong>Einzelpreis (EUR):</strong> Wenn gesetzt, können eingeloggte Nutzer ohne Pro-Abo diese Prüfung per
+        Stripe-Einmalzahlung dauerhaft freischalten (Zugang bleibt auch nach Abo-Kündigung). Leer lassen = kein
+        Einzelverkauf. Für korrekte Stripe-Rückleitungen sollte{" "}
+        <code className="rounded bg-muted px-1">NEXT_PUBLIC_APP_URL</code> die öffentliche Basis-URL der App sein.
+      </p>
+
       {!examsPageVisibilityColumnReady && (
         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">
           Die Datenbank-Spalte <code className="rounded bg-muted px-1">Exam.visibleOnExamsPage</code> fehlt noch.
@@ -109,6 +144,7 @@ export default async function AdminExamsPage() {
         categories={categories}
         deleteExamAction={deleteExamAction}
         setExamVisibleOnExamsPageAction={setExamVisibleOnExamsPageAction}
+        updateExamPriceAction={updateExamPriceAction}
         examsPageVisibilityColumnReady={examsPageVisibilityColumnReady}
       />
     </div>

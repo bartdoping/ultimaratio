@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import prisma from "@/lib/db";
 import stripe from "@/lib/stripe";
+import { getAppBaseUrl } from "@/lib/app-base-url";
 
 export const runtime = "nodejs";
 
@@ -71,7 +72,7 @@ export async function POST(req: Request) {
     }
 
     // 5) Subscription Checkout Session erstellen
-    const base = "https://fragenkreuzen.de";
+    const base = getAppBaseUrl();
     
     // Verwende vordefinierte Preis-ID oder erstelle dynamisch
     const priceId = process.env.STRIPE_PRICE_ID;

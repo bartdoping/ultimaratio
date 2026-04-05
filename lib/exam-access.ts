@@ -4,13 +4,18 @@ export function isProOrAdmin(role: Role, subscriptionStatus: SubscriptionStatus)
   return role === "admin" || subscriptionStatus === "pro"
 }
 
-/** Zugriff auf Prüfungsinhalt (Start, Detailseite, Practice): Pro/Admin oder markiertes Probedeck. */
+/**
+ * Zugriff auf Prüfungsinhalt (Start, Detailseite, Practice):
+ * Pro/Admin, einzeln gekauft (Purchase), oder kostenloses Probedeck.
+ */
 export function hasExamLearningAccess(
   role: Role,
   subscriptionStatus: SubscriptionStatus,
-  examIsFreeTrialDemo: boolean
+  examIsFreeTrialDemo: boolean,
+  hasPurchasedThisExam = false
 ): boolean {
   if (isProOrAdmin(role, subscriptionStatus)) return true
+  if (hasPurchasedThisExam) return true
   return examIsFreeTrialDemo
 }
 

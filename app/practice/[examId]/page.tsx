@@ -43,7 +43,20 @@ export default async function PracticePage({ params, searchParams }: Props) {
     select: { id: true, isFreeTrialDemo: true },
   })
   if (!examGate) notFound()
-  if (!hasExamLearningAccess(me.role, me.subscriptionStatus, examGate.isFreeTrialDemo)) {
+
+  const purchase = await prisma.purchase.findUnique({
+    where: { userId_examId: { userId: me.id, examId: examGate.id } },
+    select: { id: true },
+  })
+
+  if (
+    !hasExamLearningAccess(
+      me.role,
+      me.subscriptionStatus,
+      examGate.isFreeTrialDemo,
+      !!purchase
+    )
+  ) {
     redirect("/subscription")
   }
 

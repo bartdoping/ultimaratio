@@ -47,7 +47,7 @@ export async function POST(req: Request) {
         }
       }
 
-      if (userId && examId) {
+      if (userId && examId && s.mode === "payment") {
         if (s.payment_status !== "paid") {
           console.log("Exam purchase skipped (not paid):", s.id)
         } else {

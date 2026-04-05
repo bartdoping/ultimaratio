@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { ConfirmAfterReturn } from "@/components/confirm-after-return";
 import { StartExamButton } from "@/components/start-exam-button";
+import { CheckoutButton } from "@/components/checkout-button";
 import { hasExamLearningAccess, isProOrAdmin } from "@/lib/exam-access";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +27,7 @@ export default async function ExamPage({ params }: PageProps) {
       description: true,
       isPublished: true,
       isFreeTrialDemo: true,
+      priceCents: true,
       passPercent: true,
       allowImmediateFeedback: true,
       questions: {
@@ -60,8 +62,32 @@ export default async function ExamPage({ params }: PageProps) {
       if (exam.isFreeTrialDemo && isProOrAdmin(me.role, me.subscriptionStatus)) {
         redirect("/exams");
       }
-      hasAccess = hasExamLearningAccess(me.role, me.subscriptionStatus, exam.isFreeTrialDemo);
+      const purchase = await prisma.purchase.findUnique({
+        where: { userId_examId: { userId: me.id, examId: exam.id } },
+        select: { id: true },
+      });
+      hasAccess = hasExamLearningAccess(
+        me.role,
+        me.subscriptionStatus,
+        exam.isFreeTrialDemo,
+        !!purchase
+      );
     }
+  }
+
+  const priceCents = exam.priceCents;
+  const canBuyOnce =
+    !!session?.user?.email &&
+    !hasAccess &&
+    !exam.isFreeTrialDemo &&
+    typeof priceCents === "number" &&
+    Number.isFinite(priceCents) &&
+    priceCents > 0;
+
+  function formatPrice(cents: number) {
+    return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(
+      cents / 100
+    );
   }
 
   // Alle einzigartigen Tags sammeln
@@ -121,31 +147,50 @@ export default async function ExamPage({ params }: PageProps) {
 
         {!hasAccess ? (
           session?.user ? (
-            <div className="space-y-2">
-              <div className="text-center py-8">
-                <h3 className="text-lg font-semibold mb-2">Pro-Abonnement erforderlich</h3>
-                <p className="text-muted-foreground mb-4">
-                  Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!
+            <div className="space-y-4">
+              {canBuyOnce && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <h3 className="text-lg font-semibold">Diese Prüfung einzeln kaufen</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Einmalzahlung {formatPrice(priceCents!)} – unbegrenzter Zugang zu genau dieser Prüfung,
+                    unabhängig von einem Abo. Die Zahlung läuft über Stripe.
+                  </p>
+                  <CheckoutButton slug={exam.slug} />
+                </div>
+              )}
+              <div className="text-center py-6 rounded-lg border bg-muted/30">
+                <h3 className="text-lg font-semibold mb-2">Oder alle Prüfungen mit Pro</h3>
+                <p className="text-muted-foreground mb-4 text-sm px-2">
+                  Mit dem Pro-Abo nutzt du die gesamte Fragenbank und alle Pro-Funktionen.
                 </p>
                 <Link
-                  href="/dashboard/account"
+                  href="/subscription"
                   className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
-                  Jetzt upgraden
+                  Zu Pro upgraden
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
-              <Link
-                href="/login"
-                className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
-              >
-                Einloggen, um zu starten
-              </Link>
+            <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
-                Du benötigst ein Konto, um die Prüfung zu nutzen.
+                Mit einem Konto kannst du diese Prüfung einzeln erwerben (sofern ein Preis gesetzt ist) oder alle
+                Inhalte mit Pro nutzen.
               </p>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/login?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}
+                  className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
+                >
+                  Einloggen
+                </Link>
+                <Link
+                  href={`/register?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}
+                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Registrieren
+                </Link>
+              </div>
             </div>
           )
         ) : (

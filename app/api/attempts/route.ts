@@ -53,10 +53,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "exam not found" }, { status: 404 })
   }
 
+  const purchase = await prisma.purchase.findUnique({
+    where: { userId_examId: { userId: me.id, examId: exam.id } },
+    select: { id: true },
+  })
+
   const canStart =
     me.role === "admin" ||
     me.subscriptionStatus === "pro" ||
-    exam.isFreeTrialDemo
+    exam.isFreeTrialDemo ||
+    !!purchase
 
   if (!canStart) {
     return NextResponse.json({

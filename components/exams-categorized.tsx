@@ -16,6 +16,7 @@ interface Exam {
   slug: string
   title: string
   description: string
+  priceCents: number | null
   _count: {
     questions: number
   }
@@ -31,7 +32,8 @@ interface Category {
 interface ExamsCategorizedProps {
   categories: Category[]
   examsWithoutCategory: Exam[]
-  hasAccess: boolean
+  hasProAccess: boolean
+  purchasedExamIds: string[]
   openAttempts?: Array<{
     id: string
     examId: string
@@ -43,16 +45,23 @@ interface ExamsCategorizedProps {
   loggedIn?: boolean
 }
 
+function formatEur(cents: number) {
+  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(cents / 100)
+}
+
 export default function ExamsCategorized({ 
   categories, 
   examsWithoutCategory, 
-  hasAccess,
+  hasProAccess,
+  purchasedExamIds,
   openAttempts = [],
   freeTrialExam = null,
   showFreeTrialSection = false,
   loggedIn = false,
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  const purchasedSet = new Set(purchasedExamIds)
 
   const allExams = [
     ...examsWithoutCategory.map(exam => ({ ...exam, categoryId: null })),
@@ -129,9 +138,13 @@ export default function ExamsCategorized({
 
         <div className="grid gap-4">
           {displayedExams.map((exam) => {
-            const isActivated = hasAccess
+            const canUseExam = hasProAccess || purchasedSet.has(exam.id)
             const category = exam.categoryId ? categories.find(c => c.id === exam.categoryId) : null
             const examOpenAttempts = openAttempts.filter(attempt => attempt.examId === exam.id)
+            const sellable =
+              typeof exam.priceCents === "number" &&
+              Number.isFinite(exam.priceCents) &&
+              exam.priceCents > 0
             
             return (
               <Card key={exam.id}>
@@ -157,6 +170,11 @@ export default function ExamsCategorized({
                         <Badge variant="secondary" className="text-xs">
                           {exam._count.questions} Frage{exam._count.questions !== 1 ? 'n' : ''}
                         </Badge>
+                        {sellable && !canUseExam && (
+                          <Badge variant="outline" className="text-xs border-primary/40">
+                            ab {formatEur(exam.priceCents!)}
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">{exam.description}</p>
                     </div>
@@ -171,13 +189,17 @@ export default function ExamsCategorized({
                       Details
                     </Link>
 
-                    {!hasAccess && (
+                    {!canUseExam && (
                       <div className="text-sm text-muted-foreground">
-                        Pro-Abonnement erforderlich
+                        {sellable && loggedIn
+                          ? "Einzelkauf oder Pro-Abo – siehe Detailseite."
+                          : sellable
+                            ? "Einloggen: Einzelkauf oder Pro möglich."
+                            : "Zugang über Pro-Abo – siehe Detailseite."}
                       </div>
                     )}
 
-                    {isActivated && (
+                    {canUseExam && (
                       <StartExamButton examId={exam.id} />
                     )}
                   </div>

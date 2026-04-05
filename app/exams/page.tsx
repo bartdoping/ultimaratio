@@ -32,6 +32,7 @@ export default async function ExamsListPage() {
       slug: true,
       title: true,
       description: true,
+      priceCents: true,
       category: {
         select: {
           id: true,
@@ -66,6 +67,7 @@ export default async function ExamsListPage() {
           slug: true,
           title: true,
           description: true,
+          priceCents: true,
           _count: {
             select: {
               questions: true
@@ -76,8 +78,8 @@ export default async function ExamsListPage() {
     }
   })
 
-  // Pro-User haben Zugang zu allen Prüfungen
-  let hasAccess = false;
+  let hasProAccess = false;
+  let purchasedExamIds: string[] = []
   let openAttempts: Array<{
     id: string
     examId: string
@@ -93,8 +95,14 @@ export default async function ExamsListPage() {
       select: { id: true, subscriptionStatus: true, role: true },
     })
     if (me) {
-      hasAccess = me.subscriptionStatus === "pro" || me.role === "admin"
+      hasProAccess = me.subscriptionStatus === "pro" || me.role === "admin"
       showTrialPromo = showFreeTrialExamPromo(me.role, me.subscriptionStatus)
+
+      const purchases = await prisma.purchase.findMany({
+        where: { userId: me.id },
+        select: { examId: true },
+      })
+      purchasedExamIds = purchases.map((p) => p.examId)
       
       // Lade offene Prüfungsdurchläufe für den Benutzer
       openAttempts = await prisma.attempt.findMany({
@@ -146,7 +154,8 @@ export default async function ExamsListPage() {
       <ExamsCategorized 
         categories={categories}
         examsWithoutCategory={examsWithoutCategory}
-        hasAccess={hasAccess}
+        hasProAccess={hasProAccess}
+        purchasedExamIds={purchasedExamIds}
         openAttempts={openAttempts}
         freeTrialExam={trialPayload}
         showFreeTrialSection={!!trialPayload}
