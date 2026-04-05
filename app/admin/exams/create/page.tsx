@@ -5,12 +5,31 @@ import { Label } from "@/components/ui/label"
 import { createExamAction } from "./actions"
 
 export const dynamic = "force-dynamic"
+export const runtime = "nodejs"
 
-export default async function NewExamPage() {
+const ERROR_TEXT: Record<string, string> = {
+  "slug-taken":
+    "Dieser Slug ist bereits vergeben. Bitte einen anderen Slug wählen.",
+  missing: "Titel und Slug sind Pflichtfelder.",
+  "create-failed":
+    "Die Prüfung konnte nicht angelegt werden. Bitte später erneut versuchen oder Support informieren.",
+}
+
+type Props = { searchParams: Promise<{ error?: string }> }
+
+export default async function NewExamPage({ searchParams }: Props) {
   await requireAdmin()
+  const { error: errorKey } = await searchParams
+  const errorMessage = errorKey ? ERROR_TEXT[errorKey] ?? null : null
+
   return (
     <div className="space-y-4 max-w-2xl">
       <h1 className="text-2xl font-semibold">Neue Prüfung</h1>
+      {errorMessage ? (
+        <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          {errorMessage}
+        </p>
+      ) : null}
       <form action={createExamAction} className="space-y-3">
         <div>
           <Label htmlFor="title">Titel</Label>
