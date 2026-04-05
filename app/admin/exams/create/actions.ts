@@ -32,6 +32,8 @@ export async function createExamAction(formData: FormData) {
         title,
         slug,
         description,
+        // DB-Init: priceCents war NOT NULL ohne Default; Schema ist Int? — explizit setzen, sonst NULL → Constraint-Fehler
+        priceCents: 0,
         passPercent,
         allowImmediateFeedback: true,
         isPublished,
@@ -42,7 +44,11 @@ export async function createExamAction(formData: FormData) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       redirect("/admin/exams/create?error=slug-taken")
     }
-    console.error("[createExamAction] prisma.exam.create:", e)
+    if (e instanceof Prisma.PrismaClientKnownRequestError) {
+      console.error("[createExamAction] prisma.exam.create:", e.code, e.meta, e.message)
+    } else {
+      console.error("[createExamAction] prisma.exam.create:", e)
+    }
     redirect("/admin/exams/create?error=create-failed")
   }
 
