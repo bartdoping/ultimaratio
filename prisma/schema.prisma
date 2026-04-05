@@ -74,6 +74,8 @@ model Exam {
   description            String
   priceCents             Int?
   isPublished            Boolean  @default(false)
+  /// Wenn false: Prüfung erscheint nicht auf der öffentlichen Übersicht /exams (Inhalte unverändert).
+  visibleOnExamsPage     Boolean  @default(true)
   passPercent            Int      @default(60)
   allowImmediateFeedback Boolean  @default(false)
   createdAt              DateTime @default(now())

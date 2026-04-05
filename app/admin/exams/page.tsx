@@ -2,6 +2,7 @@
 import prisma from "@/lib/db"
 import Link from "next/link"
 import { redirect } from "next/navigation"
+import { revalidatePath } from "next/cache"
 import { requireAdmin } from "@/lib/authz"
 import { Button } from "@/components/ui/button"
 import ConfirmDeleteButton from "@/components/admin/confirm-delete-button"
@@ -25,6 +26,21 @@ async function deleteExamAction(formData: FormData) {
   redirect("/admin/exams")
 }
 
+/** Sichtbarkeit auf der öffentlichen Prüfungsübersicht /exams (Inhalte der Prüfung bleiben unverändert). */
+async function setExamVisibleOnExamsPageAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const id = String(formData.get("examId") || "")
+  if (!id) return
+  const visible = String(formData.get("visible") || "") === "1"
+  await prisma.exam.update({
+    where: { id },
+    data: { visibleOnExamsPage: visible },
+  })
+  revalidatePath("/exams")
+  revalidatePath("/admin/exams")
+}
+
 export default async function AdminExamsPage() {
   await requireAdmin()
   
@@ -37,7 +53,8 @@ export default async function AdminExamsPage() {
       id: true, 
       slug: true, 
       title: true, 
-      isPublished: true, 
+      isPublished: true,
+      visibleOnExamsPage: true,
       categoryId: true,
       category: {
         select: {
@@ -67,6 +84,7 @@ export default async function AdminExamsPage() {
         exams={exams}
         categories={categories}
         deleteExamAction={deleteExamAction}
+        setExamVisibleOnExamsPageAction={setExamVisibleOnExamsPageAction}
       />
     </div>
   )

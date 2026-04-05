@@ -17,7 +17,7 @@ export default async function ExamsListPage() {
 
   // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl
   const exams = await prisma.exam.findMany({
-    where: { isPublished: true },
+    where: { isPublished: true, visibleOnExamsPage: true },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -44,7 +44,8 @@ export default async function ExamsListPage() {
     where: {
       exams: {
         some: {
-          isPublished: true
+          isPublished: true,
+          visibleOnExamsPage: true,
         }
       }
     },
@@ -54,7 +55,7 @@ export default async function ExamsListPage() {
     ],
     include: {
       exams: {
-        where: { isPublished: true },
+        where: { isPublished: true, visibleOnExamsPage: true },
         select: {
           id: true,
           slug: true,

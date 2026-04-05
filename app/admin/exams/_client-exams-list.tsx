@@ -10,6 +10,8 @@ interface Exam {
   slug: string
   title: string
   isPublished: boolean
+  /** false = nicht auf der öffentlichen Seite /exams gelistet */
+  visibleOnExamsPage: boolean
   categoryId: string | null
   category: {
     id: string
@@ -28,12 +30,14 @@ interface AdminExamsListProps {
   exams: Exam[]
   categories: Category[]
   deleteExamAction: (formData: FormData) => Promise<void>
+  setExamVisibleOnExamsPageAction: (formData: FormData) => Promise<void>
 }
 
 export default function AdminExamsList({ 
   exams, 
   categories, 
-  deleteExamAction 
+  deleteExamAction,
+  setExamVisibleOnExamsPageAction,
 }: AdminExamsListProps) {
   const handleCategoryAssigned = () => {
     window.location.reload()
@@ -47,9 +51,29 @@ export default function AdminExamsList({
             <div className="font-medium">{e.title}</div>
             <div className="text-sm text-muted-foreground">
               {e.slug} · {e.isPublished ? "veröffentlicht" : "Entwurf"}
+              {e.isPublished && (
+                <>
+                  {" "}
+                  ·{" "}
+                  {e.visibleOnExamsPage ? (
+                    <span className="text-foreground">in /exams sichtbar</span>
+                  ) : (
+                    <span className="text-amber-700 dark:text-amber-500">nicht in /exams (unsichtbar)</span>
+                  )}
+                </>
+              )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            {e.isPublished && (
+              <form action={setExamVisibleOnExamsPageAction}>
+                <input type="hidden" name="examId" value={e.id} />
+                <input type="hidden" name="visible" value={e.visibleOnExamsPage ? "0" : "1"} />
+                <Button type="submit" variant="secondary" size="sm" title="Steuert nur die öffentliche Übersicht /exams; Prüfungsinhalte bleiben unverändert.">
+                  {e.visibleOnExamsPage ? "In /exams ausblenden" : "In /exams einblenden"}
+                </Button>
+              </form>
+            )}
             <AssignCategoryButton
               examId={e.id}
               examTitle={e.title}
