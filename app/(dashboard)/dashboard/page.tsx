@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { SubscriptionSuccessHandler } from "@/components/subscription-success-handler"
 import { DeleteAttemptButton } from "@/components/delete-attempt-button"
+import { DashboardStats } from "@/components/dashboard-stats"
 
 export const runtime = "nodejs"
 
@@ -210,6 +211,11 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <section className="space-y-4">
+        <h2 className="text-xl font-semibold">Deine Statistiken</h2>
+        <DashboardStats />
+      </section>
 
       {/* Eigene Decks */}
       <section className="space-y-3">
