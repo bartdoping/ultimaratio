@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { canUsePersonalDecks } from "@/lib/decks-access"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import DeckEditor from "./_client-editor"
@@ -19,9 +20,12 @@ export default async function DeckDetailPage({ params }: Props) {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, role: true, subscriptionStatus: true },
   })
   if (!me) redirect("/login")
+  if (!canUsePersonalDecks(me.role, me.subscriptionStatus)) {
+    redirect("/subscription")
+  }
 
   const deck = await prisma.deck.findFirst({
     where: { id: deckId, userId: me.id },

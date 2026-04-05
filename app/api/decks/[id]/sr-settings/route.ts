@@ -3,6 +3,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireProDecksAccess } from "@/lib/decks-access"
 
 export const runtime = "nodejs"
 
@@ -11,8 +12,15 @@ export async function GET(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
-  const userId = (session?.user as any)?.id as string | undefined
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!session?.user?.email) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  const denied = await requireProDecksAccess(session.user.email)
+  if (denied) return denied
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  })
+  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  const userId = me.id
   const { id: deckId } = await ctx.params
 
   const deck = await prisma.deck.findFirst({ where: { id: deckId, userId }, select: { id: true } })
@@ -27,8 +35,15 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions)
-  const userId = (session?.user as any)?.id as string | undefined
-  if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  if (!session?.user?.email) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  const denied = await requireProDecksAccess(session.user.email)
+  if (denied) return denied
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true },
+  })
+  if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+  const userId = me.id
   const { id: deckId } = await ctx.params
 
   const deck = await prisma.deck.findFirst({ where: { id: deckId, userId }, select: { id: true } })

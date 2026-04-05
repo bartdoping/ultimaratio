@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { canUsePersonalDecks } from "@/lib/decks-access"
 import SRRunnerClient from "@/components/sr-runner-client"
 
 export const runtime = "nodejs"
@@ -16,9 +17,12 @@ export default async function SRDeckPage({ params }: Props) {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, role: true, subscriptionStatus: true },
   })
   if (!me) redirect("/login")
+  if (!canUsePersonalDecks(me.role, me.subscriptionStatus)) {
+    redirect("/subscription")
+  }
 
   const deck = await prisma.deck.findUnique({
     where: { id: deckId },

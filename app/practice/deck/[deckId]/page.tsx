@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import { redirect, notFound } from "next/navigation"
 import prisma from "@/lib/db"
+import { canUsePersonalDecks } from "@/lib/decks-access"
 import { RunnerClient } from "@/components/runner-client"
 
 export const dynamic = "force-dynamic"
@@ -31,8 +32,14 @@ export default async function DeckPracticePage({ params }: Props) {
   const { deckId } = await params
   const session = await getServerSession(authOptions)
   if (!session?.user?.email) redirect("/login")
-  const me = await prisma.user.findUnique({ where: { email: session.user.email }, select: { id: true } })
+  const me = await prisma.user.findUnique({
+    where: { email: session.user.email },
+    select: { id: true, role: true, subscriptionStatus: true },
+  })
   if (!me) redirect("/login")
+  if (!canUsePersonalDecks(me.role, me.subscriptionStatus)) {
+    redirect("/subscription")
+  }
 
   let clientQuestions: ClientQuestion[] = []
   let title = "Deck"

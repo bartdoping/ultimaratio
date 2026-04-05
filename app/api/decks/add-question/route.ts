@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireProDecksAccess } from "@/lib/decks-access"
 import { z } from "zod"
 
 export const runtime = "nodejs"
@@ -14,8 +15,18 @@ const BodySchema = z.object({
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions)
-    const userId = (session?.user as any)?.id as string | undefined
-    if (!userId) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    }
+    const denied = await requireProDecksAccess(session.user.email)
+    if (denied) return denied
+
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    })
+    if (!me) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    const userId = me.id
 
     const body = await req.json().catch(() => ({}))
     const parsed = BodySchema.safeParse(body)

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireProDecksAccess } from "@/lib/decks-access"
 
 export const runtime = "nodejs"
 
@@ -11,6 +12,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!session?.user?.email) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 })
   }
+  const denied = await requireProDecksAccess(session.user.email)
+  if (denied) return denied
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },

@@ -5,6 +5,8 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { Prisma } from "@prisma/client"
+import { cn } from "@/lib/utils"
+import { canUsePersonalDecks } from "@/lib/decks-access"
 import { StartExamButton } from "@/components/start-exam-button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -23,9 +25,12 @@ async function toggleDeckSRAction(formData: FormData) {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, role: true, subscriptionStatus: true },
   })
   if (!me) redirect("/login")
+  if (!canUsePersonalDecks(me.role, me.subscriptionStatus)) {
+    redirect("/subscription")
+  }
 
   const deckId = String(formData.get("deckId") || "")
   const enable = String(formData.get("enable") || "") === "1"
@@ -85,11 +90,13 @@ export default async function DashboardPage() {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, name: true },
+    select: { id: true, name: true, role: true, subscriptionStatus: true },
   })
   if (!me) {
     return <p className="text-red-600">Benutzerkonto nicht gefunden.</p>
   }
+
+  const canUseDecks = canUsePersonalDecks(me.role, me.subscriptionStatus)
 
   // Eigene (nicht-automatische) Decks
   const decks = await prisma.deck.findMany({
@@ -200,9 +207,23 @@ export default async function DashboardPage() {
               <Button variant="default" className="w-full sm:w-auto">Spaced Repetition heute: {dueTotal}</Button>
             </Link>
           )}
-          <Link href="/decks">
-            <Button variant="outline" className="w-full sm:w-auto">Eigene Prüfungsdecks</Button>
-          </Link>
+          {canUseDecks ? (
+            <Link href="/decks">
+              <Button variant="outline" className="w-full sm:w-auto">
+                Eigene Prüfungsdecks
+              </Button>
+            </Link>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled
+              title="Pro-Feature: Eigene Prüfungsdecks"
+            >
+              Eigene Prüfungsdecks
+            </Button>
+          )}
           <Link href="/dashboard/history">
             <Button variant="outline" className="w-full sm:w-auto">Historie</Button>
           </Link>
@@ -219,18 +240,49 @@ export default async function DashboardPage() {
 
       {/* Eigene Decks */}
       <section className="space-y-3">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Link href="/decks#new-deck">
-              <Button size="sm" variant="outline" className="w-full sm:w-auto">Neues Deck</Button>
-            </Link>
-            <Link href="/decks">
-              <Button size="sm" variant="ghost" className="w-full sm:w-auto">Alle anzeigen</Button>
-            </Link>
-          </div>
-        </div>
+        <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
+        {!canUseDecks && (
+          <p className="text-sm text-muted-foreground">
+            Mit{" "}
+            <Link href="/subscription" className="underline font-medium text-foreground">
+              Pro
+            </Link>{" "}
+            kannst du eigene Übungsdecks anlegen und verwalten.
+          </p>
+        )}
 
+        <div className={cn("relative rounded-lg", !canUseDecks && "min-h-[140px]")}>
+          {!canUseDecks && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/60 px-4 text-center backdrop-blur-[1px]">
+              <span className="text-sm font-medium">Pro-Feature</span>
+              <Button asChild size="sm">
+                <Link href="/subscription">Upgrade ansehen</Link>
+              </Button>
+            </div>
+          )}
+          <div
+            className={cn(
+              !canUseDecks &&
+                "pointer-events-none select-none blur-[7px] opacity-55 saturate-50"
+            )}
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <span className="sr-only">Deck-Aktionen</span>
+              <div className="flex flex-col sm:flex-row gap-2 sm:ml-auto">
+                <Link href="/decks#new-deck">
+                  <Button size="sm" variant="outline" className="w-full sm:w-auto">
+                    Neues Deck
+                  </Button>
+                </Link>
+                <Link href="/decks">
+                  <Button size="sm" variant="ghost" className="w-full sm:w-auto">
+                    Alle anzeigen
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            <div className="mt-3">
         {decks.length === 0 ? (
           <Card>
             <CardHeader>
@@ -306,13 +358,41 @@ export default async function DashboardPage() {
             })}
           </div>
         )}
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Automatische Decks */}
       {autoDecks.length > 0 && (
         <section className="space-y-3">
           <h2 className="text-lg font-semibold">Automatische Decks</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {!canUseDecks && (
+            <p className="text-sm text-muted-foreground">
+              Automatische Decks sind Teil von Pro.
+            </p>
+          )}
+          <div
+            className={cn(
+              "relative rounded-lg",
+              !canUseDecks && "min-h-[100px]"
+            )}
+          >
+            {!canUseDecks && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 rounded-lg bg-background/60 px-4 text-center backdrop-blur-[1px]">
+                <span className="text-sm font-medium">Pro-Feature</span>
+                <Button asChild size="sm">
+                  <Link href="/subscription">Upgrade ansehen</Link>
+                </Button>
+              </div>
+            )}
+            <div
+              className={cn(
+                "grid grid-cols-1 gap-4 md:grid-cols-2",
+                !canUseDecks &&
+                  "pointer-events-none select-none blur-[7px] opacity-55 saturate-50"
+              )}
+            >
             {autoDecks.map((d) => {
               const srOn = srTableExists && !!srEnabledMap.get(d.id)
               const due = (perDeckDue.get(d.id) || 0)
@@ -364,6 +444,7 @@ export default async function DashboardPage() {
                 </Card>
               )
             })}
+            </div>
           </div>
         </section>
       )}

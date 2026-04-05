@@ -1,8 +1,10 @@
 // app/(dashboard)/decks/page.tsx
 import Link from "next/link"
+import { redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { canUsePersonalDecks } from "@/lib/decks-access"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import NewDeckForm from "./_client-new-deck-form"
@@ -24,10 +26,13 @@ export default async function DecksPage() {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, name: true },
+    select: { id: true, name: true, role: true, subscriptionStatus: true },
   })
   if (!me) {
     return <p className="text-red-600">Benutzerkonto nicht gefunden.</p>
+  }
+  if (!canUsePersonalDecks(me.role, me.subscriptionStatus)) {
+    redirect("/subscription")
   }
 
   const decks = await prisma.deck.findMany({
