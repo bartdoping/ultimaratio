@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       mode: "subscription",
       customer: customerId,
       line_items: lineItems,
-      success_url: `${base}/dashboard?subscription=success`,
+      success_url: `${base}/dashboard?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}/dashboard?subscription=cancelled`,
       allow_promotion_codes: true,
       metadata: {

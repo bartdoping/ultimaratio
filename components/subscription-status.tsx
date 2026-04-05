@@ -1,7 +1,7 @@
 // components/subscription-status.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Badge } from "@/components/ui/badge"
 
@@ -17,7 +17,7 @@ export function SubscriptionStatus() {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchStatus = async () => {
+  const fetchStatus = useCallback(async () => {
     try {
       const response = await fetch("/api/stripe/subscription/status", {
         credentials: "include"
@@ -32,12 +32,23 @@ export function SubscriptionStatus() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (!session?.user?.email) return
-    fetchStatus()
-  }, [session])
+    void fetchStatus()
+  }, [session, fetchStatus])
+
+  // Nach Stripe-Rückkehr / complete-checkout sofort neu laden
+  useEffect(() => {
+    const onUpdate = () => {
+      setLoading(true)
+      void fetchStatus()
+    }
+    window.addEventListener("fragenkreuzen:subscription-updated", onUpdate)
+    return () =>
+      window.removeEventListener("fragenkreuzen:subscription-updated", onUpdate)
+  }, [fetchStatus])
 
   // Aktualisiere Status alle 5 Sekunden
   useEffect(() => {

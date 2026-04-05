@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import stripe from "@/lib/stripe";
 import prisma from "@/lib/db";
+import { activateProFromCheckoutSession } from "@/lib/stripe-subscription-activate";
 
 export const runtime = "nodejs";
 
@@ -28,64 +29,33 @@ export async function POST(req: Request) {
         mode: s.mode,
         metadata: s.metadata 
       });
-      
-      if (s.payment_status !== "paid") return NextResponse.json({ ok: true });
 
       const userId = s.metadata?.userId as string | undefined;
       const examId = s.metadata?.examId as string | undefined;
       const stripeSessionId = s.id as string;
 
-      // Handle subscription checkout completion
+      // Abo-Checkout: nicht an payment_status === "paid" binden (u. a. no_payment_required, async Zahlarten)
       if (s.mode === "subscription" && userId) {
-        console.log("Subscription checkout completed for user:", userId);
-        
-        // Update user to pro status immediately
-        await prisma.user.update({
-          where: { id: userId },
-          data: { subscriptionStatus: "pro" }
-        });
-        
-        // Auch Subscription-Tabelle aktualisieren falls vorhanden
-        try {
-          // Hole die aktuelle Subscription von Stripe für korrekte Daten
-          if (s.subscription) {
-            const stripeSubscription = await stripe.subscriptions.retrieve(s.subscription as string);
-            
-            await prisma.subscription.upsert({
-              where: { userId },
-              create: {
-                userId,
-                stripeSubscriptionId: stripeSubscription.id,
-                stripeCustomerId: stripeSubscription.customer as string,
-                status: "pro",
-                currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
-                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-                cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
-                createdAt: new Date()
-              },
-              update: {
-                stripeSubscriptionId: stripeSubscription.id,
-                stripeCustomerId: stripeSubscription.customer as string,
-                status: "pro",
-                currentPeriodStart: new Date((stripeSubscription as any).current_period_start * 1000),
-                currentPeriodEnd: new Date((stripeSubscription as any).current_period_end * 1000),
-                cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
-              }
-            });
-            console.log("Subscription table updated with correct data for checkout.session.completed:", userId);
-          }
-        } catch (subError) {
-          console.error("Error updating subscription table on checkout.session.completed:", subError);
+        const result = await activateProFromCheckoutSession(s);
+        if (result.ok) {
+          console.log("Subscription checkout → Pro aktiviert:", userId);
+        } else {
+          console.warn("Subscription checkout nicht aktiviert:", result.reason, {
+            sessionId: s.id,
+            payment_status: s.payment_status,
+          });
         }
-        
-        console.log("User upgraded to pro:", userId);
       }
-      
-      // Handle exam purchase
+
+      // Einmaliger Exam-Kauf: nur bei bezahlter Session
       if (userId && examId) {
-        const exists = await prisma.purchase.findFirst({ where: { userId, examId } });
-        if (!exists) {
-          await prisma.purchase.create({ data: { userId, examId, stripeSessionId } });
+        if (s.payment_status !== "paid") {
+          console.log("Exam purchase skipped (not paid):", s.id);
+        } else {
+          const exists = await prisma.purchase.findFirst({ where: { userId, examId } });
+          if (!exists) {
+            await prisma.purchase.create({ data: { userId, examId, stripeSessionId } });
+          }
         }
       }
     }

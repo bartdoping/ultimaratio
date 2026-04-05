@@ -1,7 +1,7 @@
 // components/subscription-management.tsx
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -34,11 +34,7 @@ export function SubscriptionManagement() {
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
 
-  useEffect(() => {
-    fetchSubscriptionStatus()
-  }, [])
-
-  const fetchSubscriptionStatus = async () => {
+  const fetchSubscriptionStatus = useCallback(async () => {
     try {
       console.log("Fetching subscription status...")
       const response = await fetch("/api/stripe/subscription/status", {
@@ -61,7 +57,21 @@ export function SubscriptionManagement() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    void fetchSubscriptionStatus()
+  }, [fetchSubscriptionStatus])
+
+  useEffect(() => {
+    const onUpdate = () => {
+      setLoading(true)
+      void fetchSubscriptionStatus()
+    }
+    window.addEventListener("fragenkreuzen:subscription-updated", onUpdate)
+    return () =>
+      window.removeEventListener("fragenkreuzen:subscription-updated", onUpdate)
+  }, [fetchSubscriptionStatus])
 
   const handleUpgrade = async () => {
     setActionLoading(true)
