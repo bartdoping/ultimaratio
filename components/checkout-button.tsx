@@ -22,7 +22,11 @@ export function CheckoutButton({ slug }: Props) {
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) {
-        throw new Error(data?.error || "Checkout fehlgeschlagen")
+        const hint =
+          typeof data?.details === "string" && data.details.trim()
+            ? ` ${data.details}`
+            : ""
+        throw new Error((data?.error || "Checkout fehlgeschlagen") + hint)
       }
       if (data?.alreadyPurchased) {
         router.refresh()
