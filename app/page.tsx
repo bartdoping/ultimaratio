@@ -3,26 +3,9 @@ import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import { DashboardStats } from "@/components/dashboard-stats"
-import { redirect } from "next/navigation"
-
 export default async function Home() {
   const session = await getServerSession(authOptions)
   const loggedIn = !!session?.user
-  
-  // Prüfe ob User Admin ist
-  let isAdmin = false
-  if (session?.user?.email) {
-    const adminEmails = [
-      "info@ultima-rat.io",
-      "admin@fragenkreuzen.de"
-    ]
-    isAdmin = adminEmails.includes(session.user.email)
-  }
-  
-  // Wenn nicht Admin, leite zur Coming-Soon-Seite weiter
-  if (!isAdmin) {
-    redirect("/coming-soon")
-  }
 
   return (
     <main className="relative">
