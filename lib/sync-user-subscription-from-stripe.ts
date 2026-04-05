@@ -4,6 +4,8 @@
  */
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
+import { stripeSubscriptionGrantsPro } from "@/lib/stripe-subscription-access"
+import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
 
 export async function syncUserSubscriptionFromStripe(userId: string): Promise<boolean> {
   const row = await prisma.subscription.findUnique({
@@ -17,25 +19,26 @@ export async function syncUserSubscriptionFromStripe(userId: string): Promise<bo
 
   try {
     const sub = await stripe.subscriptions.retrieve(sid)
-    const isPro = sub.status === "active" || sub.status === "trialing"
+    const grantsPro = stripeSubscriptionGrantsPro(sub.status)
     const customerId =
       typeof sub.customer === "string" ? sub.customer : (sub.customer as { id?: string })?.id
+    const bounds = getStripeSubscriptionPeriodBounds(sub)
 
     await prisma.subscription.update({
       where: { userId },
       data: {
-        status: isPro ? "pro" : "free",
+        status: grantsPro ? "pro" : "free",
         stripeCustomerId: customerId ?? undefined,
-        currentPeriodStart: new Date((sub as any).current_period_start * 1000),
-        currentPeriodEnd: new Date((sub as any).current_period_end * 1000),
-        cancelAtPeriodEnd: (sub as any).cancel_at_period_end,
+        currentPeriodStart: bounds.start,
+        currentPeriodEnd: bounds.end,
+        cancelAtPeriodEnd: sub.cancel_at_period_end,
       },
     })
 
     await prisma.user.update({
       where: { id: userId },
       data: {
-        subscriptionStatus: isPro ? "pro" : "free",
+        subscriptionStatus: grantsPro ? "pro" : "free",
       },
     })
 

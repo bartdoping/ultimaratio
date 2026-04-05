@@ -1,49 +1,47 @@
 // app/api/stripe/subscription/cancel/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
-import prisma from "@/lib/db";
-import stripe from "@/lib/stripe";
+// Kündigung zum Ende der laufenden Abrechnungsperiode (Stripe: cancel_at_period_end).
+// Pro bleibt bis current_period_end aktiv — wie bei SaaS-Standards.
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
+import stripe from "@/lib/stripe"
+import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"
 
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    // 1) Auth
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
     }
 
-    // 2) User + Subscription
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { 
+      select: {
         id: true,
         subscriptionStatus: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
-            status: true
-          }
-        }
+            status: true,
+          },
+        },
       },
-    });
-    if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
+    })
+    if (!user) {
+      return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 })
+    }
 
-    console.log("Cancel request for user:", { 
-      userId: user.id, 
-      subscriptionStatus: user.subscriptionStatus,
-      hasSubscription: !!user.subscription,
-      stripeSubscriptionId: user.subscription?.stripeSubscriptionId 
-    });
-
-    // Prüfe ob User Pro-Status hat (auch ohne Stripe Subscription)
     if (user.subscriptionStatus !== "pro") {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Du hast kein aktives Pro-Abonnement zum Kündigen." 
-      }, { status: 400 });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Du hast kein aktives Pro-Abonnement zum Kündigen.",
+        },
+        { status: 400 }
+      )
     }
 
     if (!user.subscription?.stripeSubscriptionId) {
@@ -51,13 +49,11 @@ export async function POST(req: Request) {
         where: { id: user.id },
         data: { subscriptionStatus: "free" },
       })
-
       return NextResponse.json({ ok: true, message: "subscription_cancelled_no_stripe" })
     }
 
     const stripeSubId = user.subscription.stripeSubscriptionId
 
-    // Nur lokale Test-Einträge (kein Stripe-API-Call)
     if (stripeSubId.startsWith("simulated_")) {
       await prisma.subscription.update({
         where: { userId: user.id },
@@ -66,35 +62,52 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: true, message: "subscription_cancelled" })
     }
 
-    // 3) Stripe Subscription kündigen
+    let updated: Awaited<ReturnType<typeof stripe.subscriptions.update>>
     try {
-      await stripe.subscriptions.update(stripeSubId, {
+      updated = await stripe.subscriptions.update(stripeSubId, {
         cancel_at_period_end: true,
-      });
-      console.log("Stripe subscription cancelled:", stripeSubId);
-    } catch (stripeError: any) {
-      console.error("Stripe cancellation error:", stripeError);
-      // Continue with DB update even if Stripe fails
+      })
+    } catch (stripeError: unknown) {
+      const msg =
+        stripeError instanceof Error ? stripeError.message : "Stripe-Fehler"
+      console.error("Stripe cancellation error:", stripeError)
+      return NextResponse.json(
+        { ok: false, error: "stripe_failed", details: msg },
+        { status: 502 }
+      )
     }
 
-    // 4) DB aktualisieren - User bleibt Pro bis zum Ende der Periode
+    let bounds
+    try {
+      bounds = getStripeSubscriptionPeriodBounds(updated)
+    } catch {
+      const full = await stripe.subscriptions.retrieve(stripeSubId)
+      bounds = getStripeSubscriptionPeriodBounds(full)
+    }
+
     await prisma.subscription.update({
       where: { userId: user.id },
       data: {
-        cancelAtPeriodEnd: true,
-        // Status bleibt "pro" - wird erst bei Ablauf auf "free" gesetzt
-      }
-    });
+        cancelAtPeriodEnd: updated.cancel_at_period_end,
+        currentPeriodStart: bounds.start,
+        currentPeriodEnd: bounds.end,
+        status: "pro",
+      },
+    })
 
-    // User-Status bleibt "pro" - wird erst bei Ablauf der Periode auf "free" gesetzt
-    // Das passiert automatisch durch Stripe Webhooks oder manuell
-
-    return NextResponse.json({ ok: true, message: "subscription_cancelled" });
-  } catch (err: any) {
-    console.error("subscription cancel error", err);
-    return NextResponse.json({ 
-      ok: false, 
-      error: `Kündigung fehlgeschlagen: ${err.message || "Unbekannter Fehler"}` 
-    }, { status: 500 });
+    return NextResponse.json({
+      ok: true,
+      message: "subscription_cancelled",
+      currentPeriodEnd: bounds.end.toISOString(),
+    })
+  } catch (err: unknown) {
+    console.error("subscription cancel error", err)
+    return NextResponse.json(
+      {
+        ok: false,
+        error: `Kündigung fehlgeschlagen: ${err instanceof Error ? err.message : "Unbekannter Fehler"}`,
+      },
+      { status: 500 }
+    )
   }
 }

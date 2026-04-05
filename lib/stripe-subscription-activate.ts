@@ -5,6 +5,7 @@
 import type Stripe from "stripe"
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
+import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
 
 function isPaidLikeCheckoutSession(s: Stripe.Checkout.Session): boolean {
   return (
@@ -58,33 +59,31 @@ export async function activateProFromCheckoutSession(
       const stripeSubscription = await stripe.subscriptions.retrieve(
         s.subscription as string
       )
+      const bounds = getStripeSubscriptionPeriodBounds(stripeSubscription)
+      const custRaw =
+        typeof stripeSubscription.customer === "string"
+          ? stripeSubscription.customer
+          : (stripeSubscription.customer as { id?: string })?.id
+      const cust = custRaw || undefined
       await prisma.subscription.upsert({
         where: { userId },
         create: {
           userId,
           stripeSubscriptionId: stripeSubscription.id,
-          stripeCustomerId: stripeSubscription.customer as string,
+          stripeCustomerId: cust,
           status: "pro",
-          currentPeriodStart: new Date(
-            (stripeSubscription as any).current_period_start * 1000
-          ),
-          currentPeriodEnd: new Date(
-            (stripeSubscription as any).current_period_end * 1000
-          ),
-          cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
+          currentPeriodStart: bounds.start,
+          currentPeriodEnd: bounds.end,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
           createdAt: new Date(),
         },
         update: {
           stripeSubscriptionId: stripeSubscription.id,
-          stripeCustomerId: stripeSubscription.customer as string,
+          stripeCustomerId: cust,
           status: "pro",
-          currentPeriodStart: new Date(
-            (stripeSubscription as any).current_period_start * 1000
-          ),
-          currentPeriodEnd: new Date(
-            (stripeSubscription as any).current_period_end * 1000
-          ),
-          cancelAtPeriodEnd: (stripeSubscription as any).cancel_at_period_end,
+          currentPeriodStart: bounds.start,
+          currentPeriodEnd: bounds.end,
+          cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
         },
       })
     } catch (e) {

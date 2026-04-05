@@ -1,9 +1,10 @@
 // app/api/stripe/subscription/reactivate/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
-import prisma from "@/lib/db";
-import stripe from "@/lib/stripe";
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
+import stripe from "@/lib/stripe"
+import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
 
 export const runtime = "nodejs";
 
@@ -75,29 +76,40 @@ export async function POST() {
       return NextResponse.json({ ok: true, message: "subscription_reactivated" })
     }
 
-    // 3) Stripe Subscription reaktivieren
+    let updated: Awaited<ReturnType<typeof stripe.subscriptions.update>>
     try {
-      await stripe.subscriptions.update(stripeSubId, {
+      updated = await stripe.subscriptions.update(stripeSubId, {
         cancel_at_period_end: false,
-      });
-      console.log("Stripe subscription reactivated:", stripeSubId);
-    } catch (stripeError: any) {
-      console.error("Stripe reactivation error:", stripeError);
-      return NextResponse.json({ 
-        ok: false, 
-        error: `Reaktivierung fehlgeschlagen: ${stripeError.message || "Stripe-Fehler"}` 
-      }, { status: 500 });
+      })
+    } catch (stripeError: unknown) {
+      console.error("Stripe reactivation error:", stripeError)
+      const msg =
+        stripeError instanceof Error ? stripeError.message : "Stripe-Fehler"
+      return NextResponse.json(
+        { ok: false, error: `Reaktivierung fehlgeschlagen: ${msg}` },
+        { status: 502 }
+      )
     }
 
-    // 4) DB aktualisieren
+    let bounds
+    try {
+      bounds = getStripeSubscriptionPeriodBounds(updated)
+    } catch {
+      const full = await stripe.subscriptions.retrieve(stripeSubId)
+      bounds = getStripeSubscriptionPeriodBounds(full)
+    }
+
     await prisma.subscription.update({
       where: { userId: user.id },
       data: {
-        cancelAtPeriodEnd: false
-      }
-    });
+        cancelAtPeriodEnd: updated.cancel_at_period_end,
+        currentPeriodStart: bounds.start,
+        currentPeriodEnd: bounds.end,
+        status: "pro",
+      },
+    })
 
-    return NextResponse.json({ ok: true, message: "subscription_reactivated" });
+    return NextResponse.json({ ok: true, message: "subscription_reactivated" })
   } catch (err: any) {
     console.error("subscription reactivation error", err);
     return NextResponse.json({ 

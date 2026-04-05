@@ -92,7 +92,13 @@ export function SubscriptionManagement() {
   }
 
   const handleCancel = async () => {
-    if (!confirm("Möchtest du dein Abonnement wirklich kündigen? Du verlierst den Zugang zu allen Pro-Features.")) {
+    if (
+      !confirm(
+        "Abonnement zum Ende der aktuellen Abrechnungsperiode kündigen?\n\n" +
+          "Du behältst Pro bis zum letzten Tag der laufenden Periode (wie bei Stripe üblich). " +
+          "Erst danach wechselst du zum kostenlosen Tarif."
+      )
+    ) {
       return
     }
 
@@ -106,13 +112,27 @@ export function SubscriptionManagement() {
       const data = await response.json()
 
       if (data.ok) {
-        alert(
-          "Abonnement wurde gekündigt. Es läuft bis zum Ende der aktuellen Abrechnungsperiode weiter."
-        )
+        let msg =
+          "Kündigung ist eingetragen. Dein Pro-Zugang bleibt bis zum Ende der bezahlten Laufzeit aktiv."
+        if (typeof data.currentPeriodEnd === "string") {
+          const d = new Date(data.currentPeriodEnd)
+          if (!Number.isNaN(d.getTime())) {
+            msg += ` Pro ist nutzbar bis einschließlich ${d.toLocaleDateString("de-DE", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}.`
+          }
+        }
+        alert(msg)
         fetchSubscriptionStatus()
       } else {
         console.error("Cancel failed:", data)
-        alert(`Fehler beim Kündigen des Abonnements: ${data.error || "Unbekannter Fehler"}`)
+        const detail =
+          typeof data.details === "string" ? data.details : data.error
+        alert(
+          `Kündigung fehlgeschlagen: ${detail || "Unbekannter Fehler"}`
+        )
       }
     } catch (error) {
       console.error("Cancel failed:", error)
@@ -408,8 +428,10 @@ export function SubscriptionManagement() {
                   {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
                 </Button>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Die Kündigung gilt zum Ende der aktuellen Abrechnungsperiode; bis dahin bleibt Pro
-                  aktiv. Danach wechselst du automatisch zum kostenlosen Tarif (20 Fragen/Tag).
+                  Kündigung = Ende der automatischen Verlängerung. Pro bleibt bis zum Ende der
+                  laufenden, bereits bezahlten Periode aktiv (Stripe:{" "}
+                  <code className="text-xs">cancel_at_period_end</code>
+                  ). Danach automatisch kostenloser Tarif (20 Fragen/Tag).
                 </p>
               </>
             )}
