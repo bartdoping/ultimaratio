@@ -31,6 +31,8 @@ interface AdminExamsListProps {
   categories: Category[]
   deleteExamAction: (formData: FormData) => Promise<void>
   setExamVisibleOnExamsPageAction: (formData: FormData) => Promise<void>
+  /** false, wenn die DB-Migration für visibleOnExamsPage noch fehlt */
+  examsPageVisibilityColumnReady?: boolean
 }
 
 export default function AdminExamsList({ 
@@ -38,6 +40,7 @@ export default function AdminExamsList({
   categories, 
   deleteExamAction,
   setExamVisibleOnExamsPageAction,
+  examsPageVisibilityColumnReady = true,
 }: AdminExamsListProps) {
   const handleCategoryAssigned = () => {
     window.location.reload()
@@ -51,7 +54,7 @@ export default function AdminExamsList({
             <div className="font-medium">{e.title}</div>
             <div className="text-sm text-muted-foreground">
               {e.slug} · {e.isPublished ? "veröffentlicht" : "Entwurf"}
-              {e.isPublished && (
+              {examsPageVisibilityColumnReady && e.isPublished && (
                 <>
                   {" "}
                   ·{" "}
@@ -65,7 +68,7 @@ export default function AdminExamsList({
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2 justify-end">
-            {e.isPublished && (
+            {examsPageVisibilityColumnReady && e.isPublished && (
               <form action={setExamVisibleOnExamsPageAction}>
                 <input type="hidden" name="examId" value={e.id} />
                 <input type="hidden" name="visible" value={e.visibleOnExamsPage ? "0" : "1"} />

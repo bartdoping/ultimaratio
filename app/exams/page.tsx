@@ -6,6 +6,7 @@ import { authOptions } from "@/auth"
 import { StartExamButton } from "@/components/start-exam-button"
 import ExamsCategorized from "@/components/exams-categorized"
 import { initCategoriesTables } from "@/lib/init-categories-tables"
+import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
 
 export const dynamic = "force-dynamic"
 
@@ -15,9 +16,13 @@ export default async function ExamsListPage() {
   // Stelle sicher, dass die Tabellen existieren
   await initCategoriesTables()
 
+  const examListWhere = (await examVisibleOnExamsPageColumnExists())
+    ? ({ isPublished: true, visibleOnExamsPage: true } as const)
+    : ({ isPublished: true } as const)
+
   // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl
   const exams = await prisma.exam.findMany({
-    where: { isPublished: true, visibleOnExamsPage: true },
+    where: examListWhere,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -43,10 +48,7 @@ export default async function ExamsListPage() {
   const categories = await prisma.category.findMany({
     where: {
       exams: {
-        some: {
-          isPublished: true,
-          visibleOnExamsPage: true,
-        }
+        some: examListWhere,
       }
     },
     orderBy: [
@@ -55,7 +57,7 @@ export default async function ExamsListPage() {
     ],
     include: {
       exams: {
-        where: { isPublished: true, visibleOnExamsPage: true },
+        where: examListWhere,
         select: {
           id: true,
           slug: true,
