@@ -93,8 +93,6 @@ export function RunnerClient(props: Props) {
   // Subscription Management
   const [subscriptionStatus, setSubscriptionStatus] = useState<{
     isPro: boolean
-    questionsRemaining: number
-    dailyQuestionsUsed: number
   } | null>(null)
   const [showLimitPopup, setShowLimitPopup] = useState(false)
 
@@ -502,12 +500,9 @@ const aiContext = useMemo(() => {
 
   // Antwort wählen
   async function choose(optionId: string) {
-    // Prüfe Subscription Limit
-    if (subscriptionStatus && !subscriptionStatus.isPro) {
-      if (subscriptionStatus.questionsRemaining <= 0) {
-        setShowLimitPopup(true)
-        return
-      }
+    if (mode === "practice" && subscriptionStatus && !subscriptionStatus.isPro) {
+      setShowLimitPopup(true)
+      return
     }
     
     setSubmitting(true)
@@ -1459,7 +1454,6 @@ const aiContext = useMemo(() => {
           setShowLimitPopup(false)
           window.location.href = "/subscription"
         }}
-        questionsUsed={subscriptionStatus?.dailyQuestionsUsed || 0}
       />
     </div>
   )

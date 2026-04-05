@@ -4,7 +4,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { z } from "zod"
-import { incrementQuestionUsage } from "@/lib/subscription"
+import { isUserPro } from "@/lib/subscription"
 
 export const runtime = "nodejs"
 
@@ -23,21 +23,24 @@ export async function POST(req: Request) {
 
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, subscriptionStatus: true },
+      select: { id: true },
     })
     if (!me) {
       return NextResponse.json({ error: "user not found" }, { status: 401 })
     }
     const userId = me.id
 
-    // Prüfe Tageslimit für Free-User
-    const canUseQuestion = await incrementQuestionUsage(userId)
-    if (!canUseQuestion) {
-      return NextResponse.json({ 
-        error: "Tageslimit erreicht", 
-        message: "Du hast dein tägliches Limit von 20 Fragen erreicht. Upgrade zu Pro für unbegrenzten Zugang!",
-        upgradeRequired: true
-      }, { status: 403 })
+    const proOk = await isUserPro(userId)
+    if (!proOk) {
+      return NextResponse.json(
+        {
+          error: "subscription_required",
+          message:
+            "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!",
+          upgradeRequired: true,
+        },
+        { status: 403 }
+      )
     }
 
     // Body validieren
@@ -54,14 +57,6 @@ export async function POST(req: Request) {
     })
     if (!question) {
       return NextResponse.json({ error: "question not found" }, { status: 404 })
-    }
-
-    // Abo-Status prüfen (Pro-User haben Zugang zu allen Prüfungen)
-    if (me.subscriptionStatus !== "pro") {
-      return NextResponse.json({ 
-        error: "subscription_required",
-        message: "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!"
-      }, { status: 403 })
     }
 
     // Option prüfen (muss zur Frage gehören)

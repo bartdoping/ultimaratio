@@ -11,8 +11,6 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 interface SubscriptionData {
   status: "free" | "pro"
   isPro: boolean
-  questionsRemaining: number
-  dailyQuestionsUsed: number
   subscriptionDetails?: {
     status: string
     currentPeriodStart?: string
@@ -197,27 +195,11 @@ export function SubscriptionManagement() {
             )}
           </CardTitle>
           <CardDescription>
-            {subscription.isPro 
+            {subscription.isPro
               ? "Du hast Zugang zu allen Pro-Features"
-              : "Du nutzt den kostenlosen Plan mit 20 Fragen pro Tag"
-            }
+              : "Du nutzt den kostenlosen Plan. Für Übungen und den vollen Funktionsumfang ist Pro erforderlich."}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {!subscription.isPro && (
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Fragen heute verwendet: {subscription.dailyQuestionsUsed} / 20
-              </p>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className="bg-blue-600 h-2 rounded-full transition-all"
-                  style={{ width: `${(subscription.dailyQuestionsUsed / 20) * 100}%` }}
-                />
-              </div>
-            </div>
-          )}
-        </CardContent>
       </Card>
 
       {/* Subscription Details */}
@@ -389,18 +371,9 @@ export function SubscriptionManagement() {
           <CardContent>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
-                Du nutzt den kostenlosen Account mit 20 Fragen pro Tag.
+                Im kostenlosen Tarif stehen dir die Pro-Funktionen (unbegrenztes Üben, eigene Decks,
+                Spaced Repetition usw.) nicht zur Verfügung.
               </div>
-              {subscription.questionsRemaining >= 0 && (
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-muted-foreground">
-                    Fragen übrig heute:
-                  </span>
-                  <span className="font-medium">
-                    {subscription.questionsRemaining} von 20
-                  </span>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -431,7 +404,7 @@ export function SubscriptionManagement() {
                   Kündigung = Ende der automatischen Verlängerung. Pro bleibt bis zum Ende der
                   laufenden, bereits bezahlten Periode aktiv (Stripe:{" "}
                   <code className="text-xs">cancel_at_period_end</code>
-                  ). Danach automatisch kostenloser Tarif (20 Fragen/Tag).
+                  ). Danach wechselst du automatisch in den kostenlosen Tarif.
                 </p>
               </>
             )}

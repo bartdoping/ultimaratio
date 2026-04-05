@@ -29,8 +29,6 @@ export async function GET() {
       select: {
         id: true,
         subscriptionStatus: true,
-        dailyQuestionsUsed: true,
-        lastQuestionResetAt: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -59,8 +57,6 @@ export async function GET() {
         select: {
           id: true,
           subscriptionStatus: true,
-          dailyQuestionsUsed: true,
-          lastQuestionResetAt: true,
           subscription: {
             select: {
               stripeSubscriptionId: true,
@@ -78,13 +74,9 @@ export async function GET() {
     }
 
     const now = new Date()
-    const lastReset = new Date(user.lastQuestionResetAt)
-    const isNewDay = now.toDateString() !== lastReset.toDateString()
-
-    const questionsRemaining =
-      user.subscriptionStatus === "pro"
-        ? -1
-        : Math.max(0, 20 - (isNewDay ? 0 : user.dailyQuestionsUsed))
+    const isPro = user.subscriptionStatus === "pro"
+    const questionsRemaining = isPro ? -1 : 0
+    const dailyQuestionsUsed = 0
 
     let daysRemaining: number | null = null
     if (user.subscription?.cancelAtPeriodEnd && user.subscription?.currentPeriodEnd) {
@@ -117,9 +109,9 @@ export async function GET() {
         ok: true,
         subscription: {
           status: user.subscriptionStatus,
-          isPro: user.subscriptionStatus === "pro",
+          isPro,
           questionsRemaining,
-          dailyQuestionsUsed: isNewDay ? 0 : user.dailyQuestionsUsed,
+          dailyQuestionsUsed,
           subscriptionDetails: user.subscription,
           nextPaymentDate:
             user.subscription?.currentPeriodEnd || simulatedNextPayment,

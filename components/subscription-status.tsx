@@ -8,8 +8,6 @@ import { Badge } from "@/components/ui/badge"
 interface SubscriptionData {
   status: "free" | "pro"
   isPro: boolean
-  questionsRemaining: number
-  dailyQuestionsUsed: number
 }
 
 export function SubscriptionStatus() {
@@ -67,17 +65,7 @@ export function SubscriptionStatus() {
           Pro
         </Badge>
       ) : (
-        <div className="text-sm text-muted-foreground">
-          {subscription.questionsRemaining > 0 ? (
-            <span>
-              {subscription.questionsRemaining} Fragen übrig
-            </span>
-          ) : (
-            <span className="text-orange-600 font-medium">
-              Limit erreicht
-            </span>
-          )}
-        </div>
+        <Badge variant="outline">Kostenlos</Badge>
       )}
     </div>
   )

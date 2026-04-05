@@ -9,29 +9,27 @@ interface SubscriptionLimitPopupProps {
   isOpen: boolean
   onClose: () => void
   onUpgrade: () => void
-  questionsUsed: number
 }
 
-export function SubscriptionLimitPopup({ 
-  isOpen, 
-  onClose, 
-  onUpgrade, 
-  questionsUsed 
+export function SubscriptionLimitPopup({
+  isOpen,
+  onClose,
+  onUpgrade,
 }: SubscriptionLimitPopupProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-center">Tageslimit erreicht! 🚫</DialogTitle>
+          <DialogTitle className="text-center">Pro erforderlich</DialogTitle>
           <DialogDescription className="text-center">
-            Du hast heute bereits {questionsUsed} von 20 Fragen beantwortet.
+            Übungsmodus und die zugehörigen Funktionen sind Teil von fragenkreuzen.de Pro.
           </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="text-center space-y-2">
             <p className="text-sm text-muted-foreground">
-              Als kostenloser Nutzer kannst du täglich 20 Fragen beantworten.
+              Mit Pro erhältst du unter anderem unbegrenztes Üben und den vollen Funktionsumfang.
             </p>
             <p className="text-sm font-medium">
               Mit fragenkreuzen.de Pro erhältst du:

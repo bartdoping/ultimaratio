@@ -18,7 +18,7 @@ export async function POST(
     // User finden
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, subscriptionStatus: true, dailyQuestionsUsed: true, lastQuestionResetAt: true }
+      select: { id: true },
     });
 
     if (!user) {
@@ -33,30 +33,6 @@ export async function POST(
 
     if (!exam || !exam.isPublished) {
       return NextResponse.json({ error: "Prüfung nicht gefunden" }, { status: 404 });
-    }
-
-    // Prüfen ob User bereits Pro-User ist oder Admin
-    const isProUser = user.subscriptionStatus === "pro";
-    const isAdmin = session.user.email === "info@ultima-rat.io" || session.user.email === "admin@fragenkreuzen.de";
-
-    if (!isProUser && !isAdmin) {
-      // Für Free-User: Prüfen ob noch Fragen übrig sind
-      const now = new Date();
-      const lastReset = user.lastQuestionResetAt ? new Date(user.lastQuestionResetAt) : new Date(0);
-      const isNewDay = now.getTime() - lastReset.getTime() >= 24 * 60 * 60 * 1000;
-      
-      let questionsUsed = user.dailyQuestionsUsed;
-      if (isNewDay) {
-        questionsUsed = 0;
-      }
-
-      if (questionsUsed >= 20) {
-        return NextResponse.json({ 
-          error: "Tageslimit erreicht", 
-          message: "Du hast dein tägliches Limit von 20 Fragen erreicht. Upgrade zu Pro für unbegrenzten Zugang!",
-          upgradeRequired: true
-        }, { status: 403 });
-      }
     }
 
     // Prüfung aktivieren (Purchase erstellen)
