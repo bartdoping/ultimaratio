@@ -751,7 +751,7 @@ const aiContext = useMemo(() => {
   return (
     <div className="min-h-screen">
       {/* Header Toolbar - Sticky oben */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b">
         <div className="flex flex-col gap-3 p-4">
           {/* Obere Zeile: Fortschritt & Mobile Navigation */}
           <div className="flex items-center justify-between gap-4">
@@ -890,7 +890,7 @@ const aiContext = useMemo(() => {
         >
         {/* Left-Rail - Questions Sidebar */}
         <aside
-          className={`hidden lg:flex lg:flex-col absolute left-0 top-0 bottom-0 z-10 overflow-y-auto rounded border transition-all duration-300 ${
+          className={`hidden lg:flex lg:flex-col absolute left-0 top-0 bottom-0 z-0 overflow-y-auto rounded border transition-all duration-300 ${
             questionSidebarOpen ? "lg:w-[16rem] p-3" : "lg:w-12 p-1"
           }`}
         >
