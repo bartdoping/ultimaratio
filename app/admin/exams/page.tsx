@@ -91,7 +91,7 @@ export default async function AdminExamsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">Prüfungen</h1>
-        <Button asChild><Link href="/admin/exams/new">Neue Prüfung</Link></Button>
+        <Button asChild><Link href="/admin/exams/create">Neue Prüfung</Link></Button>
       </div>
 
       {!examsPageVisibilityColumnReady && (

@@ -10,7 +10,14 @@ export async function requireAdmin() {
   if (!session?.user?.email) {
     redirect("/login")
   }
-  const user = await prisma.user.findUnique({ where: { email: session.user.email } })
+  const email = session.user.email.toLowerCase().trim()
+  let user
+  try {
+    user = await prisma.user.findUnique({ where: { email } })
+  } catch (e) {
+    console.error("[requireAdmin] DB:", e)
+    redirect("/login")
+  }
   if (!user || user.role !== "admin") {
     redirect("/")
   }
