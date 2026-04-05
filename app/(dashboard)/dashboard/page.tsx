@@ -14,6 +14,9 @@ import { Button } from "@/components/ui/button"
 import { SubscriptionSuccessHandler } from "@/components/subscription-success-handler"
 import { DeleteAttemptButton } from "@/components/delete-attempt-button"
 import { DashboardStats } from "@/components/dashboard-stats"
+import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
+import { showFreeTrialExamPromo } from "@/lib/exam-access"
+import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
 
 export const runtime = "nodejs"
 
@@ -97,6 +100,28 @@ export default async function DashboardPage() {
   }
 
   const canUseDecks = canUsePersonalDecks(me.role, me.subscriptionStatus)
+
+  const examListWhere = (await examVisibleOnExamsPageColumnExists())
+    ? ({ isPublished: true, visibleOnExamsPage: true } as const)
+    : ({ isPublished: true } as const)
+
+  const freeTrialExamRow =
+    showFreeTrialExamPromo(me.role, me.subscriptionStatus)
+      ? await prisma.exam.findFirst({
+          where: { ...examListWhere, isFreeTrialDemo: true },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+            description: true,
+            _count: { select: { questions: true } },
+          },
+        })
+      : null
+
+  const freeTrialExamDash =
+    freeTrialExamRow && freeTrialExamRow._count.questions > 0 ? freeTrialExamRow : null
 
   // Eigene (nicht-automatische) Decks
   const decks = await prisma.deck.findMany({
@@ -232,6 +257,22 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {freeTrialExamDash && (
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Prüfung kostenlos testen</h2>
+          <FreeTrialExamPromo
+            exam={{
+              id: freeTrialExamDash.id,
+              slug: freeTrialExamDash.slug,
+              title: freeTrialExamDash.title,
+              description: freeTrialExamDash.description,
+              questionCount: freeTrialExamDash._count.questions,
+            }}
+            loggedIn
+          />
+        </section>
+      )}
 
       <section className="space-y-4">
         <h2 className="text-xl font-semibold">Deine Statistiken</h2>

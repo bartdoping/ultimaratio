@@ -6,6 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { StartExamButton } from "@/components/start-exam-button"
+import {
+  FreeTrialExamPromo,
+  type FreeTrialExamPayload,
+} from "@/components/free-trial-exam-promo"
 
 interface Exam {
   id: string
@@ -34,13 +38,19 @@ interface ExamsCategorizedProps {
     startedAt: Date
     elapsedSec: number | null
   }>
+  freeTrialExam?: FreeTrialExamPayload | null
+  showFreeTrialSection?: boolean
+  loggedIn?: boolean
 }
 
 export default function ExamsCategorized({ 
   categories, 
   examsWithoutCategory, 
   hasAccess,
-  openAttempts = []
+  openAttempts = [],
+  freeTrialExam = null,
+  showFreeTrialSection = false,
+  loggedIn = false,
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -57,6 +67,10 @@ export default function ExamsCategorized({
 
   return (
     <div className="space-y-6">
+      {showFreeTrialSection && freeTrialExam && (
+        <FreeTrialExamPromo exam={freeTrialExam} loggedIn={loggedIn} />
+      )}
+
       {/* Kategorie-Filter */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold">Nach Kategorien filtern</h2>

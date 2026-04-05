@@ -60,6 +60,7 @@ export default async function AdminExamsPage() {
       slug: true,
       title: true,
       isPublished: true,
+      isFreeTrialDemo: true,
       ...(examsPageVisibilityColumnReady ? { visibleOnExamsPage: true as const } : {}),
       categoryId: true,
       category: {

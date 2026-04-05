@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { hasExamLearningAccess } from "@/lib/exam-access"
 import { RunnerClient } from "@/components/runner-client"
 
 type Params = { examId: string }
@@ -33,9 +34,18 @@ export default async function PracticePage({ params, searchParams }: Props) {
 
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true },
+    select: { id: true, role: true, subscriptionStatus: true },
   })
   if (!me) redirect("/login")
+
+  const examGate = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, isFreeTrialDemo: true },
+  })
+  if (!examGate) notFound()
+  if (!hasExamLearningAccess(me.role, me.subscriptionStatus, examGate.isFreeTrialDemo)) {
+    redirect("/subscription")
+  }
 
   // Optional: Deck-Filter laden & validieren
   let deckQuestionIds: string[] | null = null

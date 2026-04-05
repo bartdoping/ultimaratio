@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   // Benutzer ermitteln
   const me = await prisma.user.findUnique({
     where: { email: session.user.email },
-    select: { id: true, subscriptionStatus: true },
+    select: { id: true, subscriptionStatus: true, role: true },
   })
   if (!me) {
     return NextResponse.json({ ok: false, error: "user not found" }, { status: 401 })
@@ -47,18 +47,23 @@ export async function POST(req: Request) {
   // Existiert die Prüfung?
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
-    select: { id: true, isPublished: true },
+    select: { id: true, isPublished: true, isFreeTrialDemo: true },
   })
   if (!exam || !exam.isPublished) {
     return NextResponse.json({ ok: false, error: "exam not found" }, { status: 404 })
   }
 
-  // Abo-Status prüfen (Pro-User haben Zugang zu allen Prüfungen)
-  if (me.subscriptionStatus !== "pro") {
-    return NextResponse.json({ 
-      ok: false, 
+  const canStart =
+    me.role === "admin" ||
+    me.subscriptionStatus === "pro" ||
+    exam.isFreeTrialDemo
+
+  if (!canStart) {
+    return NextResponse.json({
+      ok: false,
       error: "subscription_required",
-      message: "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!"
+      message:
+        "Pro-Abonnement erforderlich. Upgrade zu Pro für unbegrenzten Zugang zu allen Prüfungen!",
     }, { status: 403 })
   }
 

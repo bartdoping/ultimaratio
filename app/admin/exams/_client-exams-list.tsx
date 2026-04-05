@@ -10,6 +10,7 @@ interface Exam {
   slug: string
   title: string
   isPublished: boolean
+  isFreeTrialDemo: boolean
   /** false = nicht auf der öffentlichen Seite /exams gelistet */
   visibleOnExamsPage: boolean
   categoryId: string | null
@@ -54,6 +55,12 @@ export default function AdminExamsList({
             <div className="font-medium">{e.title}</div>
             <div className="text-sm text-muted-foreground">
               {e.slug} · {e.isPublished ? "veröffentlicht" : "Entwurf"}
+              {e.isFreeTrialDemo && (
+                <>
+                  {" "}
+                  · <span className="font-medium text-primary">Probedeck (Free)</span>
+                </>
+              )}
               {examsPageVisibilityColumnReady && e.isPublished && (
                 <>
                   {" "}

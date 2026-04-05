@@ -76,6 +76,8 @@ model Exam {
   isPublished            Boolean  @default(false)
   /// Wenn false: Prüfung erscheint nicht auf der öffentlichen Übersicht /exams (Inhalte unverändert).
   visibleOnExamsPage     Boolean  @default(true)
+  /// Genau eine Prüfung als kostenloses Probedeck: nur für Nicht-Pro sichtbar, ohne Abo startbar.
+  isFreeTrialDemo        Boolean  @default(false)
   passPercent            Int      @default(60)
   allowImmediateFeedback Boolean  @default(false)
   createdAt              DateTime @default(now())

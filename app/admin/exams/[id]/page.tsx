@@ -16,6 +16,7 @@ import NewQuestionForm from "@/components/admin/new-question-form"
 import JsonUploadSimple from "@/components/admin/json-upload-simple"
 import JsonUploadForm from "@/components/admin/json-upload-form"
 import Link from "next/link"
+import { revalidatePath } from "next/cache"
 
 /**
  * Diese Seite:
@@ -56,6 +57,26 @@ async function updateExamAction(formData: FormData) {
       categoryId: categoryId || null,
     },
   })
+  redirect(`/admin/exams/${id}`)
+}
+
+/** Genau eine Prüfung darf gleichzeitig als kostenloses Probedeck markiert sein. */
+async function setFreeTrialDemoExamAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const id = String(formData.get("id") || "")
+  const enabled = formData.get("isFreeTrialDemo") === "on"
+  if (!id) return
+  if (enabled) {
+    await prisma.exam.updateMany({ data: { isFreeTrialDemo: false } })
+    await prisma.exam.update({ where: { id }, data: { isFreeTrialDemo: true } })
+  } else {
+    await prisma.exam.update({ where: { id }, data: { isFreeTrialDemo: false } })
+  }
+  revalidatePath("/exams")
+  revalidatePath("/")
+  revalidatePath("/dashboard")
+  revalidatePath("/admin/exams")
   redirect(`/admin/exams/${id}`)
 }
 
@@ -856,6 +877,28 @@ export default async function EditExamPage({ params, searchParams }: Props) {
 
       {/* Rechte Sidebar: Bulk Import */}
       <aside className="space-y-4">
+        <form action={setFreeTrialDemoExamAction} className="rounded border border-primary/30 bg-primary/5 p-3 space-y-3">
+          <h3 className="font-medium">Kostenloses Probedeck</h3>
+          <p className="text-xs text-muted-foreground">
+            Nur für <strong>Nicht-Pro</strong>-Accounts sichtbar (Homepage, Prüfungen, Dashboard). Pro-Nutzer werden
+            zur normalen Übersicht umgeleitet. Es kann immer nur <strong>eine</strong> Prüfung aktiv sein – Fragen
+            pflegst du wie gewohnt unten im Fragen-Regal.
+          </p>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              name="isFreeTrialDemo"
+              defaultChecked={exam.isFreeTrialDemo}
+              className="mt-1"
+            />
+            <span>Diese Prüfung als kostenloses Probedeck verwenden</span>
+          </label>
+          <input type="hidden" name="id" value={exam.id} />
+          <Button type="submit" variant="secondary" size="sm" className="w-full">
+            Probedeck-Einstellung speichern
+          </Button>
+        </form>
+
         <div className="rounded border p-3">
           <h3 className="font-medium mb-2">Mehrere Fragen einfügen</h3>
           <p className="text-xs text-muted-foreground mb-2">

@@ -1,23 +1,16 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/db";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/auth";
 import { ConfirmAfterReturn } from "@/components/confirm-after-return";
-import { CheckoutButton } from "@/components/checkout-button";
 import { StartExamButton } from "@/components/start-exam-button";
-;
+import { hasExamLearningAccess, isProOrAdmin } from "@/lib/exam-access";
 
 export const dynamic = "force-dynamic";
 
 // ⬇️ WICHTIG: params ist ein Promise in Next.js 15
 type PageProps = { params: Promise<{ slug: string }> };
-
-function formatPrice(cents: number) {
-  return new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR" }).format(
-    cents / 100
-  );
-}
 
 export default async function ExamPage({ params }: PageProps) {
   const { slug } = await params; // ⬅️ korrekt für Next 15
@@ -31,8 +24,8 @@ export default async function ExamPage({ params }: PageProps) {
       slug: true,
       title: true,
       description: true,
-      priceCents: true,
       isPublished: true,
+      isFreeTrialDemo: true,
       passPercent: true,
       allowImmediateFeedback: true,
       questions: {
@@ -57,15 +50,17 @@ export default async function ExamPage({ params }: PageProps) {
     notFound();
   }
 
-  // Prüfen, ob der eingeloggte Nutzer Pro-User ist
   let hasAccess = false;
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, subscriptionStatus: true },
+      select: { id: true, subscriptionStatus: true, role: true },
     });
     if (me) {
-      hasAccess = me.subscriptionStatus === "pro";
+      if (exam.isFreeTrialDemo && isProOrAdmin(me.role, me.subscriptionStatus)) {
+        redirect("/exams");
+      }
+      hasAccess = hasExamLearningAccess(me.role, me.subscriptionStatus, exam.isFreeTrialDemo);
     }
   }
 

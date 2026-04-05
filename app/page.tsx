@@ -2,10 +2,45 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
+import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
+import { showFreeTrialExamPromo } from "@/lib/exam-access"
+import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
+
+export const dynamic = "force-dynamic"
 
 export default async function Home() {
   const session = await getServerSession(authOptions)
   const loggedIn = !!session?.user
+
+  const examListWhere = (await examVisibleOnExamsPageColumnExists())
+    ? ({ isPublished: true, visibleOnExamsPage: true } as const)
+    : ({ isPublished: true } as const)
+
+  let showTrialOnHome = true
+  if (session?.user?.email) {
+    const me = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true, subscriptionStatus: true },
+    })
+    if (me) {
+      showTrialOnHome = showFreeTrialExamPromo(me.role, me.subscriptionStatus)
+    }
+  }
+
+  const freeTrialExam = showTrialOnHome
+    ? await prisma.exam.findFirst({
+        where: { ...examListWhere, isFreeTrialDemo: true },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          description: true,
+          _count: { select: { questions: true } },
+        },
+      })
+    : null
 
   return (
     <main className="relative">
@@ -60,6 +95,22 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      {freeTrialExam && freeTrialExam._count.questions > 0 && (
+        <section className="mx-auto mt-10 max-w-5xl px-2 md:px-0">
+          <h2 className="mb-3 text-center text-lg font-semibold">Erst einmal ausprobieren?</h2>
+          <FreeTrialExamPromo
+            exam={{
+              id: freeTrialExam.id,
+              slug: freeTrialExam.slug,
+              title: freeTrialExam.title,
+              description: freeTrialExam.description,
+              questionCount: freeTrialExam._count.questions,
+            }}
+            loggedIn={loggedIn}
+          />
+        </section>
+      )}
 
       {/* Features */}
       <section className="mx-auto mt-10 max-w-5xl px-2 md:px-0">

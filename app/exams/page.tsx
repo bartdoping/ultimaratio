@@ -7,6 +7,7 @@ import { StartExamButton } from "@/components/start-exam-button"
 import ExamsCategorized from "@/components/exams-categorized"
 import { initCategoriesTables } from "@/lib/init-categories-tables"
 import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
+import { showFreeTrialExamPromo } from "@/lib/exam-access"
 
 export const dynamic = "force-dynamic"
 
@@ -20,9 +21,11 @@ export default async function ExamsListPage() {
     ? ({ isPublished: true, visibleOnExamsPage: true } as const)
     : ({ isPublished: true } as const)
 
-  // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl
+  const catalogWhere = { ...examListWhere, isFreeTrialDemo: false } as const
+
+  // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl (ohne Probedeck in der Liste)
   const exams = await prisma.exam.findMany({
-    where: examListWhere,
+    where: catalogWhere,
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -48,7 +51,7 @@ export default async function ExamsListPage() {
   const categories = await prisma.category.findMany({
     where: {
       exams: {
-        some: examListWhere,
+        some: catalogWhere,
       }
     },
     orderBy: [
@@ -57,7 +60,7 @@ export default async function ExamsListPage() {
     ],
     include: {
       exams: {
-        where: examListWhere,
+        where: catalogWhere,
         select: {
           id: true,
           slug: true,
@@ -82,13 +85,16 @@ export default async function ExamsListPage() {
     elapsedSec: number | null
   }> = [];
 
+  let showTrialPromo = false
+
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, subscriptionStatus: true },
+      select: { id: true, subscriptionStatus: true, role: true },
     })
     if (me) {
-      hasAccess = me.subscriptionStatus === "pro";
+      hasAccess = me.subscriptionStatus === "pro" || me.role === "admin"
+      showTrialPromo = showFreeTrialExamPromo(me.role, me.subscriptionStatus)
       
       // Lade offene Prüfungsdurchläufe für den Benutzer
       openAttempts = await prisma.attempt.findMany({
@@ -102,10 +108,36 @@ export default async function ExamsListPage() {
         orderBy: { startedAt: "desc" }
       })
     }
+  } else {
+    showTrialPromo = true
   }
+
+  const freeTrialExam = showTrialPromo
+    ? await prisma.exam.findFirst({
+        where: { ...examListWhere, isFreeTrialDemo: true },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+          description: true,
+          _count: { select: { questions: true } },
+        },
+      })
+    : null
 
   // Prüfungen ohne Kategorie
   const examsWithoutCategory = exams.filter(exam => !exam.category)
+
+  const trialPayload = freeTrialExam
+    ? {
+        id: freeTrialExam.id,
+        slug: freeTrialExam.slug,
+        title: freeTrialExam.title,
+        description: freeTrialExam.description,
+        questionCount: freeTrialExam._count.questions,
+      }
+    : null
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -116,6 +148,9 @@ export default async function ExamsListPage() {
         examsWithoutCategory={examsWithoutCategory}
         hasAccess={hasAccess}
         openAttempts={openAttempts}
+        freeTrialExam={trialPayload}
+        showFreeTrialSection={!!trialPayload}
+        loggedIn={!!session?.user?.email}
       />
     </div>
   )
