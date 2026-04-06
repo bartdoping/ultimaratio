@@ -15,7 +15,7 @@ export default function AGBPage() {
           <h2 className="text-2xl font-semibold mb-4">§ 1 Geltungsbereich</h2>
           <p className="mb-4">
             Diese Allgemeinen Geschäftsbedingungen (nachfolgend "AGB") der Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR, 
-            Warburghof 14, 30627 Hannover (nachfolgend "Anbieter"), gelten für alle 
+            Hallesche Straße 94a, 44143 Dortmund, Deutschland (nachfolgend "Anbieter"), gelten für alle 
             Verträge über die Nutzung der Online-Lernplattform "fragenkreuzen.de" (nachfolgend "Plattform").
           </p>
           <p className="mb-4">
@@ -31,8 +31,9 @@ export default function AGBPage() {
             Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR<br />
             Ahkash Thavarajasingam<br />
             Mustafa Magdy Abdel Razik Mahmoud Eid<br />
-            Warburghof 14<br />
-            30627 Hannover<br />
+            Hallesche Straße 94a<br />
+            44143 Dortmund<br />
+            Deutschland<br />
             E-Mail: info@ultima-rat.io
           </p>
         </section>

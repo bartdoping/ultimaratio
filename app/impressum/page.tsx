@@ -15,8 +15,8 @@ export default function ImpressumPage() {
           <h2 className="text-2xl font-semibold mb-4">Angaben gemäß § 5 TMG</h2>
           <div className="space-y-2">
             <p><strong>Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR</strong></p>
-            <p>Warburghof 14</p>
-            <p>30627 Hannover, Deutschland</p>
+            <p>Hallesche Straße 94a</p>
+            <p>44143 Dortmund, Deutschland</p>
           </div>
         </section>
 
@@ -41,8 +41,8 @@ export default function ImpressumPage() {
           <h2 className="text-2xl font-semibold mb-4">Verantwortlich für den Inhalt nach § 55 Abs. 2 RStV</h2>
           <div className="space-y-2">
             <p>Ahkash Thavarajasingam</p>
-            <p>Warburghof 14</p>
-            <p>30627 Hannover</p>
+            <p>Hallesche Straße 94a</p>
+            <p>44143 Dortmund</p>
           </div>
         </section>
 

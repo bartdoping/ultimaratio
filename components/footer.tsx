@@ -41,8 +41,8 @@ export default function Footer() {
             <h3 className="font-semibold mb-4">Kontakt</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Thavarajasingam, Ahkash; Eid, Mustafa Magdy Abdel Razik Mahmoud GbR</p>
-              <p>Warburghof 14</p>
-              <p>30627 Hannover</p>
+              <p>Hallesche Straße 94a</p>
+              <p>44143 Dortmund</p>
               <p>Deutschland</p>
               <p className="break-all">info@ultima-rat.io</p>
               <p className="break-all">https://fragenkreuzen.de</p>

@@ -341,7 +341,7 @@ export function SubscriptionManagement() {
               {subscription.cancelAtPeriodEnd && (
                 <Alert>
                   <AlertDescription>
-                    <strong>⚠️ Abonnement gekündigt</strong><br />
+                    <strong>Abonnement gekündigt</strong><br />
                     Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
                       year: 'numeric',
                       month: 'long',
