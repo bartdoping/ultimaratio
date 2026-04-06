@@ -416,7 +416,7 @@ export function SubscriptionManagement() {
             disabled={actionLoading}
             className="bg-green-600 hover:bg-green-700"
           >
-            {actionLoading ? "Wird verarbeitet..." : "🚀 Jetzt upgraden - 9,99€/Monat"}
+            {actionLoading ? "Wird verarbeitet..." : "Jetzt upgraden - 9,99€/Monat"}
           </Button>
         )}
       </div>
