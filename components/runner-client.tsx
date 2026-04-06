@@ -1054,6 +1054,67 @@ const aiContext = useMemo(() => {
               submitting={submitting}
             />
 
+            {/* Navigation (als Teil der Fragenbox, unterhalb der Antwortoptionen) */}
+            <div className="mt-4 pt-4 border-t">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    onClick={() => nextInFiltered(-1)}
+                    disabled={atStart}
+                    className="h-11 px-5"
+                  >
+                    ← Zurück
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => nextInFiltered(1)}
+                    disabled={atEnd}
+                    className="h-11 px-5"
+                  >
+                    Weiter →
+                  </Button>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 justify-start sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={goNextTarget}
+                    disabled={!hasPrimaryJump}
+                    title={
+                      filterMode === "flagged"
+                        ? "Zur nächsten markierten Frage springen (U)"
+                        : filterMode === "wrong"
+                          ? "Zur nächsten falschen Frage springen (U)"
+                          : "Zur nächsten offenen Frage springen (U)"
+                    }
+                    className="h-11 px-5"
+                  >
+                    {primaryJumpLabel}
+                  </Button>
+
+                  {mode === "exam" ? (
+                    <Button
+                      variant="destructive"
+                      onClick={finish}
+                      disabled={submitting}
+                      className="h-11 px-6 text-base font-semibold"
+                    >
+                      Beenden & Auswerten
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      onClick={endPractice}
+                      className="h-11 px-5"
+                    >
+                      Session beenden
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
               {/* Frage-Gesamterklärung */}
               {hasQExplanation && showFeedback && !!given && (
                 <div className="rounded-lg border bg-secondary/40">
@@ -1091,67 +1152,6 @@ const aiContext = useMemo(() => {
             </div>
           </aside>
         )}
-        </div>
-
-        {/* Navigation unten (unter Fragenkarte + Fragenliste, volle Breite wie bisher) */}
-        <div className="max-w-4xl mx-auto w-full">
-          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border">
-            <div className="flex items-center gap-3">
-              <Button 
-                variant="secondary" 
-                onClick={() => nextInFiltered(-1)} 
-                disabled={atStart} 
-                className="h-12 px-6"
-              >
-                ← Zurück
-              </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => nextInFiltered(1)} 
-                disabled={atEnd} 
-                className="h-12 px-6"
-              >
-                Weiter →
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                onClick={goNextTarget}
-                disabled={!hasPrimaryJump}
-                title={
-                  filterMode === "flagged"
-                    ? "Zur nächsten markierten Frage springen (U)"
-                    : filterMode === "wrong"
-                    ? "Zur nächsten falschen Frage springen (U)"
-                    : "Zur nächsten offenen Frage springen (U)"
-                }
-                className="h-12 px-6"
-              >
-                {primaryJumpLabel}
-              </Button>
-
-              {mode === "exam" ? (
-                <Button 
-                  variant="destructive" 
-                  onClick={finish} 
-                  disabled={submitting}
-                  className="h-12 px-8 text-base font-semibold"
-                >
-                  Beenden & Auswerten
-                </Button>
-              ) : (
-                <Button 
-                  variant="secondary" 
-                  onClick={endPractice}
-                  className="h-12 px-6"
-                >
-                  Session beenden
-                </Button>
-              )}
-            </div>
-          </div>
         </div>
         </div>
 
