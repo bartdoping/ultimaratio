@@ -37,44 +37,27 @@ async function toggleDeckSRAction(formData: FormData) {
 
   const deckId = String(formData.get("deckId") || "")
   const enable = String(formData.get("enable") || "") === "1"
+  if (!deckId) redirect("/dashboard")
 
   // Ownership check
   const deck = await prisma.deck.findUnique({ where: { id: deckId }, select: { userId: true } })
   if (!deck || deck.userId !== me.id) redirect("/dashboard")
 
-  // --- SR-Tabellen robust EINZELN anlegen (ein Statement pro executeRawUnsafe!) ---
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SRUserSetting" (
-      "userId"           text PRIMARY KEY REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      "srEnabled"        boolean NOT NULL DEFAULT true,
-      "dailyNewLimit"    integer NOT NULL DEFAULT 20,
-      "maxReviewsPerDay" integer NOT NULL DEFAULT 200,
-      "easeFactorStart"  double precision NOT NULL DEFAULT 2.5,
-      "intervalMinDays"  integer NOT NULL DEFAULT 1,
-      "lapsePenalty"     double precision NOT NULL DEFAULT 0.5,
-      "lastGlobalRunAt"  timestamptz
-    );
-  `)
-  await prisma.$executeRawUnsafe(`
-    CREATE TABLE IF NOT EXISTS "SRDeckSetting" (
-      "deckId"    text PRIMARY KEY REFERENCES "Deck"("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      "srEnabled" boolean NOT NULL DEFAULT false
-    );
-  `)
-  await prisma.$executeRawUnsafe(`
-    CREATE INDEX IF NOT EXISTS "SRDeckSetting_deckId_idx" ON "SRDeckSetting" ("deckId");
-  `)
-
-  // Toggle per Upsert
-  await prisma.$executeRawUnsafe(
-    `
-    INSERT INTO "SRDeckSetting"("deckId","srEnabled")
-    VALUES ($1, $2)
-    ON CONFLICT ("deckId") DO UPDATE SET "srEnabled" = EXCLUDED."srEnabled"
-    `,
-    deckId,
-    enable
-  )
+  try {
+    await prisma.sRDeckSetting.upsert({
+      where: { deckId },
+      update: { srEnabled: enable },
+      create: { deckId, srEnabled: enable },
+      select: { deckId: true },
+    })
+  } catch (e: any) {
+    // Wenn SR-Tabellen noch nicht migriert sind, zu den SR-Einstellungen leiten
+    if (e?.code === "P2021") {
+      redirect("/sr/settings")
+    }
+    console.error("toggleDeckSRAction failed:", e)
+    redirect("/dashboard")
+  }
 
   redirect("/dashboard")
 }
