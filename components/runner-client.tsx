@@ -1095,7 +1095,7 @@ const aiContext = useMemo(() => {
 
         {/* Navigation unten (unter Fragenkarte + Fragenliste, volle Breite wie bisher) */}
         <div className="max-w-4xl mx-auto w-full">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg">
+          <div className="w-full flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-muted/30 rounded-lg border">
             <div className="flex items-center gap-3">
               <Button 
                 variant="secondary" 
