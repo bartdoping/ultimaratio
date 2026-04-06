@@ -94,12 +94,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Providers>
           <ScreenshotProtection>
             <div className="min-h-dvh flex flex-col">
-              {/* Header immer zentriert mit identischem L/R-Padding */}
-              <header className="w-full">
-                <div className="mx-auto w-full max-w-7xl px-4 md:px-6 lg:px-8">
-                  <SiteHeader />
-                </div>
-              </header>
+              <SiteHeader />
 
               {/* Main-Content zentriert, gleiches Padding links/rechts */}
               <main className="flex-1 w-full">
