@@ -6,6 +6,7 @@ import prisma from "@/lib/db"
 import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
 import { showFreeTrialExamPromo } from "@/lib/exam-access"
 import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
+import { TutorialShowcase } from "@/components/home/tutorial-showcase"
 
 export const dynamic = "force-dynamic"
 
@@ -164,20 +165,9 @@ export default async function Home() {
 
       {/* How it works */}
       <section className="mx-auto mt-12 max-w-5xl rounded-xl border bg-card px-6 py-8">
-        <h2 className="text-center text-xl font-semibold">So funktioniert’s</h2>
-        <ol className="mx-auto mt-6 grid max-w-4xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <Step n={1} title="Prüfung wählen">
-            Wähle deine gekaufte Prüfung und starte einen Versuch – echt oder zum Üben.
-          </Step>
-          <Step n={2} title="Antworten & Auswertung">
-            Beantworte die Fragen, erhalte deine Auswertung, markiere & sichere in Decks.
-          </Step>
-          <Step n={3} title="Nachhaltig wiederholen">
-            Aktiviere Spaced Repetition für Decks und trainiere täglich fällige Karten.
-          </Step>
-        </ol>
+        <TutorialShowcase />
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Button asChild>
             <Link href="/exams">Prüfungen ansehen</Link>
           </Button>
