@@ -17,6 +17,7 @@ export function SiteHeader() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showPricingLink, setShowPricingLink] = useState(!session)
   const menuRef = useRef<HTMLDivElement | null>(null)
   const closeTimer = useRef<number | null>(null)
 
@@ -40,6 +41,27 @@ export function SiteHeader() {
     if (menuOpen) document.addEventListener("mousedown", onDocClick)
     return () => document.removeEventListener("mousedown", onDocClick)
   }, [menuOpen])
+
+  useEffect(() => {
+    if (!session?.user?.email) {
+      setShowPricingLink(true)
+      return
+    }
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch("/api/stripe/subscription/status", { credentials: "include" })
+        const data = await res.json().catch(() => null)
+        const isPro = !!data?.subscription?.isPro
+        if (!cancelled) setShowPricingLink(!isPro)
+      } catch {
+        if (!cancelled) setShowPricingLink(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [session?.user?.email])
 
   const navLink = (href: string, label: string) => (
     <Link
@@ -70,6 +92,14 @@ export function SiteHeader() {
           <nav className="hidden md:flex items-center gap-1 text-sm">
             {navLink("/exams", "Prüfungen")}
             {navLink("/dashboard", "Mein Bereich")}
+            {showPricingLink && (
+              <Link
+                href="/#preise"
+                className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Preise
+              </Link>
+            )}
             {isAdmin && navLink("/admin", "Admin")}
             <a
               href="https://www.ultima-rat.io/"
@@ -211,6 +241,15 @@ export function SiteHeader() {
             >
               Mein Bereich
             </Link>
+            {showPricingLink && (
+              <Link
+                href="/#preise"
+                className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Preise
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 href="/admin"

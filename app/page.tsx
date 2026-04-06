@@ -7,6 +7,8 @@ import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-
 import { showFreeTrialExamPromo } from "@/lib/exam-access"
 import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
 import { TutorialShowcase } from "@/components/home/tutorial-showcase"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 
 export const dynamic = "force-dynamic"
 
@@ -19,6 +21,7 @@ export default async function Home() {
     : ({ isPublished: true } as const)
 
   let showTrialOnHome = true
+  let showPricingOnHome = !loggedIn
   if (session?.user?.email) {
     const me = await prisma.user.findUnique({
       where: { email: session.user.email },
@@ -26,6 +29,7 @@ export default async function Home() {
     })
     if (me) {
       showTrialOnHome = showFreeTrialExamPromo(me.role, me.subscriptionStatus)
+      showPricingOnHome = me.role !== "admin" && me.subscriptionStatus !== "pro"
     }
   }
 
@@ -167,21 +171,85 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto mt-10 max-w-5xl rounded-xl border bg-gradient-to-r from-primary/5 to-secondary/10 px-6 py-8 text-center">
-        <h3 className="text-lg font-semibold">Bereit, klüger zu lernen?</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Starte noch heute – sichere Fragen, wiederhole gezielt und behalte den Überblick.
-        </p>
-        <div className="mt-4 flex justify-center gap-3">
-          <Button asChild>
-            <Link href="/exams">Los geht’s</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href={loggedIn ? "/decks" : "/login?next=/decks"}>Eigene Decks</Link>
-          </Button>
-        </div>
-      </section>
+      {/* Preismodell (nur Gäste & Free) */}
+      {showPricingOnHome && (
+        <section
+          id="preise"
+          className="mx-auto mt-10 max-w-5xl rounded-xl border bg-gradient-to-r from-primary/5 to-secondary/10 px-6 py-8"
+        >
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-semibold">Preismodell – transparent & flexibel</h3>
+            <p className="mx-auto max-w-3xl text-sm text-muted-foreground">
+              Starte kostenlos mit dem Probedeck, kaufe einzelne Prüfungen per Einmalzahlung – oder nutze mit Pro die
+              gesamte Plattform.
+            </p>
+          </div>
+
+          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">Kostenlos</CardTitle>
+                  <Badge variant="outline">Start</Badge>
+                </div>
+                <CardDescription>Probedeck zum Testen</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-3">
+                <ul className="space-y-1">
+                  <li>– Ein kostenloses Probedeck, vom Admin gepflegt</li>
+                  <li>– Ideal zum Kennenlernen der Oberfläche</li>
+                  <li>– Keine Pro-Features (Decks, SR, …)</li>
+                </ul>
+                <Button asChild className="w-full">
+                  <Link href="/exams">Prüfungen ansehen</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary/30">
+              <CardHeader className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">Einzelkauf</CardTitle>
+                  <Badge className="bg-primary text-primary-foreground">Einmalzahlung</Badge>
+                </div>
+                <CardDescription>Nur die Prüfung, die du brauchst</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-3">
+                <ul className="space-y-1">
+                  <li>– Einzelne Prüfungen per Stripe kaufen</li>
+                  <li>– Zugriff bleibt dauerhaft erhalten</li>
+                  <li>– Auch nach Pro-Kündigung weiterhin verfügbar</li>
+                </ul>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/exams">Preise in den Prüfungsdetails</Link>
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="space-y-1">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">Pro</CardTitle>
+                  <Badge variant="secondary">Alles freischalten</Badge>
+                </div>
+                <CardDescription>Maximaler Funktionsumfang</CardDescription>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-3">
+                <ul className="space-y-1">
+                  <li>– Zugriff auf alle Prüfungen</li>
+                  <li>– Eigene Decks + Spaced Repetition</li>
+                  <li>– Voller Lernworkflow (Üben, Listen, …)</li>
+                </ul>
+                <Button asChild className="w-full">
+                  <Link href={loggedIn ? "/subscription" : "/login?next=/subscription"}>
+                    {loggedIn ? "Pro freischalten" : "Einloggen & Pro freischalten"}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
     </main>
   )
 }
@@ -204,19 +272,5 @@ function Feature({
         <div className="font-medium">{title}</div>
       </div>
     </div>
-  )
-}
-
-function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
-  return (
-    <li className="rounded-lg border bg-background p-4">
-      <div className="flex items-center gap-3">
-        <div className="grid h-7 w-7 place-items-center rounded-full border text-sm font-semibold">
-          {n}
-        </div>
-        <div className="font-medium">{title}</div>
-      </div>
-      <p className="mt-2 text-sm text-muted-foreground">{children}</p>
-    </li>
   )
 }
