@@ -55,7 +55,7 @@ export function AnswerOptions({
     <RadioGroup 
       value={selectedOptionId || ""} 
       onValueChange={onSelect}
-      className="space-y-4"
+      className="rounded-lg border overflow-hidden divide-y"
     >
       {options.map((option) => {
         const isSelected = selectedOptionId === option.id
@@ -65,15 +65,15 @@ export function AnswerOptions({
         return (
           <div 
             key={option.id} 
-            className={`flex items-start space-x-4 p-4 rounded-lg border-2 transition-all duration-200 min-h-[72px] ${
-              isSelected 
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/20 shadow-sm' 
-                : 'border-border hover:bg-muted/70 hover:shadow-sm'
-            } ${isStrikethrough ? 'opacity-60' : ''}`}
+            className={`flex items-start gap-3 px-3 py-2 transition-colors ${
+              isSelected
+                ? "bg-blue-50 dark:bg-blue-950/20"
+                : "bg-background hover:bg-muted/50"
+            } ${isStrikethrough ? "opacity-60" : ""}`}
           >
             {/* Radio Button */}
             <div 
-              className="mt-1 cursor-pointer scale-125"
+              className="mt-0.5 cursor-pointer scale-110"
               onClick={(e) => handleRadioClick(option.id, e)}
             >
               <RadioGroupItem 
@@ -95,13 +95,13 @@ export function AnswerOptions({
                 handleOptionClick(option.id)
               }}
             >
-              <div className="space-y-2">
-                <div className="flex items-center gap-3">
+              <div className="space-y-1.5">
+                <div className="flex items-start gap-3">
                   <span className={isStrikethrough ? 'line-through' : ''}>
                     {option.text}
                   </span>
                   {canShowFeedback && (
-                    <span className={`text-base font-semibold px-2 py-1 rounded-md ${
+                    <span className={`text-base font-semibold px-2 py-0.5 rounded-md whitespace-nowrap ${
                       option.isCorrect 
                         ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30' 
                         : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30'
@@ -113,7 +113,7 @@ export function AnswerOptions({
                 
                 {/* Erklärung anzeigen wenn Feedback aktiv und Option ausgewählt */}
                 {canShowFeedback && option.explanation && (
-                  <div className="text-sm text-muted-foreground mt-3 p-3 bg-muted/30 rounded-md border-l-4 border-blue-500">
+                  <div className="text-sm text-muted-foreground mt-2 p-2 bg-muted/30 rounded-md border-l-4 border-blue-500">
                     {option.explanation}
                   </div>
                 )}
