@@ -67,32 +67,22 @@ export default async function Home() {
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
             <Button asChild size="lg">
-              <Link href="/exams">Jetzt loslegen</Link>
+              <Link href="/exams">Prüfungen</Link>
             </Button>
 
             {!loggedIn ? (
               <>
                 <Button asChild size="lg" variant="secondary">
-                  <Link href="/register">Kostenlos registrieren</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/login?next=/decks">Eigene Decks</Link>
+                  <Link href="/register">Registrieren</Link>
                 </Button>
               </>
             ) : (
               <>
                 <Button asChild size="lg" variant="secondary">
-                  <Link href="/dashboard">Weiter zum Dashboard</Link>
-                </Button>
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/decks">Eigene Decks</Link>
+                  <Link href="/dashboard">Dashboard</Link>
                 </Button>
               </>
             )}
-          </div>
-
-          <div className="mt-5 text-xs text-muted-foreground">
-            Sicher bezahlen mit Stripe · Kein Abo · DSGVO-konform
           </div>
         </div>
       </section>
@@ -115,47 +105,41 @@ export default async function Home() {
 
       {/* Features */}
       <section className="mx-auto mt-10 max-w-5xl px-2 md:px-0">
-        <h2 className="text-center text-xl font-semibold">Warum ultima-rat.io?</h2>
+        <h2 className="text-center text-xl font-semibold">Warum fragenkreuzen.de?</h2>
 
         <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           <Feature
             title="Prüfungs- & Übungsmodus"
-            desc="Realistischer Modus mit Timer und Auswertung oder entspanntes Üben mit optionalem Sofort-Feedback."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M4 6h16M4 12h10M4 18h7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
           />
           <Feature
             title="Fallvignetten & Bilder"
-            desc="Mehrteilige Fälle und Bildfragen – alles übersichtlich mit Lightbox."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M3 7h18v10H3zM8 14l2-2 2 2 3-3 3 3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
           />
           <Feature
             title="Laborwerte-Suche"
-            desc="Laborwerte jederzeit per Shortcut (L) einblendbar – schnell & kontextbezogen."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M9 3v6l-4 8a6 6 0 1014 0l-4-8V3" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
           />
           <Feature
             title="Eigene & automatische Decks"
-            desc="Lege Themen-Decks an oder nutze Auto-Decks für markierte & falsch beantwortete Fragen."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M4 6h16v12H4zM8 10h8M8 14h6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
           />
           <Feature
             title="Spaced Repetition"
-            desc="Deine Decks mit Karteisystem trainieren – global oder deck-spezifisch steuerbar."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M4 7h10l2 2h4v8H4z" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
           />
           <Feature
             title="Auswertung & Verlauf"
-            desc="Klares Feedback mit Prozenten, Bestehen, Historie und Ziel-Listen (offen, markiert, falsch)."
             icon={
               <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden><path d="M4 19h16M7 16V8m5 8V5m5 11v-6" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round"/></svg>
             }
@@ -206,20 +190,19 @@ export default async function Home() {
 
 function Feature({
   title,
-  desc,
   icon,
 }: {
   title: string
-  desc: string
   icon: React.ReactNode
 }) {
   return (
     <div className="rounded-lg border bg-card p-4">
-      <div className="mb-2 inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background text-muted-foreground">
-        {icon}
+      <div className="flex items-center gap-3">
+        <div className="inline-flex h-8 w-8 items-center justify-center rounded-md border bg-background text-muted-foreground">
+          {icon}
+        </div>
+        <div className="font-medium">{title}</div>
       </div>
-      <div className="font-medium">{title}</div>
-      <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
     </div>
   )
 }
