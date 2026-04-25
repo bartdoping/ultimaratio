@@ -845,7 +845,13 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             <div className="space-y-2">
               <h3 className="text-sm font-medium">6. Tag-Management:</h3>
               <QuestionEditorWrapper 
-                question={editingValid}
+                question={{
+                  id: editingValid.id,
+                  stem: editingValid.stem,
+                  explanation: editingValid.explanation ?? null,
+                  tip: editingValid.tip ?? null,
+                  hasImmediateFeedbackAllowed: editingValid.hasImmediateFeedbackAllowed,
+                }}
                 examId={id}
               />
             </div>
