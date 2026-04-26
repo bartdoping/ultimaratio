@@ -819,7 +819,8 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             <div className="space-y-2">
               <h3 className="text-sm font-medium">4. Antwortoptionen:</h3>
               <div className="space-y-2">
-                {editingValid.options.map((o) => (
+                {editingValid.options.map(
+                  (o: { id: string; text: string; isCorrect: boolean; explanation: string | null }) => (
                   <div key={o.id} className="rounded border p-3 space-y-2">
                     <div className="flex items-center justify-between gap-2">
                       <div className={`flex-1 ${o.isCorrect ? "text-green-600 font-medium" : ""}`}>
