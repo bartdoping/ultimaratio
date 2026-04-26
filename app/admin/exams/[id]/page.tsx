@@ -15,6 +15,7 @@ import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
 import JsonUploadSimple from "@/components/admin/json-upload-simple"
 import JsonUploadForm from "@/components/admin/json-upload-form"
+import ConfirmSubmitButton from "@/components/admin/confirm-submit-button"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 
@@ -638,15 +639,25 @@ export default async function EditExamPage({ params, searchParams }: Props) {
   })
 
   // Falls eine Frage explizit editiert werden soll
-  const editing = edit
-    ? await prisma.question.findUnique({
+  let editing: any = null
+  let editingLoadError: string | null = null
+  if (edit) {
+    try {
+      editing = await prisma.question.findUnique({
         where: { id: edit },
         include: {
           options: { orderBy: { order: "asc" } },
           media: { include: { media: true }, orderBy: { order: "asc" } },
         },
       })
-    : null
+    } catch (e) {
+      // Wichtig: Ein kaputter Datensatz (oder Relation) darf die ganze Seite nicht killen.
+      console.error("Admin exam editor: failed to load question for edit", { examId: id, edit }, e)
+      editingLoadError = "Diese Frage konnte nicht geladen werden (Serverfehler)."
+      editing = null
+    }
+  }
+
   const editingValid = editing && editing.examId === id ? editing : null
 
   return (
@@ -688,6 +699,19 @@ export default async function EditExamPage({ params, searchParams }: Props) {
         </section>
 
         {/* Editor der ausgewählten Frage (optional) */}
+        {edit && !editingValid && (
+          <section className="rounded border p-4 space-y-2" id="edit-question">
+            <div className="font-semibold">Frage bearbeiten</div>
+            <div className="text-sm text-red-600">
+              {editingLoadError ?? "Diese Frage existiert nicht (mehr) oder gehört nicht zu dieser Prüfung."}
+            </div>
+            <div>
+              <Link href={`/admin/exams/${id}`} className="text-sm underline text-muted-foreground">
+                Schließen
+              </Link>
+            </div>
+          </section>
+        )}
         {editingValid && (
           <section className="rounded border p-4 space-y-4" id="edit-question">
             <div className="flex items-start justify-between gap-3">
@@ -731,17 +755,13 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                       <form action={deleteCaseAction} className="inline">
                         <input type="hidden" name="examId" value={id} />
                         <input type="hidden" name="caseId" value={editingValid.caseId} />
-                        <button 
-                          type="submit" 
+                        <ConfirmSubmitButton
+                          type="submit"
                           className="text-red-600 hover:text-red-800 text-xs underline"
-                          onClick={(e) => {
-                            if (!confirm('Sind Sie sicher, dass Sie diesen Fall löschen möchten? Dies kann nicht rückgängig gemacht werden.')) {
-                              e.preventDefault()
-                            }
-                          }}
+                          confirmText="Sind Sie sicher, dass Sie diesen Fall löschen möchten? Dies kann nicht rückgängig gemacht werden."
                         >
                           Fall löschen (nur wenn keine anderen Fragen zugeordnet)
-                        </button>
+                        </ConfirmSubmitButton>
                       </form>
                     </div>
                   </details>
