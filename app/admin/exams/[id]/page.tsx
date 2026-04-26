@@ -804,7 +804,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               <div className="mt-3">
                 <h4 className="text-xs font-medium text-muted-foreground mb-2">Bilder für Oberarztkommentar:</h4>
                 <ImageUpload
-                  existingImages={editingValid.media.map(m => ({
+                  existingImages={editingValid.media.map((m: { media: { id: string; url: string; alt: string | null } }) => ({
                     id: m.media.id,
                     url: m.media.url,
                     alt: m.media.alt
