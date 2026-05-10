@@ -732,7 +732,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* 1. Fall-Zuordnung */}
-            <div className="space-y-2">
+            <div className="space-y-2" key={`case-${editingValid.id}`}>
               <h3 className="text-sm font-medium">1. Fall:</h3>
               <form action={assignCaseToQuestionAction} className="flex items-center gap-2">
                 <input type="hidden" name="examId" value={id} />

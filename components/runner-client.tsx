@@ -340,7 +340,8 @@ const aiContext = useMemo(() => {
   return {
     questionId: q.id,
     examTitle: q.examId ? undefined : undefined, // optional: falls du einen Titel in den Props hast
-    caseTitle: q.caseTitle ?? null,
+    // caseTitle wird bewusst nicht weitergegeben/angezeigt (Spoiler-Gefahr)
+    caseTitle: null,
     caseVignette: q.caseVignette ?? null,
     stem: q.stem,
     options: opts,
@@ -356,7 +357,8 @@ const aiContext = useMemo(() => {
       const key = qu.caseId ?? null
       if (!byId.has(key)) {
         const order = qu.caseOrder ?? 0
-        const label = key ? (qu.caseTitle || "Fall") : "Einzelfragen"
+        // Keine Fall-Titel anzeigen (Spoiler-Gefahr)
+        const label = key ? "Fall" : "Einzelfragen"
         byId.set(key, res.length)
         res.push({ id: key, label, indices: [i], order })
       } else {
@@ -985,7 +987,8 @@ const aiContext = useMemo(() => {
             <div className="rounded-lg border bg-card shadow-sm p-8 space-y-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
               {(q.caseTitle || q.caseVignette) && (
                 <div className="rounded-lg border bg-secondary/40 p-5 space-y-2">
-                  <div className="font-semibold text-lg">{q.caseTitle || "Fall"}</div>
+                  {/* Keine Fall-Titel anzeigen (Spoiler-Gefahr) */}
+                  <div className="font-semibold text-lg">Fall</div>
                   {q.caseVignette && <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{q.caseVignette}</div>}
                 </div>
               )}
