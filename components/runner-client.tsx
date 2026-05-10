@@ -115,7 +115,9 @@ export function RunnerClient(props: Props) {
   useEffect(() => {
     const fetchSubscriptionStatus = async () => {
       try {
-        const response = await fetch("/api/stripe/subscription/status")
+        const response = await fetch("/api/subscription/status", {
+          credentials: "include",
+        })
         const data = await response.json()
         if (data.ok) {
           setSubscriptionStatus(data.subscription)

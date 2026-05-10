@@ -34,7 +34,7 @@ export function SubscriptionManagement() {
 
   const fetchSubscriptionStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/stripe/subscription/status", {
+      const response = await fetch("/api/subscription/status", {
         credentials: "include",
       })
       const data = await response.json()

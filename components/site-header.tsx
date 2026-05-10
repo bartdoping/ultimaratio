@@ -50,7 +50,7 @@ export function SiteHeader() {
     let cancelled = false
     ;(async () => {
       try {
-        const res = await fetch("/api/stripe/subscription/status", { credentials: "include" })
+        const res = await fetch("/api/subscription/status", { credentials: "include" })
         const data = await res.json().catch(() => null)
         const isPro = !!data?.subscription?.isPro
         if (!cancelled) setShowPricingLink(!isPro)
