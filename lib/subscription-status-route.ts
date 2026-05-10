@@ -74,7 +74,72 @@ export async function subscriptionStatusGET() {
     }
 
     const now = new Date()
-    const isPro = user.subscriptionStatus === "pro"
+    const subId = user.subscription?.stripeSubscriptionId
+    const hasRealStripeSub = typeof subId === "string" && subId.startsWith("sub_")
+    const hasPeriodEnd = !!user.subscription?.currentPeriodEnd
+    const periodEndMs = user.subscription?.currentPeriodEnd
+      ? new Date(user.subscription.currentPeriodEnd).getTime()
+      : null
+    const isExpiredByPeriod = typeof periodEndMs === "number" ? periodEndMs <= now.getTime() : false
+
+    // Wenn in der DB noch "pro" steht, aber die Periode abgelaufen ist, versuchen wir zuerst einen Stripe-Sync
+    // (damit wir nicht fälschlich downgraden, falls die DB nur veraltet ist).
+    if (user.subscriptionStatus === "pro" && hasRealStripeSub && hasPeriodEnd && isExpiredByPeriod) {
+      await syncUserSubscriptionFromStripe(user.id)
+      user = await prisma.user.findUnique({
+        where: { email: session.user.email },
+        select: {
+          id: true,
+          subscriptionStatus: true,
+          subscription: {
+            select: {
+              stripeSubscriptionId: true,
+              status: true,
+              currentPeriodStart: true,
+              currentPeriodEnd: true,
+              cancelAtPeriodEnd: true,
+            },
+          },
+        },
+      })
+      if (!user) {
+        return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 })
+      }
+    }
+
+    const effectivePeriodEndMs = user.subscription?.currentPeriodEnd
+      ? new Date(user.subscription.currentPeriodEnd).getTime()
+      : null
+    const effectiveExpired =
+      typeof effectivePeriodEndMs === "number" ? effectivePeriodEndMs <= now.getTime() : false
+
+    // Letzte Absicherung: wenn Period-Ende abgelaufen ist, behandeln wir Pro als beendet.
+    // Für "simulated_" gibt es keinen Stripe-Sync, daher gilt Period-Ende als Quelle der Wahrheit.
+    const effectiveIsPro = user.subscriptionStatus === "pro" && !effectiveExpired
+
+    // Optionaler Self-Heal: DB korrigieren, wenn Period-Ende abgelaufen ist aber Status noch "pro" ist.
+    if (user.subscriptionStatus === "pro" && effectiveExpired) {
+      try {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { subscriptionStatus: "free" },
+        })
+        await prisma.subscription.update({
+          where: { userId: user.id },
+          data: { status: "free" },
+        })
+        user = {
+          ...user,
+          subscriptionStatus: "free",
+          subscription: user.subscription ? { ...user.subscription, status: "free" } : user.subscription,
+        }
+      } catch (e) {
+        // Falls kein subscription-row existiert oder Update fehlschlägt, liefern wir dennoch effectiveIsPro=false aus.
+        console.warn("[subscriptionStatusGET] self-heal failed:", e)
+      }
+    }
+
+    const isPro = effectiveIsPro
     const questionsRemaining = isPro ? -1 : 0
     const dailyQuestionsUsed = 0
 
