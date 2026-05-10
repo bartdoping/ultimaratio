@@ -10,6 +10,7 @@ export type FreeTrialExamPayload = {
   title: string
   description: string
   questionCount: number
+  disableStartPopup?: boolean
 }
 
 type Props = {
@@ -48,7 +49,7 @@ export function FreeTrialExamPromo({ exam, loggedIn, className }: Props) {
       <CardContent className="flex flex-wrap gap-2">
         {loggedIn ? (
           <>
-            <StartExamButton examId={exam.id} />
+            <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
             <Button asChild variant="outline">
               <Link href={nextPath}>Details</Link>
             </Button>

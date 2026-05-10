@@ -27,6 +27,7 @@ export default async function ExamPage({ params }: PageProps) {
       description: true,
       isPublished: true,
       isFreeTrialDemo: true,
+      disableStartPopup: true,
       priceCents: true,
       passPercent: true,
       allowImmediateFeedback: true,
@@ -197,7 +198,7 @@ export default async function ExamPage({ params }: PageProps) {
           <div className="space-y-2">
             {/* ⬇️ Start braucht die examId */}
             <div className="flex flex-wrap gap-2">
-              <StartExamButton examId={exam.id} />
+              <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
               {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Aktivierung */}
               <Link
                 href={`/practice/${exam.id}`}

@@ -76,6 +76,8 @@ model Exam {
   isPublished            Boolean  @default(false)
   /// Wenn false: Prüfung erscheint nicht auf der öffentlichen Übersicht /exams (Inhalte unverändert).
   visibleOnExamsPage     Boolean  @default(true)
+  /// Wenn true: Start-Popup (Konfiguration) wird übersprungen, Start öffnet direkt alle Fragen.
+  disableStartPopup      Boolean  @default(false)
   /// Genau eine Prüfung als kostenloses Probedeck: nur für Nicht-Pro sichtbar, ohne Abo startbar.
   isFreeTrialDemo        Boolean  @default(false)
   passPercent            Int      @default(60)

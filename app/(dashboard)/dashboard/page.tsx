@@ -99,6 +99,7 @@ export default async function DashboardPage() {
             title: true,
             description: true,
             _count: { select: { questions: true } },
+            disableStartPopup: true,
           },
         })
       : null
@@ -251,6 +252,7 @@ export default async function DashboardPage() {
               title: freeTrialExamDash.title,
               description: freeTrialExamDash.description,
               questionCount: freeTrialExamDash._count.questions,
+              disableStartPopup: freeTrialExamDash.disableStartPopup,
             }}
             loggedIn
           />

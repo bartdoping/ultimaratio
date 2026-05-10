@@ -61,6 +61,22 @@ async function updateExamAction(formData: FormData) {
   redirect(`/admin/exams/${id}`)
 }
 
+async function setDisableStartPopupAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const id = String(formData.get("id") || "")
+  const disableStartPopup = formData.get("disableStartPopup") === "on"
+  if (!id) redirect("/admin/exams")
+  await prisma.exam.update({
+    where: { id },
+    data: { disableStartPopup },
+  })
+  revalidatePath("/exams")
+  revalidatePath("/dashboard")
+  revalidatePath(`/admin/exams/${id}`)
+  redirect(`/admin/exams/${id}`)
+}
+
 /** Genau eine Prüfung darf gleichzeitig als kostenloses Probedeck markiert sein. */
 async function setFreeTrialDemoExamAction(formData: FormData) {
   "use server"
@@ -904,6 +920,26 @@ export default async function EditExamPage({ params, searchParams }: Props) {
 
       {/* Rechte Sidebar: Bulk Import */}
       <aside className="space-y-4">
+        <form action={setDisableStartPopupAction} className="rounded border p-3 space-y-3">
+          <h3 className="font-medium">Start-Popup</h3>
+          <p className="text-xs text-muted-foreground">
+            Wenn deaktiviert, startet die Prüfung direkt mit allen Fragen (ohne Konfigurations-Popup).
+          </p>
+          <label className="flex items-start gap-2 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              name="disableStartPopup"
+              defaultChecked={exam.disableStartPopup}
+              className="mt-1"
+            />
+            <span>Start-Popup für diese Prüfung deaktivieren</span>
+          </label>
+          <input type="hidden" name="id" value={exam.id} />
+          <Button type="submit" variant="secondary" size="sm" className="w-full">
+            Einstellung speichern
+          </Button>
+        </form>
+
         <form action={setFreeTrialDemoExamAction} className="rounded border border-primary/30 bg-primary/5 p-3 space-y-3">
           <h3 className="font-medium">Kostenloses Probedeck</h3>
           <p className="text-xs text-muted-foreground">

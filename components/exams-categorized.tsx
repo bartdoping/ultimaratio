@@ -17,6 +17,7 @@ interface Exam {
   title: string
   description: string
   priceCents: number | null
+  disableStartPopup?: boolean
   _count: {
     questions: number
   }
@@ -200,7 +201,7 @@ export default function ExamsCategorized({
                     )}
 
                     {canUseExam && (
-                      <StartExamButton examId={exam.id} />
+                      <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
                     )}
                   </div>
 

@@ -73,8 +73,16 @@ export async function POST(req: Request) {
     }, { status: 403 })
   }
 
-  // Gibt es bereits einen offenen Versuch? -> reuse (nur wenn keine Filter angewendet werden)
-  if (tagIds.length === 0 && superTagIds.length === 0) {
+  // Gibt es bereits einen offenen Versuch? -> reuse (nur wenn wirklich "Standardstart" ohne Optionen)
+  // Wichtig: Wenn der Nutzer z.B. ein Limit oder "ohne Fallfragen" wählt, muss ein neuer Attempt erstellt werden,
+  // sonst fehlen filteredQuestionIds und der Runner nimmt alle Fragen.
+  const wantsDefaultStart =
+    tagIds.length === 0 &&
+    superTagIds.length === 0 &&
+    includeCases === true &&
+    !(typeof limit === "number" && limit > 0)
+
+  if (wantsDefaultStart) {
     const existing = await prisma.attempt.findFirst({
       where: { userId: me.id, examId, finishedAt: null },
       select: { id: true },

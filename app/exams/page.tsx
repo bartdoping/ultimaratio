@@ -33,6 +33,7 @@ export default async function ExamsListPage() {
       title: true,
       description: true,
       priceCents: true,
+      disableStartPopup: true,
       category: {
         select: {
           id: true,
@@ -68,6 +69,7 @@ export default async function ExamsListPage() {
           title: true,
           description: true,
           priceCents: true,
+          disableStartPopup: true,
           _count: {
             select: {
               questions: true
@@ -130,6 +132,7 @@ export default async function ExamsListPage() {
           title: true,
           description: true,
           _count: { select: { questions: true } },
+          disableStartPopup: true,
         },
       })
     : null
@@ -144,6 +147,7 @@ export default async function ExamsListPage() {
         title: freeTrialExam.title,
         description: freeTrialExam.description,
         questionCount: freeTrialExam._count.questions,
+        disableStartPopup: freeTrialExam.disableStartPopup,
       }
     : null
 
