@@ -72,6 +72,41 @@ async function updateExamPriceAction(formData: FormData) {
   redirect("/admin/exams")
 }
 
+/** Veröffentlicht/entveröffentlicht eine Prüfung (steuert den Live-Zustand). */
+async function setExamPublishedAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  if (!examId) return
+  const published = String(formData.get("published") || "") === "1"
+  await prisma.exam.update({
+    where: { id: examId },
+    data: { isPublished: published },
+  })
+  revalidatePath("/exams")
+  revalidatePath("/admin/exams")
+  redirect("/admin/exams")
+}
+
+/** Ändert den Titel/Name einer Prüfung. */
+async function renameExamAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  const title = String(formData.get("title") || "").trim()
+  if (!examId) return
+  if (!title) {
+    redirect("/admin/exams")
+  }
+  await prisma.exam.update({
+    where: { id: examId },
+    data: { title },
+  })
+  revalidatePath("/exams")
+  revalidatePath("/admin/exams")
+  redirect("/admin/exams")
+}
+
 export default async function AdminExamsPage() {
   await requireAdmin()
   
@@ -145,6 +180,8 @@ export default async function AdminExamsPage() {
         deleteExamAction={deleteExamAction}
         setExamVisibleOnExamsPageAction={setExamVisibleOnExamsPageAction}
         updateExamPriceAction={updateExamPriceAction}
+        setExamPublishedAction={setExamPublishedAction}
+        renameExamAction={renameExamAction}
         examsPageVisibilityColumnReady={examsPageVisibilityColumnReady}
       />
     </div>

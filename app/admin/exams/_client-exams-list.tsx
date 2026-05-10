@@ -35,6 +35,8 @@ interface AdminExamsListProps {
   deleteExamAction: (formData: FormData) => Promise<void>
   setExamVisibleOnExamsPageAction: (formData: FormData) => Promise<void>
   updateExamPriceAction: (formData: FormData) => Promise<void>
+  setExamPublishedAction: (formData: FormData) => Promise<void>
+  renameExamAction: (formData: FormData) => Promise<void>
   /** false, wenn die DB-Migration für visibleOnExamsPage noch fehlt */
   examsPageVisibilityColumnReady?: boolean
 }
@@ -45,6 +47,8 @@ export default function AdminExamsList({
   deleteExamAction,
   setExamVisibleOnExamsPageAction,
   updateExamPriceAction,
+  setExamPublishedAction,
+  renameExamAction,
   examsPageVisibilityColumnReady = true,
 }: AdminExamsListProps) {
   const handleCategoryAssigned = () => {
@@ -79,6 +83,33 @@ export default function AdminExamsList({
             </div>
           </div>
           <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+            <form action={setExamPublishedAction}>
+              <input type="hidden" name="examId" value={e.id} />
+              <input type="hidden" name="published" value={e.isPublished ? "0" : "1"} />
+              <Button type="submit" variant={e.isPublished ? "secondary" : "default"} size="sm">
+                {e.isPublished ? "Entveröffentlichen" : "Veröffentlichen"}
+              </Button>
+            </form>
+
+            <form
+              action={renameExamAction}
+              className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-2 py-2"
+            >
+              <input type="hidden" name="examId" value={e.id} />
+              <label className="text-xs text-muted-foreground whitespace-nowrap">
+                Name ändern
+              </label>
+              <Input
+                name="title"
+                type="text"
+                defaultValue={e.title}
+                className="h-8 w-56 text-sm"
+              />
+              <Button type="submit" variant="secondary" size="sm">
+                Speichern
+              </Button>
+            </form>
+
             <form
               action={updateExamPriceAction}
               className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-2 py-2"
