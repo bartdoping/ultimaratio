@@ -7,6 +7,7 @@ import { StartExamButton } from "@/components/start-exam-button"
 import ExamsCategorized from "@/components/exams-categorized"
 import { initCategoriesTables } from "@/lib/init-categories-tables"
 import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
+import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column"
 import { showFreeTrialExamPromo } from "@/lib/exam-access"
 
 export const dynamic = "force-dynamic"
@@ -23,6 +24,8 @@ export default async function ExamsListPage() {
 
   const catalogWhere = { ...examListWhere, isFreeTrialDemo: false } as const
 
+  const disableStartPopupReady = await examDisableStartPopupColumnExists()
+
   // Alle veröffentlichten Exams mit Kategorien und Fragenanzahl (ohne Probedeck in der Liste)
   const exams = await prisma.exam.findMany({
     where: catalogWhere,
@@ -33,7 +36,7 @@ export default async function ExamsListPage() {
       title: true,
       description: true,
       priceCents: true,
-      disableStartPopup: true,
+      ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
       category: {
         select: {
           id: true,
@@ -69,7 +72,7 @@ export default async function ExamsListPage() {
           title: true,
           description: true,
           priceCents: true,
-          disableStartPopup: true,
+          ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
           _count: {
             select: {
               questions: true
@@ -132,7 +135,7 @@ export default async function ExamsListPage() {
           title: true,
           description: true,
           _count: { select: { questions: true } },
-          disableStartPopup: true,
+          ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
         },
       })
     : null
@@ -147,7 +150,7 @@ export default async function ExamsListPage() {
         title: freeTrialExam.title,
         description: freeTrialExam.description,
         questionCount: freeTrialExam._count.questions,
-        disableStartPopup: freeTrialExam.disableStartPopup,
+        disableStartPopup: disableStartPopupReady ? freeTrialExam.disableStartPopup : false,
       }
     : null
 

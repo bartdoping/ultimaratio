@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/authz"
 import { redirect, notFound } from "next/navigation"
 import { applyGlobalTagsToAllQuestions } from "@/lib/apply-global-tags"
 import { initCategoriesTables } from "@/lib/init-categories-tables"
+import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -67,6 +68,9 @@ async function setDisableStartPopupAction(formData: FormData) {
   const id = String(formData.get("id") || "")
   const disableStartPopup = formData.get("disableStartPopup") === "on"
   if (!id) redirect("/admin/exams")
+  if (!(await examDisableStartPopupColumnExists())) {
+    redirect(`/admin/exams/${id}`)
+  }
   await prisma.exam.update({
     where: { id },
     data: { disableStartPopup },
@@ -637,11 +641,23 @@ export default async function EditExamPage({ params, searchParams }: Props) {
   const { id } = await params
   const { edit } = await searchParams
 
+  const disableStartPopupReady = await examDisableStartPopupColumnExists()
+
   const exam = await prisma.exam.findUnique({
     where: { id },
-    include: { 
+    select: {
+      id: true,
+      slug: true,
+      title: true,
+      description: true,
+      passPercent: true,
+      allowImmediateFeedback: true,
+      isPublished: true,
+      isFreeTrialDemo: true,
+      categoryId: true,
+      ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
       cases: true,
-      category: true
+      category: true,
     },
   })
   if (!exam) notFound()
@@ -925,12 +941,19 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <p className="text-xs text-muted-foreground">
             Wenn deaktiviert, startet die Prüfung direkt mit allen Fragen (ohne Konfigurations-Popup).
           </p>
+          {!disableStartPopupReady && (
+            <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-100">
+              Die Datenbank-Spalte <code className="rounded bg-muted px-1">Exam.disableStartPopup</code> fehlt noch.
+              Bitte auf dem Server <code className="rounded bg-muted px-1">pnpm exec prisma migrate deploy</code> ausführen.
+            </div>
+          )}
           <label className="flex items-start gap-2 text-sm cursor-pointer">
             <input
               type="checkbox"
               name="disableStartPopup"
-              defaultChecked={exam.disableStartPopup}
+              defaultChecked={disableStartPopupReady ? !!exam.disableStartPopup : false}
               className="mt-1"
+              disabled={!disableStartPopupReady}
             />
             <span>Start-Popup für diese Prüfung deaktivieren</span>
           </label>

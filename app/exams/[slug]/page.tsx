@@ -7,6 +7,7 @@ import { ConfirmAfterReturn } from "@/components/confirm-after-return";
 import { StartExamButton } from "@/components/start-exam-button";
 import { CheckoutButton } from "@/components/checkout-button";
 import { hasExamLearningAccess, isProOrAdmin } from "@/lib/exam-access";
+import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default async function ExamPage({ params }: PageProps) {
   const { slug } = await params; // ⬅️ korrekt für Next 15
 
   const session = await getServerSession(authOptions);
+  const disableStartPopupReady = await examDisableStartPopupColumnExists();
 
   const exam = await prisma.exam.findUnique({
     where: { slug },
@@ -27,7 +29,7 @@ export default async function ExamPage({ params }: PageProps) {
       description: true,
       isPublished: true,
       isFreeTrialDemo: true,
-      disableStartPopup: true,
+      ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
       priceCents: true,
       passPercent: true,
       allowImmediateFeedback: true,
@@ -198,7 +200,7 @@ export default async function ExamPage({ params }: PageProps) {
           <div className="space-y-2">
             {/* ⬇️ Start braucht die examId */}
             <div className="flex flex-wrap gap-2">
-              <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
+              <StartExamButton examId={exam.id} disableStartPopup={disableStartPopupReady ? !!exam.disableStartPopup : false} />
               {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Aktivierung */}
               <Link
                 href={`/practice/${exam.id}`}

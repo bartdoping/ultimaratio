@@ -15,6 +15,7 @@ import { SubscriptionSuccessHandler } from "@/components/subscription-success-ha
 import { DeleteAttemptButton } from "@/components/delete-attempt-button"
 import { DashboardStats } from "@/components/dashboard-stats"
 import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
+import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column"
 import { showFreeTrialExamPromo } from "@/lib/exam-access"
 import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
 
@@ -88,6 +89,8 @@ export default async function DashboardPage() {
     ? ({ isPublished: true, visibleOnExamsPage: true } as const)
     : ({ isPublished: true } as const)
 
+  const disableStartPopupReady = await examDisableStartPopupColumnExists()
+
   const freeTrialExamRow =
     showFreeTrialExamPromo(me.role, me.subscriptionStatus)
       ? await prisma.exam.findFirst({
@@ -99,7 +102,7 @@ export default async function DashboardPage() {
             title: true,
             description: true,
             _count: { select: { questions: true } },
-            disableStartPopup: true,
+            ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
           },
         })
       : null
@@ -252,7 +255,7 @@ export default async function DashboardPage() {
               title: freeTrialExamDash.title,
               description: freeTrialExamDash.description,
               questionCount: freeTrialExamDash._count.questions,
-              disableStartPopup: freeTrialExamDash.disableStartPopup,
+              disableStartPopup: disableStartPopupReady ? freeTrialExamDash.disableStartPopup : false,
             }}
             loggedIn
           />
