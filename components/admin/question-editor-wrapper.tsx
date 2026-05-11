@@ -8,7 +8,6 @@ interface QuestionEditorWrapperProps {
     id: string
     stem: string
     explanation?: string | null
-    tip?: string | null
     hasImmediateFeedbackAllowed: boolean
   }
   examId: string

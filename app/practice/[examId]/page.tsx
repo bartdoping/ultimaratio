@@ -107,14 +107,13 @@ export default async function PracticePage({ params, searchParams }: Props) {
         select: {
           id: true,
           stem: true,
-          tip: true,
           explanation: true,
           options: {
             orderBy: { id: "asc" },
             select: { id: true, text: true, isCorrect: true, explanation: true },
           },
           media: { orderBy: { order: "asc" }, include: { media: true } },
-          case: { select: { id: true, title: true, vignette: true, order: true } },
+          case: { select: { id: true, vignette: true, order: true } },
         },
       },
     },
@@ -150,7 +149,6 @@ export default async function PracticePage({ params, searchParams }: Props) {
   const questions = qs.map((q) => ({
     id: q.id,
     stem: q.stem,
-    tip: q.tip ?? null,
     explanation: q.explanation ?? null,
     options: q.options.map((o) => ({
       id: o.id,
@@ -166,7 +164,6 @@ export default async function PracticePage({ params, searchParams }: Props) {
         order: (m as any).order ?? 0,
       })) ?? [],
     caseId: q.case?.id ?? null,
-    caseTitle: q.case?.title ?? null,
     caseVignette: q.case?.vignette ?? null,
     caseOrder: q.case?.order ?? null,
     __starred: starredSet.has(q.id),

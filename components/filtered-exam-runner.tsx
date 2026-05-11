@@ -6,7 +6,6 @@ import { RunnerClient } from "@/components/runner-client"
 type Question = {
   id: string
   stem: string
-  tip?: string | null
   explanation?: string | null
   options: Array<{
     id: string
@@ -21,7 +20,6 @@ type Question = {
     order: number
   }>
   caseId?: string | null
-  caseTitle?: string | null
   caseVignette?: string | null
   caseOrder?: number | null
 }

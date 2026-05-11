@@ -34,7 +34,6 @@ export async function GET(req: NextRequest) {
     where.OR = [
       { stem: { contains: q, mode: "insensitive" } },
       { explanation: { contains: q, mode: "insensitive" } },
-      { tip: { contains: q, mode: "insensitive" } },
     ]
   }
   if (tagIds.length > 0) {

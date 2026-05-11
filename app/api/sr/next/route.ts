@@ -87,7 +87,7 @@ export async function GET(req: Request) {
     const q = await prisma.question.findUnique({
       where: { id: questionId! },
       select: {
-        id: true, stem: true, explanation: true, tip: true,
+        id: true, stem: true, explanation: true,
         options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } }
       },
     })

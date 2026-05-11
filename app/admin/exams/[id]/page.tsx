@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import QuestionShelf from "@/components/admin/question-shelf"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
-import ImageUpload from "@/components/admin/image-upload"
 import NewQuestionForm from "@/components/admin/new-question-form"
 import JsonUploadSimple from "@/components/admin/json-upload-simple"
 import JsonUploadForm from "@/components/admin/json-upload-form"
@@ -106,7 +105,6 @@ async function addQuestionAction(formData: FormData) {
   const examId = String(formData.get("examId") || "")
   const stem = String(formData.get("stem") || "")
   const explanation = String(formData.get("explanation") || "")
-  const tip = String(formData.get("tip") || "")
   const allowImmediate = formData.get("allowImmediate") === "on"
 
   // Bildfelder (optional) direkt beim Anlegen - unterstütze mehrere Bilder
@@ -126,7 +124,6 @@ async function addQuestionAction(formData: FormData) {
       examId,
       stem,
       explanation: explanation || null,
-      tip: tip || null,
       hasImmediateFeedbackAllowed: allowImmediate,
       type: "single",
       // Reihung ans Ende:
@@ -228,11 +225,10 @@ async function updateQuestionMetaAction(formData: FormData) {
   await requireAdmin()
   const examId = String(formData.get("examId") || "")
   const qid = String(formData.get("qid") || "")
-  const tip = String(formData.get("tip") || "")
   const explanation = String(formData.get("explanation") || "")
   await prisma.question.update({
     where: { id: qid },
-    data: { tip: tip || null, explanation: explanation || null },
+    data: { explanation: explanation || null },
   })
   redirect(`/admin/exams/${examId}?edit=${qid}`)
 }
@@ -301,10 +297,9 @@ async function createCaseAction(formData: FormData) {
   "use server"
   await requireAdmin()
   const examId = String(formData.get("examId") || "")
-  const title = String(formData.get("title") || "")
   const vignette = String(formData.get("vignette") || "")
   const order = Number(formData.get("order") || 0)
-  await prisma.questionCase.create({ data: { examId, title, vignette, order } })
+  await prisma.questionCase.create({ data: { examId, vignette, order } })
   redirect(`/admin/exams/${examId}`)
 }
 
@@ -327,11 +322,10 @@ async function saveQuestionCaseAction(formData: FormData) {
   const examId = String(formData.get("examId") || "")
   const qid = String(formData.get("qid") || "")
   const caseId = String(formData.get("caseId") || "")
-  const title = String(formData.get("title") || "").trim()
   const vignette = String(formData.get("vignette") || "").trim()
   const order = Number(formData.get("order") || 0)
 
-  if (!examId || !qid || !title) {
+  if (!examId || !qid) {
     redirect(`/admin/exams/${examId}?edit=${qid}`)
   }
 
@@ -339,7 +333,6 @@ async function saveQuestionCaseAction(formData: FormData) {
     await prisma.questionCase.updateMany({
       where: { id: caseId, examId },
       data: {
-        title,
         vignette: vignette || null,
         order: Number.isFinite(order) ? order : 0,
       },
@@ -348,7 +341,6 @@ async function saveQuestionCaseAction(formData: FormData) {
     const created = await prisma.questionCase.create({
       data: {
         examId,
-        title,
         vignette: vignette || null,
         order: Number.isFinite(order) ? order : 0,
       },
@@ -416,7 +408,6 @@ async function duplicateQuestionAction(formData: FormData) {
         stem: `${q.stem} (Kopie)`,
         explanation: q.explanation ?? null,
         hasImmediateFeedbackAllowed: q.hasImmediateFeedbackAllowed,
-        tip: q.tip ?? null,
         caseId: q.caseId ?? null,
         caseOrder: q.caseOrder ?? null,
         order: maxOrder + 1,
@@ -457,15 +448,14 @@ async function duplicateQuestionAction(formData: FormData) {
  * Erwartet JSON in diesem Format (Beispiel):
  * {
  *   "cases": [
- *     { "title": "Fall 1", "vignette": "…", "order": 1 }
+ *     { "vignette": "…", "order": 1 }
  *   ],
  *   "questions": [
  *     {
  *       "stem": "Fragetext …",
- *       "tip": "Kommentar…",
  *       "explanation": "Zusammenfassung…",
  *       "allowImmediate": true,
- *       "caseTitle": "Fall 1",            // optional: ordnet Frage an Fall nach Titel
+ *       "caseOrder": 1,                   // optional: ordnet Frage einem Fall nach Reihenfolge zu
  *       "images": [{ "url": "https://…", "alt": "…" }],
  *       "options": [
  *         { "text": "A", "isCorrect": true, "explanation": "…" },
@@ -498,7 +488,7 @@ async function bulkImportAction(formData: FormData) {
       return { success: false, error: "Ungültiges JSON-Format" }
     }
 
-    const cases: Array<{ title: string; vignette?: string; order?: number }> = Array.isArray(data?.cases)
+    const cases: Array<{ vignette?: string; order?: number }> = Array.isArray(data?.cases)
       ? data.cases
       : []
 
@@ -525,29 +515,28 @@ async function bulkImportAction(formData: FormData) {
     console.log(`Processing ${questionChunks.length} chunks of questions`)
 
     // Fälle zuerst außerhalb der Transaktion erstellen
-    const titleToCaseId = new Map<string, string>()
-    for (const c of cases) {
-      const title = String(c?.title || "").trim()
-      if (!title) continue
+    const orderToCaseId = new Map<number, string>()
+    for (let caseIndex = 0; caseIndex < cases.length; caseIndex++) {
+      const c = cases[caseIndex]
+      const order = Number.isFinite(c?.order) ? Number(c.order) : caseIndex + 1
       try {
         const found = await prisma.questionCase.findFirst({
-          where: { examId, title },
+          where: { examId, order },
           select: { id: true },
         })
         if (found) {
-          titleToCaseId.set(title, found.id)
+          orderToCaseId.set(order, found.id)
           continue
         }
-        const order = Number.isFinite(c?.order) ? Number(c.order) : 0
         const created = await prisma.questionCase.create({
-          data: { examId, title, vignette: c?.vignette || null, order },
-          select: { id: true, title: true },
+          data: { examId, vignette: c?.vignette || null, order },
+          select: { id: true },
         })
-        titleToCaseId.set(created.title, created.id)
-        console.log(`Created case: ${created.title}`)
+        orderToCaseId.set(order, created.id)
+        console.log(`Created case order ${order}`)
       } catch (caseError) {
         console.error("Error creating case:", caseError)
-        throw new Error(`Fehler beim Erstellen des Falls "${title}": ${caseError}`)
+        throw new Error(`Fehler beim Erstellen des Falls #${order}: ${caseError}`)
       }
     }
 
@@ -579,15 +568,14 @@ async function bulkImportAction(formData: FormData) {
             currentOrder++
 
             const allowImmediate = !!q?.allowImmediate
-            const caseTitle = (q?.caseTitle && String(q.caseTitle)) || ""
-            const caseId = caseTitle ? titleToCaseId.get(caseTitle) ?? null : null
+            const caseOrder = Number(q?.caseOrder || 0)
+            const caseId = Number.isFinite(caseOrder) && caseOrder > 0 ? orderToCaseId.get(caseOrder) ?? null : null
 
             const created = await tx.question.create({
               data: {
                 examId,
                 stem,
                 explanation: q?.explanation ? String(q.explanation) : null,
-                tip: q?.tip ? String(q.tip) : null,
                 hasImmediateFeedbackAllowed: allowImmediate,
                 type: "single",
                 caseId,
@@ -723,7 +711,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           case: {
             select: {
               id: true,
-              title: true,
               vignette: true,
               order: true,
             },
@@ -823,7 +810,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   <option value="">– keiner –</option>
                   {exam.cases?.sort((a, b) => a.order - b.order).map((c) => (
                     <option key={c.id} value={c.id}>
-                      #{c.order} – {c.title}
+                      #{c.order} – Fall
                     </option>
                   ))}
                 </select>
@@ -863,16 +850,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                     </span>
                   )}
                 </div>
-                <div className="grid gap-3 md:grid-cols-[1fr_7rem]">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Falltitel</Label>
-                    <Input
-                      name="title"
-                      defaultValue={editingValid.case?.title ?? ""}
-                      placeholder="z. B. Fall 1"
-                      required
-                    />
-                  </div>
+                <div className="grid gap-3 md:grid-cols-[7rem_1fr]">
                   <div className="space-y-1">
                     <Label className="text-xs">Reihenfolge</Label>
                     <Input
@@ -914,39 +892,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </form>
             </div>
 
-            {/* 3. Oberarztkommentar */}
-            <div className="space-y-2" key={`tip-${editingValid.id}`}>
-              <h3 className="text-sm font-medium">3. Oberarztkommentar:</h3>
-              <form action={updateQuestionMetaAction} className="space-y-2">
-                <input type="hidden" name="examId" value={id} />
-                <input type="hidden" name="qid" value={editingValid.id} />
-                <textarea
-                  name="tip"
-                  className="input w-full h-20"
-                  defaultValue={editingValid.tip ?? ""}
-                  placeholder="Hinweis/Tipp zur Lösung..."
-                />
-                <Button type="submit" variant="outline" size="sm">Oberarztkommentar speichern</Button>
-              </form>
-              
-              {/* Bild-Upload für Oberarztkommentar */}
-              <div className="mt-3">
-                <h4 className="text-xs font-medium text-muted-foreground mb-2">Bilder für Oberarztkommentar:</h4>
-                <ImageUpload
-                  existingImages={editingValid.media.map((m: { media: { id: string; url: string; alt: string | null } }) => ({
-                    id: m.media.id,
-                    url: m.media.url,
-                    alt: m.media.alt
-                  }))}
-                  questionId={editingValid.id}
-                  examId={id}
-                />
-              </div>
-            </div>
-
-            {/* 4. Antwortoptionen */}
+            {/* 3. Antwortoptionen */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">4. Antwortoptionen:</h3>
+              <h3 className="text-sm font-medium">3. Antwortoptionen:</h3>
               <div className="space-y-2">
                 {editingValid.options.map(
                   (o: { id: string; text: string; isCorrect: boolean; explanation: string | null }) => (
@@ -975,9 +923,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            {/* 5. Zusammenfassende Erläuterung */}
+            {/* 4. Zusammenfassende Erläuterung */}
             <div className="space-y-2" key={`explanation-${editingValid.id}`}>
-              <h3 className="text-sm font-medium">5. Zusammenfassende Erläuterung:</h3>
+              <h3 className="text-sm font-medium">4. Zusammenfassende Erläuterung:</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -991,9 +939,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </form>
             </div>
 
-            {/* 6. Tag-Management */}
+            {/* 5. Tag-Management */}
             <div className="space-y-2">
-              <h3 className="text-sm font-medium">6. Tag-Management:</h3>
+              <h3 className="text-sm font-medium">5. Tag-Management:</h3>
               <CompactTagManager questionId={editingValid.id} />
             </div>
 
@@ -1076,7 +1024,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
         <div className="rounded border p-3">
           <h3 className="font-medium mb-2">Mehrere Fragen einfügen</h3>
           <p className="text-xs text-muted-foreground mb-2">
-            Füge JSON im unten beschriebenen Format ein. Fälle können über <code>caseTitle</code> zugeordnet werden.
+            Füge JSON im unten beschriebenen Format ein. Fälle können über <code>caseOrder</code> zugeordnet werden.
           </p>
           
           {/* JSON-Upload */}

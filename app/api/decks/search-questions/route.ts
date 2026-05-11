@@ -80,7 +80,6 @@ export async function POST(req: NextRequest) {
         {
           case: {
             OR: [
-              { title: { contains: q, mode: Prisma.QueryMode.insensitive } },
               { vignette: { contains: q, mode: Prisma.QueryMode.insensitive } },
             ],
           },
@@ -102,7 +101,6 @@ export async function POST(req: NextRequest) {
       case: {
         select: {
           id: true,
-          title: true,
           vignette: true,
           _count: { select: { questions: true } },
         },
@@ -119,24 +117,20 @@ export async function POST(req: NextRequest) {
     id: string
     stem: string
     exam: { title: string }
-    case: { id: string; title: string | null; vignette: string | null; _count: { questions: number } } | null
+    case: { id: string; vignette: string | null; _count: { questions: number } } | null
     options: { id: string; text: string }[]
     tags: { tag: { slug: string; name: string } }[]
   }
 
   // Nachbearbeitung: markieren, WO der Treffer ist + kurze Excerpts
   const items = (questions as QRow[]).map((qq) => {
-    const matches: ("stem" | "case_title" | "case_vignette" | "option")[] = []
+    const matches: ("stem" | "case_vignette" | "option")[] = []
     const excerpts: Record<string, string | null> = {}
 
     if (q) {
       if (norm(qq.stem).toLowerCase().includes(q.toLowerCase())) {
         matches.push("stem")
         excerpts["stem"] = makeExcerpt(qq.stem, q)
-      }
-      if (qq.case?.title && qq.case.title.toLowerCase().includes(q.toLowerCase())) {
-        matches.push("case_title")
-        excerpts["case_title"] = makeExcerpt(qq.case.title, q)
       }
       if (qq.case?.vignette && qq.case.vignette.toLowerCase().includes(q.toLowerCase())) {
         matches.push("case_vignette")
@@ -154,7 +148,6 @@ export async function POST(req: NextRequest) {
       stem: qq.stem,
       examTitle: qq.exam.title,
       caseId: qq.case?.id ?? null,
-      caseTitle: qq.case?.title ?? null,
       caseQuestionCount: qq.case?._count.questions ?? 0,
       tags: qq.tags.map((t) => ({ slug: t.tag.slug, name: t.tag.name })),
       matchIn: matches,

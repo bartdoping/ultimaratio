@@ -17,12 +17,10 @@ function isAutoDeck(id: string) {
 type ClientQuestion = {
   id: string
   stem: string
-  tip: string | null
   explanation: string | null
   options: { id: string; text: string; isCorrect: boolean; explanation: string | null }[]
   media: { id: string; url: string; alt: string; order: number }[]
   caseId: string | null
-  caseTitle: string | null
   caseVignette: string | null
   caseOrder: number | null
   examId?: string | null
@@ -59,10 +57,10 @@ export default async function DeckPracticePage({ params }: Props) {
         const qs = await prisma.question.findMany({
           where: { id: { in: ids } },
           select: {
-            id: true, stem: true, tip: true, explanation: true, examId: true,
+            id: true, stem: true, explanation: true, examId: true,
             options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
             media: { orderBy: { order: "asc" }, include: { media: true } },
-            case: { select: { id: true, title: true, vignette: true, order: true } },
+            case: { select: { id: true, vignette: true, order: true } },
           }
         })
         // Reihenfolge wie flags
@@ -72,12 +70,10 @@ export default async function DeckPracticePage({ params }: Props) {
         clientQuestions = qs.map(q => ({
           id: q.id,
           stem: q.stem,
-          tip: q.tip ?? null,
           explanation: q.explanation ?? null,
           options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect, explanation: o.explanation ?? null })),
           media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
           caseId: q.case?.id ?? null,
-          caseTitle: q.case?.title ?? null,
           caseVignette: q.case?.vignette ?? null,
           caseOrder: q.case?.order ?? null,
           examId: q.examId,
@@ -96,10 +92,10 @@ export default async function DeckPracticePage({ params }: Props) {
         const qs = await prisma.question.findMany({
           where: { id: { in: ids } },
           select: {
-            id: true, stem: true, tip: true, explanation: true, examId: true,
+            id: true, stem: true, explanation: true, examId: true,
             options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
             media: { orderBy: { order: "asc" }, include: { media: true } },
-            case: { select: { id: true, title: true, vignette: true, order: true } },
+            case: { select: { id: true, vignette: true, order: true } },
           }
         })
         // Reihenfolge wie wrongs
@@ -109,12 +105,10 @@ export default async function DeckPracticePage({ params }: Props) {
         clientQuestions = qs.map(q => ({
           id: q.id,
           stem: q.stem,
-          tip: q.tip ?? null,
           explanation: q.explanation ?? null,
           options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect, explanation: o.explanation ?? null })),
           media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
           caseId: q.case?.id ?? null,
-          caseTitle: q.case?.title ?? null,
           caseVignette: q.case?.vignette ?? null,
           caseOrder: q.case?.order ?? null,
           examId: q.examId,
@@ -143,10 +137,10 @@ export default async function DeckPracticePage({ params }: Props) {
           select: {
             question: {
               select: {
-                id: true, stem: true, tip: true, explanation: true, examId: true,
+                id: true, stem: true, explanation: true, examId: true,
                 options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
                 media: { orderBy: { order: "asc" }, include: { media: true } },
-                case: { select: { id: true, title: true, vignette: true, order: true } },
+                case: { select: { id: true, vignette: true, order: true } },
               }
             }
           }
@@ -162,12 +156,10 @@ export default async function DeckPracticePage({ params }: Props) {
     clientQuestions = qs.map(q => ({
       id: q.id,
       stem: q.stem,
-      tip: q.tip ?? null,
       explanation: q.explanation ?? null,
       options: q.options.map(o => ({ id: o.id, text: o.text, isCorrect: o.isCorrect, explanation: o.explanation ?? null })),
       media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
       caseId: q.case?.id ?? null,
-      caseTitle: q.case?.title ?? null,
       caseVignette: q.case?.vignette ?? null,
       caseOrder: q.case?.order ?? null,
       examId: q.examId ?? null,

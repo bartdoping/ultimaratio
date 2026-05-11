@@ -13,12 +13,10 @@ type Option = { id: string; text: string; isCorrect: boolean; explanation?: stri
 type Question = {
   id: string
   stem: string
-  tip?: string | null
   explanation?: string | null
   options: Option[]
   media?: { id: string; url: string; alt: string; order: number }[]
   caseId?: string | null
-  caseTitle?: string | null
   caseVignette?: string | null
   caseOrder?: number | null
   examId?: string | null
@@ -257,8 +255,7 @@ export function RunnerClient(props: Props) {
     )
   }, [labValues, labQuery])
 
-  // Kommentare & Erklärungen
-  const [tipOpen, setTipOpen] = useState(false)
+  // Erklärungen
   const [qExpOpen, setQExpOpen] = useState(false)
   const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
 
@@ -319,7 +316,6 @@ export function RunnerClient(props: Props) {
   const given = answers[q.id]
   const isCurrentFlagged = !!flagged[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const hasTip = !!(q.tip && q.tip.trim().length)
   const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
 
   // --- KI-Tutor Kontext ---
@@ -342,8 +338,6 @@ const aiContext = useMemo(() => {
   return {
     questionId: q.id,
     examTitle: q.examId ? undefined : undefined, // optional: falls du einen Titel in den Props hast
-    // caseTitle wird bewusst nicht weitergegeben/angezeigt (Spoiler-Gefahr)
-    caseTitle: null,
     caseVignette: q.caseVignette ?? null,
     stem: q.stem,
     options: opts,
@@ -987,11 +981,10 @@ const aiContext = useMemo(() => {
         ) : (
           <div className="max-w-4xl mx-auto">
             <div className="rounded-lg border bg-card shadow-sm p-8 space-y-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-              {(q.caseTitle || q.caseVignette) && (
+              {q.caseVignette && (
                 <div className="rounded-lg border bg-secondary/40 p-5 space-y-2">
-                  {/* Keine Fall-Titel anzeigen (Spoiler-Gefahr) */}
                   <div className="font-semibold text-lg">Fall</div>
-                  {q.caseVignette && <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{q.caseVignette}</div>}
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{q.caseVignette}</div>
                 </div>
               )}
 
@@ -1001,29 +994,6 @@ const aiContext = useMemo(() => {
                   questionId={q.id}
                 />
               </div>
-
-              {/* Oberarztkommentar */}
-              {hasTip && (
-                <div className="rounded-lg border bg-secondary/40">
-                  <button
-                    type="button"
-                    onClick={() => setTipOpen(o => !o)}
-                    className="w-full flex items-center justify-between px-4 py-3 text-base font-medium hover:bg-muted/50 transition-colors"
-                    aria-expanded={tipOpen}
-                    aria-controls="tip-content"
-                  >
-                    <span>Oberarztkommentar</span>
-                    <svg className={`h-5 w-5 transition-transform duration-200 ${tipOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-                    </svg>
-                  </button>
-                  {tipOpen && (
-                    <div id="tip-content" className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {q.tip}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Medien */}
               {media.length > 0 && (

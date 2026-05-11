@@ -7,7 +7,6 @@ type Option = { id: string; text: string; isCorrect: boolean; explanation?: stri
 type Question = {
   id: string
   stem: string
-  tip?: string | null
   explanation?: string | null
   options: Option[]
 }

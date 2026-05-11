@@ -35,11 +35,6 @@ export default function NewQuestionForm({ examId }: NewQuestionFormProps) {
         <textarea name="explanation" className="input w-full h-24" placeholder="Erklärung zur Frage…" />
       </div>
 
-      <div>
-        <Label>Kommentar/Tipp</Label>
-        <textarea name="tip" className="input w-full h-16" placeholder="Tipp oder Kommentar…" />
-      </div>
-
       {/* Sofort-Feedback ist automatisch aktiviert */}
 
       {/* Bilder */}

@@ -42,7 +42,6 @@ export default async function DeckDetailPage({ params }: Props) {
               id: true,
               stem: true,
               exam: { select: { title: true } },
-              case: { select: { title: true } },
               tags: {
                 select: {
                   tag: { select: { slug: true, name: true } }
@@ -61,7 +60,6 @@ export default async function DeckDetailPage({ params }: Props) {
     questionId: it.question.id,
     order: it.order,
     stem: it.question.stem,
-    caseTitle: it.question.case?.title ?? null,
     examTitle: it.question.exam.title,
     tags: it.question.tags.map(t => ({ slug: t.tag.slug, name: t.tag.name })),
   }))

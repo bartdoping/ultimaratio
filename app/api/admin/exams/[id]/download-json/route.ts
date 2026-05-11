@@ -52,7 +52,6 @@ export async function GET(
         },
         case: {
           select: {
-            title: true,
             vignette: true,
             order: true
           }
@@ -65,10 +64,9 @@ export async function GET(
 
     const normalizedQuestions = questions.map(q => ({
       stem: q.stem,
-      tip: q.tip,
       explanation: q.explanation,
       allowImmediate: q.hasImmediateFeedbackAllowed,
-      caseTitle: q.case?.title || undefined,
+      caseOrder: q.case?.order || undefined,
       images: q.media.map(m => ({
         url: m.media.url,
         alt: m.media.alt
@@ -86,12 +84,11 @@ export async function GET(
           cases: questions
             .filter(q => q.case)
             .map(q => ({
-              title: q.case!.title,
               vignette: q.case!.vignette,
               order: q.case!.order
             }))
             .filter((case_, index, arr) =>
-              arr.findIndex(c => c.title === case_.title) === index
+              arr.findIndex(c => c.order === case_.order) === index
             ),
           questions: normalizedQuestions
         }

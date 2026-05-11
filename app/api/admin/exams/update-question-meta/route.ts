@@ -14,7 +14,6 @@ export async function POST(req: NextRequest) {
     const examId = formData.get("examId") as string
     const qid = formData.get("qid") as string
     const explanation = formData.get("explanation") as string
-    const tip = formData.get("tip") as string
     const allowImmediate = formData.get("allowImmediate") === "on"
 
     if (!examId || !qid) {
@@ -25,7 +24,6 @@ export async function POST(req: NextRequest) {
       where: { id: qid },
       data: { 
         explanation: explanation || null,
-        tip: tip || null,
         hasImmediateFeedbackAllowed: allowImmediate,
       },
     })

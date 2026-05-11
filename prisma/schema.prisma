@@ -119,7 +119,6 @@ model Question {
   stem                        String
   explanation                 String?
   hasImmediateFeedbackAllowed Boolean      @default(false)
-  tip                         String?
   order                       Int          @default(0)
 
   caseId    String?
@@ -260,7 +259,6 @@ model PasswordReset {
 model QuestionCase {
   id       String  @id @default(cuid())
   examId   String
-  title    String
   vignette String?
   order    Int     @default(0)
 

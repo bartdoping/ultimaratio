@@ -31,7 +31,6 @@ export async function GET(_: NextRequest, { params }: Ctx) {
             select: {
               id: true,
               stem: true,
-              case: { select: { title: true } },
               exam: { select: { title: true } },
               tags: { select: { tag: { select: { slug: true, name: true } } } },
             },

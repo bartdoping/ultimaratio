@@ -10,7 +10,6 @@ interface QuestionFormProps {
     id: string
     stem: string
     explanation?: string | null
-    tip?: string | null
     hasImmediateFeedbackAllowed: boolean
   }
   examId: string
@@ -22,7 +21,6 @@ const normalizeText = (value?: string | null) => value ?? ""
 export default function QuestionForm({ question, examId, onQuestionUpdate }: QuestionFormProps) {
   const [stem, setStem] = useState(question.stem)
   const [explanation, setExplanation] = useState(normalizeText(question.explanation))
-  const [tip, setTip] = useState(normalizeText(question.tip))
   const [allowImmediate, setAllowImmediate] = useState(question.hasImmediateFeedbackAllowed)
   const [saving, setSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
@@ -38,9 +36,8 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
     
     setStem(question.stem)
     setExplanation(normalizeText(question.explanation))
-    setTip(normalizeText(question.tip))
     setAllowImmediate(question.hasImmediateFeedbackAllowed)
-  }, [question.id, question.stem, question.explanation, question.tip, question.hasImmediateFeedbackAllowed])
+  }, [question.id, question.stem, question.explanation, question.hasImmediateFeedbackAllowed])
 
   const saveStem = async () => {
     setAutoSaving(true)
@@ -89,7 +86,6 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
       formData.append('examId', examId)
       formData.append('qid', question.id)
       formData.append('explanation', explanation)
-      formData.append('tip', tip)
       formData.append('allowImmediate', allowImmediate ? 'on' : '')
 
       await fetch('/api/admin/exams/update-question-meta', {
@@ -126,7 +122,6 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
       const hasStemChanges = question.stem !== stem
       const hasMetaChanges = 
         normalizeText(question.explanation) !== explanation ||
-        normalizeText(question.tip) !== tip ||
         question.hasImmediateFeedbackAllowed !== allowImmediate
       
       if (hasStemChanges && hasMetaChanges) {
@@ -143,7 +138,7 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stem, explanation, tip, allowImmediate, question.id])
+  }, [stem, explanation, allowImmediate, question.id])
 
   return (
     <div className="space-y-4">
@@ -174,15 +169,6 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
             value={explanation}
             onChange={(e) => setExplanation(e.target.value)}
             className="w-full min-h-[80px] p-3 border border-input rounded-md bg-background text-sm"
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label>Tipp</Label>
-          <textarea 
-            value={tip}
-            onChange={(e) => setTip(e.target.value)}
-            className="w-full min-h-[60px] p-3 border border-input rounded-md bg-background text-sm"
           />
         </div>
         

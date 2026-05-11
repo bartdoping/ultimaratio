@@ -11,7 +11,6 @@ type DeckItemRow = {
   questionId: string
   order: number
   stem: string
-  caseTitle: string | null
   examTitle: string
   tags: { slug: string; name: string }[]
 }
@@ -21,10 +20,9 @@ type SearchHit = {
   stem: string
   examTitle: string
   caseId: string | null
-  caseTitle: string | null
   caseQuestionCount: number
   tags: { slug: string; name: string }[]
-  matchIn: ("stem" | "case_title" | "case_vignette" | "option")[]
+  matchIn: ("stem" | "case_vignette" | "option")[]
   excerpts?: Record<string, string | null>
 }
 
@@ -89,7 +87,6 @@ export default function DeckEditorClient(props: {
         stem: String(x.stem || ""),
         examTitle: String(x.examTitle || ""),
         caseId: x.caseId ?? null,
-        caseTitle: x.caseTitle ?? null,
         caseQuestionCount: Number(x.caseQuestionCount || 0),
         tags: (x.tags || []).map((t: any) => ({ slug: t.slug, name: t.name })),
         matchIn: Array.isArray(x.matchIn) ? x.matchIn : [],
@@ -118,7 +115,6 @@ export default function DeckEditorClient(props: {
           questionId: r.questionId,
           order: prev.length,
           stem: r.stem,
-          caseTitle: r.caseTitle,
           examTitle: r.examTitle,
           tags: r.tags,
         }])
@@ -184,11 +180,11 @@ export default function DeckEditorClient(props: {
 
       {/* Suche */}
       <section className="rounded border p-4 space-y-3">
-        <div className="text-sm text-muted-foreground">Fragen/Fälle suchen & hinzufügen</div>
+            <div className="text-sm text-muted-foreground">Fragen/Fälle suchen & hinzufügen</div>
         <div className="flex flex-wrap items-center gap-2">
           <input
             className="input h-9 w-80"
-            placeholder="Suchbegriff – matcht Frage, Fall (Titel/Vignette) & Antwortoptionen"
+            placeholder="Suchbegriff – matcht Frage, Fallvignette & Antwortoptionen"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && runSearch()}
@@ -223,14 +219,14 @@ export default function DeckEditorClient(props: {
             <div className="space-y-2">
               {results.map(r => {
                 const already = selectedSet.has(r.questionId)
-                const showsCaseAdd = !!r.caseId && r.caseQuestionCount > 0 && (r.matchIn.includes("case_title") || r.matchIn.includes("case_vignette"))
+                const showsCaseAdd = !!r.caseId && r.caseQuestionCount > 0 && r.matchIn.includes("case_vignette")
 
                 return (
                   <div key={r.questionId} className="rounded border p-3">
                     <div className="text-sm">
                       <span className="font-medium">{r.stem}</span>
                       <span className="ml-2 text-muted-foreground">
-                        ({r.examTitle}{r.caseTitle ? ` · ${r.caseTitle}` : ""})
+                        ({r.examTitle})
                       </span>
                     </div>
 
@@ -241,17 +237,12 @@ export default function DeckEditorClient(props: {
                           Treffer: Frage{r.excerpts?.stem ? ` — ${r.excerpts.stem}` : ""}
                         </span>
                       )}
-                      {r.matchIn.includes("case_title") && (
-                        <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
-                          Treffer: Falltitel{r.excerpts?.case_title ? ` — ${r.excerpts.case_title}` : ""}
-                        </span>
-                      )}
                       {r.matchIn.includes("case_vignette") && (
                         <span className="rounded bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5">
                           Treffer: Fallvignette{r.excerpts?.case_vignette ? ` — ${r.excerpts.case_vignette}` : ""}
                         </span>
                       )}
-                      {r.matchIn.includes("option") && !r.matchIn.includes("stem") && !r.matchIn.includes("case_title") && !r.matchIn.includes("case_vignette") && (
+                      {r.matchIn.includes("option") && !r.matchIn.includes("stem") && !r.matchIn.includes("case_vignette") && (
                         <span className="rounded bg-amber-100 dark:bg-amber-900/30 px-2 py-0.5">
                           Treffer in Antwortoption{r.excerpts?.option ? ` — ${r.excerpts.option}` : ""}
                         </span>
@@ -294,7 +285,7 @@ export default function DeckEditorClient(props: {
                 <div className="text-sm">
                   <div className="font-medium">{i.stem}</div>
                   <div className="text-xs text-muted-foreground">
-                    {i.examTitle}{i.caseTitle ? ` · ${i.caseTitle}` : ""}
+                    {i.examTitle}
                   </div>
                 </div>
                 <div>

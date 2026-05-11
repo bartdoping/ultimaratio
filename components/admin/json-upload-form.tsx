@@ -45,10 +45,6 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
           setResult({ success: false, error: `Ungültiger Fall an Position ${i + 1}: muss ein Objekt sein.` })
           return
         }
-        if (typeof c.title !== "string" || !c.title.trim()) {
-          setResult({ success: false, error: `Ungültiger Fall an Position ${i + 1}: "title" fehlt oder ist leer.` })
-          return
-        }
         if (c.vignette != null && typeof c.vignette !== "string") {
           setResult({ success: false, error: `Ungültiger Fall an Position ${i + 1}: "vignette" muss string oder null sein.` })
           return
@@ -74,16 +70,12 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
           setResult({ success: false, error: `Ungültige Frage ${i + 1}: "allowImmediate" muss boolean sein.` })
           return
         }
-        if (q.tip != null && typeof q.tip !== "string") {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "tip" muss string oder null sein.` })
-          return
-        }
         if (q.explanation != null && typeof q.explanation !== "string") {
           setResult({ success: false, error: `Ungültige Frage ${i + 1}: "explanation" muss string oder null sein.` })
           return
         }
-        if (q.caseTitle != null && typeof q.caseTitle !== "string") {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "caseTitle" muss string oder null sein.` })
+        if (q.caseOrder != null && typeof q.caseOrder !== "number") {
+          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "caseOrder" muss number oder null sein.` })
           return
         }
         if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
@@ -192,15 +184,14 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
             className="w-full h-64 font-mono text-xs"
             placeholder={`{
   "cases": [
-    { "title": "Fall A", "vignette": "Anamnese…", "order": 1 }
+    { "vignette": "Anamnese…", "order": 1 }
   ],
   "questions": [
     {
       "stem": "Was ist richtig?",
-      "tip": "Denke an …",
       "explanation": "So merkst du es dir …",
       "allowImmediate": true,
-      "caseTitle": "Fall A",
+      "caseOrder": 1,
       "images": [{ "url": "https://…/bild.jpg", "alt": "Röntgen" }],
       "options": [
         { "text": "Option A", "isCorrect": true, "explanation": "darum…" },
@@ -222,7 +213,7 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
               variant="outline"
               size="sm"
               onClick={() => {
-                const promptText = `Du konvertierst medizinische Prüfungsfragen in ein JSON für **unsere Plattform**.\n\nWICHTIG:\n- Gib **ausschließlich** das finale JSON aus (keine Erklärungen, kein Markdown, keine Codefences).\n- Das JSON muss **parsebar** sein.\n- Verwende **nur** die definierten Keys. Keine zusätzlichen Felder.\n- Verwende **true/false** (keine \"yes/no\", keine Strings).\n\n====================\nZIELFORMAT (exakt)\n====================\nTop-Level: Objekt mit optional \"cases\" und Pflicht \"questions\".\n\n{\n  \"cases\": [\n    {\n      \"title\": string,                 // Pflicht, eindeutig\n      \"vignette\": string|null,         // optional\n      \"order\": number                  // optional; wenn vorhanden: 1,2,3…\n    }\n  ],\n  \"questions\": [\n    {\n      \"stem\": string,                  // Pflicht (nicht leer)\n      \"tip\": string|null,              // optional\n      \"explanation\": string|null,      // optional\n      \"allowImmediate\": boolean,       // Pflicht\n      \"caseTitle\": string|null,        // optional; muss exakt cases[].title matchen\n      \"images\": [                      // optional\n        { \"url\": string, \"alt\": string|null }\n      ],\n      \"options\": [                     // Pflicht: 2 bis 6 Elemente\n        { \"text\": string, \"isCorrect\": boolean, \"explanation\": string|null }\n      ]\n    }\n  ]\n}\n\n====================\nHARTE REGELN\n====================\n1) \"questions\" muss existieren und ein Array sein.\n2) Jede Frage hat:\n   - \"stem\" (nicht leer)\n   - \"allowImmediate\" (boolean)\n   - \"options\" (Array 2–6)\n3) Jede Option hat:\n   - \"text\" (nicht leer)\n   - \"isCorrect\" (boolean)\n   - optional \"explanation\" (string|null)\n4) Mindestens **eine** Option pro Frage muss \"isCorrect\": true haben.\n5) Fälle nur wenn nötig:\n   - Wenn Fallvignette vorhanden → in \"cases\" aufnehmen.\n   - Dann muss jede Fallfrage \"caseTitle\" exakt auf cases[].title setzen.\n6) Bilder nur wenn vorhanden:\n   - \"url\" muss mit http:// oder https:// beginnen.\n7) Keine IDs, keine Tags, keine examId.\n\n====================\nCHECKLISTE VOR AUSGABE\n====================\n- options-Länge je Frage 2–6?\n- mind. eine korrekte Option?\n- caseTitle korrekt gematcht?\n- JSON valide?\n\n====================\nBEISPIEL (minimal)\n====================\n{\n  \"questions\": [\n    {\n      \"stem\": \"Welche Aussage ist richtig?\",\n      \"tip\": null,\n      \"explanation\": null,\n      \"allowImmediate\": true,\n      \"caseTitle\": null,\n      \"options\": [\n        { \"text\": \"Option A\", \"isCorrect\": true, \"explanation\": null },\n        { \"text\": \"Option B\", \"isCorrect\": false, \"explanation\": null }\n      ]\n    }\n  ]\n}\n\nJetzt konvertiere den folgenden Input in genau dieses Format:\n\n<<<INPUT>>>\n(HIER DEN FRAGENTEXT EINFÜGEN)\n<<<END INPUT>>>`
+                const promptText = `Du konvertierst medizinische Prüfungsfragen in ein JSON für **unsere Plattform**.\n\nWICHTIG:\n- Gib **ausschließlich** das finale JSON aus (keine Erklärungen, kein Markdown, keine Codefences).\n- Das JSON muss **parsebar** sein.\n- Verwende **nur** die definierten Keys. Keine zusätzlichen Felder.\n- Verwende **true/false** (keine \"yes/no\", keine Strings).\n\n====================\nZIELFORMAT (exakt)\n====================\nTop-Level: Objekt mit optional \"cases\" und Pflicht \"questions\".\n\n{\n  \"cases\": [\n    {\n      \"vignette\": string|null,         // optional\n      \"order\": number                  // optional; wenn vorhanden: 1,2,3…\n    }\n  ],\n  \"questions\": [\n    {\n      \"stem\": string,                  // Pflicht (nicht leer)\n      \"explanation\": string|null,      // optional\n      \"allowImmediate\": boolean,       // Pflicht\n      \"caseOrder\": number|null,        // optional; muss cases[].order matchen\n      \"images\": [                      // optional\n        { \"url\": string, \"alt\": string|null }\n      ],\n      \"options\": [                     // Pflicht: 2 bis 6 Elemente\n        { \"text\": string, \"isCorrect\": boolean, \"explanation\": string|null }\n      ]\n    }\n  ]\n}\n\n====================\nHARTE REGELN\n====================\n1) \"questions\" muss existieren und ein Array sein.\n2) Jede Frage hat:\n   - \"stem\" (nicht leer)\n   - \"allowImmediate\" (boolean)\n   - \"options\" (Array 2–6)\n3) Jede Option hat:\n   - \"text\" (nicht leer)\n   - \"isCorrect\" (boolean)\n   - optional \"explanation\" (string|null)\n4) Mindestens **eine** Option pro Frage muss \"isCorrect\": true haben.\n5) Fälle nur wenn nötig:\n   - Wenn Fallvignette vorhanden → in \"cases\" aufnehmen.\n   - Dann muss jede Fallfrage \"caseOrder\" auf die passende cases[].order setzen.\n6) Bilder nur wenn vorhanden:\n   - \"url\" muss mit http:// oder https:// beginnen.\n7) Keine IDs, keine Tags, keine examId.\n\n====================\nCHECKLISTE VOR AUSGABE\n====================\n- options-Länge je Frage 2–6?\n- mind. eine korrekte Option?\n- caseOrder korrekt gematcht?\n- JSON valide?\n\n====================\nBEISPIEL (minimal)\n====================\n{\n  \"questions\": [\n    {\n      \"stem\": \"Welche Aussage ist richtig?\",\n      \"explanation\": null,\n      \"allowImmediate\": true,\n      \"caseOrder\": null,\n      \"options\": [\n        { \"text\": \"Option A\", \"isCorrect\": true, \"explanation\": null },\n        { \"text\": \"Option B\", \"isCorrect\": false, \"explanation\": null }\n      ]\n    }\n  ]\n}\n\nJetzt konvertiere den folgenden Input in genau dieses Format:\n\n<<<INPUT>>>\n(HIER DEN FRAGENTEXT EINFÜGEN)\n<<<END INPUT>>>`
                 navigator.clipboard.writeText(promptText)
                 setPromptCopied(true)
                 setTimeout(() => setPromptCopied(false), 2000)
