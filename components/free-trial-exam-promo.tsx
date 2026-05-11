@@ -27,12 +27,12 @@ export function FreeTrialExamPromo({ exam, loggedIn, className }: Props) {
     <Card
       className={
         className ??
-        "border-primary/40 bg-gradient-to-br from-primary/10 via-background to-secondary/10 shadow-md"
+        "overflow-hidden border-primary/40 bg-gradient-to-br from-primary/10 via-background to-secondary/10 shadow-md"
       }
     >
       <CardHeader className="space-y-2">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge className="bg-primary text-primary-foreground">Kostenlos testen</Badge>
+          <Badge className="bg-primary text-primary-foreground">Kostenlos</Badge>
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Probedeck
           </span>
@@ -42,8 +42,7 @@ export function FreeTrialExamPromo({ exam, loggedIn, className }: Props) {
           {exam.description}
         </CardDescription>
         <p className="text-sm text-muted-foreground">
-          {exam.questionCount} Frage{exam.questionCount === 1 ? "" : "n"} · Prüfungsmodus mit Timer und
-          Auswertung
+          {exam.questionCount} Frage{exam.questionCount === 1 ? "" : "n"} · Prüfungsmodus mit Timer und Auswertung
         </p>
       </CardHeader>
       <CardContent className="flex flex-wrap gap-2">
@@ -51,19 +50,19 @@ export function FreeTrialExamPromo({ exam, loggedIn, className }: Props) {
           <>
             <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
             <Button asChild variant="outline">
-              <Link href={nextPath}>Details</Link>
+              <Link href={nextPath}>Details ansehen</Link>
             </Button>
           </>
         ) : (
           <>
             <Button asChild>
-              <Link href={`/register?next=${encodeURIComponent(nextPath)}`}>Registrieren &amp; testen</Link>
+              <Link href={`/register?next=${encodeURIComponent(nextPath)}`}>Kostenlos testen</Link>
             </Button>
             <Button asChild variant="outline">
               <Link href={`/login?next=${encodeURIComponent(nextPath)}`}>Einloggen</Link>
             </Button>
             <Button asChild variant="ghost">
-              <Link href={nextPath}>Mehr erfahren</Link>
+              <Link href={nextPath}>Details ansehen</Link>
             </Button>
           </>
         )}

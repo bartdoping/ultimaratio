@@ -204,44 +204,54 @@ export default async function DashboardPage() {
   })
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <div className="mx-auto max-w-6xl space-y-8">
       <SubscriptionSuccessHandler />
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Mein Bereich</h1>
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap">
-          {srTableExists && (
-            <Link href="/sr/settings">
-              <Button variant="outline" className="w-full sm:w-auto">Spaced Repetition · Einstellungen</Button>
-            </Link>
-          )}
-          {srTableExists && dueTotal > 0 && (
-            <Link href="/sr/all">
-              <Button variant="default" className="w-full sm:w-auto">Spaced Repetition heute: {dueTotal}</Button>
-            </Link>
-          )}
-          {canUseDecks ? (
-            <Link href="/decks">
-              <Button variant="outline" className="w-full sm:w-auto">
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Dashboard</div>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Willkommen{me.name ? `, ${me.name}` : ""}
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Starte Prüfungen, setze offene Durchläufe fort und behalte deinen Lernstand im Blick.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 flex-wrap lg:justify-end">
+            {srTableExists && (
+              <Link href="/sr/settings">
+                <Button variant="outline" className="w-full sm:w-auto">SR-Einstellungen</Button>
+              </Link>
+            )}
+            {srTableExists && dueTotal > 0 && (
+              <Link href="/sr/all">
+                <Button variant="default" className="w-full sm:w-auto">{dueTotal} Reviews fällig</Button>
+              </Link>
+            )}
+            {canUseDecks ? (
+              <Link href="/decks">
+                <Button variant="outline" className="w-full sm:w-auto">
+                  Eigene Prüfungsdecks
+                </Button>
+              </Link>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled
+                title="Pro-Feature: Eigene Prüfungsdecks"
+              >
                 Eigene Prüfungsdecks
               </Button>
+            )}
+            <Link href="/dashboard/history">
+              <Button variant="outline" className="w-full sm:w-auto">Historie</Button>
             </Link>
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full sm:w-auto"
-              disabled
-              title="Pro-Feature: Eigene Prüfungsdecks"
-            >
-              Eigene Prüfungsdecks
-            </Button>
-          )}
-          <Link href="/dashboard/history">
-            <Button variant="outline" className="w-full sm:w-auto">Historie</Button>
-          </Link>
-          <Link href="/exams">
-            <Button className="w-full sm:w-auto">Weitere Prüfungen</Button>
-          </Link>
+            <Link href="/exams">
+              <Button className="w-full sm:w-auto">Prüfungen öffnen</Button>
+            </Link>
+          </div>
         </div>
       </div>
 
@@ -263,13 +273,21 @@ export default async function DashboardPage() {
       )}
 
       <section className="space-y-4">
-        <h2 className="text-xl font-semibold">Deine Statistiken</h2>
+        <div>
+          <h2 className="text-xl font-semibold">Lernstand</h2>
+          <p className="text-sm text-muted-foreground">Deine wichtigsten Kennzahlen auf einen Blick.</p>
+        </div>
         <DashboardStats />
       </section>
 
       {/* Eigene Decks */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Eigene Prüfungsdecks</h2>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Eigene Decks</h2>
+            <p className="text-sm text-muted-foreground">Sammle Fragen thematisch und trainiere gezielt.</p>
+          </div>
+        </div>
         {!canUseDecks && (
           <p className="text-sm text-muted-foreground">
             Mit{" "}
@@ -395,7 +413,10 @@ export default async function DashboardPage() {
       {/* Automatische Decks */}
       {autoDecks.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Automatische Decks</h2>
+          <div>
+            <h2 className="text-lg font-semibold">Automatische Decks</h2>
+            <p className="text-sm text-muted-foreground">Systemdecks, die sich aus deinem Lernverhalten befüllen.</p>
+          </div>
           {!canUseDecks && (
             <p className="text-sm text-muted-foreground">
               Automatische Decks sind Teil von Pro.
@@ -435,7 +456,7 @@ export default async function DashboardPage() {
                         {srOn && due > 0 && <Badge variant="default">{due} fällig</Badge>}
                       </div>
                     </div>
-                    <CardDescription>Wird automatisch befüllt (nicht löschbar).</CardDescription>
+                      <CardDescription>Wird automatisch befüllt.</CardDescription>
                   </CardHeader>
                   <CardContent className="flex items-center justify-between gap-3">
                     <span className="text-sm text-muted-foreground">
@@ -480,16 +501,21 @@ export default async function DashboardPage() {
 
       {/* Aktive Prüfungen */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Aktive Prüfungen</h2>
+        <div>
+          <h2 className="text-lg font-semibold">Offene Prüfungen</h2>
+          <p className="text-sm text-muted-foreground">Setze unterbrochene Durchläufe direkt fort.</p>
+        </div>
 
         {openAttempts.length === 0 ? (
-          <Card>
+          <Card className="shadow-sm">
             <CardHeader>
-              <CardTitle>Keine offenen Prüfungen</CardTitle>
+              <CardTitle>Keine offenen Durchläufe</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-3">Du hast derzeit keine offenen Prüfungsdurchläufe.</p>
-              <Link href="/exams" className="underline text-blue-600">Zu den Prüfungen</Link>
+              <p className="mb-3 text-sm text-muted-foreground">Du hast derzeit keine Prüfung pausiert.</p>
+              <Button asChild>
+                <Link href="/exams">Prüfung starten</Link>
+              </Button>
             </CardContent>
           </Card>
         ) : (
@@ -500,7 +526,7 @@ export default async function DashboardPage() {
               const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
               
               return (
-                <Card key={attempt.id}>
+                <Card key={attempt.id} className="shadow-sm">
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base">{exam.title}</CardTitle>
@@ -515,15 +541,15 @@ export default async function DashboardPage() {
                       {elapsedMinutes > 0 && <div>Verstrichene Zeit: {elapsedMinutes} Min</div>}
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       <Link href={`/exam-run/${attempt.id}`}>
-                        <Button>Weiter</Button>
+                        <Button>Fortsetzen</Button>
                       </Link>
                       <DeleteAttemptButton attemptId={attempt.id} />
                     </div>
 
                     <div className="text-xs text-muted-foreground">
-                      <Link href={`/exams/${exam.slug}`} className="underline">Details</Link>
+                      <Link href={`/exams/${exam.slug}`} className="underline">Prüfungsdetails</Link>
                     </div>
                   </CardContent>
                 </Card>

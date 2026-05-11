@@ -71,8 +71,12 @@ export default function ExamsCategorized({
     )
   ]
 
-  const displayedExams = selectedCategory 
-    ? allExams.filter(exam => exam.categoryId === selectedCategory)
+  const displayedExams = selectedCategory
+    ? allExams.filter(exam =>
+        selectedCategory === "uncategorized"
+          ? exam.categoryId === null
+          : exam.categoryId === selectedCategory
+      )
     : allExams
 
   return (
@@ -82,15 +86,18 @@ export default function ExamsCategorized({
       )}
 
       {/* Kategorie-Filter */}
-      <div className="space-y-4">
-        <h2 className="text-lg font-semibold">Nach Kategorien filtern</h2>
+      <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+        <div>
+          <h2 className="text-lg font-semibold">Kategorien</h2>
+          <p className="text-sm text-muted-foreground">Filtere den Katalog nach Fachbereich oder Thema.</p>
+        </div>
         <div className="flex flex-wrap gap-2">
           <Button
             variant={selectedCategory === null ? "default" : "outline"}
             onClick={() => setSelectedCategory(null)}
             size="sm"
           >
-            Alle Prüfungen ({allExams.length})
+            Alle ({allExams.length})
           </Button>
           {categories.map(category => (
             <Button
@@ -106,7 +113,8 @@ export default function ExamsCategorized({
                   style={{ backgroundColor: category.color }}
                 />
               )}
-              {category.name} ({category.exams.length})
+              {category.name}
+              <span className="text-xs opacity-70">{category.exams.length}</span>
             </Button>
           ))}
           {examsWithoutCategory.length > 0 && (
@@ -115,7 +123,8 @@ export default function ExamsCategorized({
               onClick={() => setSelectedCategory("uncategorized")}
               size="sm"
             >
-              Ohne Kategorie ({examsWithoutCategory.length})
+              Ohne Kategorie
+              <span className="ml-1 text-xs opacity-70">{examsWithoutCategory.length}</span>
             </Button>
           )}
         </div>
@@ -148,12 +157,12 @@ export default function ExamsCategorized({
               exam.priceCents > 0
             
             return (
-              <Card key={exam.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <CardTitle className="text-lg">{exam.title}</CardTitle>
+              <Card key={exam.id} className="overflow-hidden shadow-sm">
+                <CardHeader className="space-y-3">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="text-xl leading-tight">{exam.title}</CardTitle>
                         {category && (
                           <Badge 
                             variant="outline" 
@@ -171,57 +180,61 @@ export default function ExamsCategorized({
                         <Badge variant="secondary" className="text-xs">
                           {exam._count.questions} Frage{exam._count.questions !== 1 ? 'n' : ''}
                         </Badge>
+                        {canUseExam && (
+                          <Badge className="text-xs">Freigeschaltet</Badge>
+                        )}
                         {sellable && !canUseExam && (
                           <Badge variant="outline" className="text-xs border-primary/40">
                             ab {formatEur(exam.priceCents!)}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{exam.description}</p>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{exam.description}</p>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
-                      href={`/exams/${exam.slug}`}
-                    >
-                      Details
-                    </Link>
-
-                    {!canUseExam && (
-                      <div className="text-sm text-muted-foreground">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    {!canUseExam ? (
+                      <p className="text-sm text-muted-foreground">
                         {sellable && loggedIn
-                          ? "Einzelkauf oder Pro-Abo – siehe Detailseite."
+                          ? "Als Einzelkauf oder mit Pro freischaltbar."
                           : sellable
-                            ? "Einloggen: Einzelkauf oder Pro möglich."
-                            : "Zugang über Pro-Abo – siehe Detailseite."}
-                      </div>
+                            ? "Einloggen, um Einzelkauf oder Pro-Zugang zu nutzen."
+                            : "Mit Pro freischaltbar."}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Bereit zum Starten oder gezielten Üben.</p>
                     )}
 
-                    {canUseExam && (
-                      <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
-                    )}
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" asChild>
+                        <Link href={`/exams/${exam.slug}`}>Details</Link>
+                      </Button>
+
+                      {canUseExam && (
+                        <StartExamButton examId={exam.id} disableStartPopup={!!exam.disableStartPopup} />
+                      )}
+                    </div>
                   </div>
 
                   {/* Offene Prüfungsdurchläufe */}
                   {examOpenAttempts.length > 0 && (
                     <div className="border-t pt-3">
-                      <h4 className="text-sm font-medium mb-2">Offene Prüfungsdurchläufe ({examOpenAttempts.length})</h4>
+                      <h4 className="text-sm font-medium mb-2">Offene Durchläufe</h4>
                       <div className="space-y-2">
                         {examOpenAttempts.map((attempt) => {
                           const startTime = new Date(attempt.startedAt)
                           const elapsedMinutes = Math.floor((attempt.elapsedSec || 0) / 60)
                           
                           return (
-                            <div key={attempt.id} className="flex items-center justify-between p-2 bg-muted/30 rounded-md">
+                            <div key={attempt.id} className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className="text-sm">
-                                <div>Gestartet: {startTime.toLocaleDateString('de-DE')} um {startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</div>
-                                {elapsedMinutes > 0 && <div className="text-muted-foreground">Verstrichene Zeit: {elapsedMinutes} Min</div>}
+                                <div className="font-medium">Gestartet am {startTime.toLocaleDateString('de-DE')} um {startTime.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</div>
+                                {elapsedMinutes > 0 && <div className="text-muted-foreground">{elapsedMinutes} Min. bearbeitet</div>}
                               </div>
                               <Link href={`/exam-run/${attempt.id}`}>
-                                <Button size="sm">Weiter</Button>
+                                <Button size="sm" className="w-full sm:w-auto">Fortsetzen</Button>
                               </Link>
                             </div>
                           )
@@ -236,8 +249,8 @@ export default function ExamsCategorized({
         </div>
 
         {displayedExams.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p>Keine Prüfungen in dieser Kategorie gefunden</p>
+          <div className="rounded-xl border bg-card py-12 text-center text-muted-foreground">
+            <p>Keine Prüfungen in dieser Kategorie gefunden.</p>
           </div>
         )}
       </div>

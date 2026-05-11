@@ -5,6 +5,7 @@ import prisma from "@/lib/db"
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { DeleteAttemptButton, DeleteAllAttemptsButton } from "@/components/history-actions"
+import { Button } from "@/components/ui/button"
 
 export const runtime = "nodejs"
 
@@ -25,27 +26,42 @@ export default async function HistoryPage() {
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Historie</h1>
-        {attempts.length > 0 && <DeleteAllAttemptsButton />}
+    <div className="mx-auto max-w-5xl space-y-6">
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Dashboard</div>
+            <h1 className="text-2xl font-semibold tracking-tight">Historie</h1>
+            <p className="text-sm text-muted-foreground">Alle gestarteten und abgeschlossenen Prüfungsdurchläufe.</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/dashboard">Zum Dashboard</Link>
+            </Button>
+            {attempts.length > 0 && <DeleteAllAttemptsButton />}
+          </div>
+        </div>
       </div>
 
       {attempts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Noch keine Versuche.</p>
+        <div className="rounded-xl border bg-card p-6 text-sm text-muted-foreground shadow-sm">
+          Noch keine Versuche vorhanden.
+        </div>
       ) : (
         <ul className="space-y-3">
           {attempts.map(a => (
-            <li key={a.id} className="rounded border p-3 flex items-center justify-between">
+            <li key={a.id} className="rounded-xl border bg-card p-4 shadow-sm flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <div className="font-medium">{a.exam.title}</div>
+                <div className="font-semibold">{a.exam.title}</div>
                 <div className="text-xs text-muted-foreground">
                   Gestartet: {new Date(a.startedAt).toLocaleString()}
-                  {a.finishedAt && <> · Ergebnis: {a.scorePercent}% {a.passed ? "✅" : "❌"}</>}
+                  {a.finishedAt && <> · Ergebnis: {a.scorePercent}% · {a.passed ? "bestanden" : "nicht bestanden"}</>}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Link href={`/dashboard/history/${a.id}`} className="btn btn-sm">Details</Link>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="outline" asChild>
+                  <Link href={`/dashboard/history/${a.id}`}>Details</Link>
+                </Button>
                 <DeleteAttemptButton id={a.id} />
               </div>
             </li>

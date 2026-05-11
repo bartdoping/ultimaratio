@@ -6,6 +6,7 @@ import { authOptions } from "@/auth";
 import { ConfirmAfterReturn } from "@/components/confirm-after-return";
 import { StartExamButton } from "@/components/start-exam-button";
 import { CheckoutButton } from "@/components/checkout-button";
+import { Button } from "@/components/ui/button";
 import { hasExamLearningAccess, isProOrAdmin } from "@/lib/exam-access";
 import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column";
 
@@ -110,31 +111,50 @@ export default async function ExamPage({ params }: PageProps) {
       {/* Stripe-Rückkehr-Helper: bestätigt /api/stripe/confirm?session_id=... und refresht */}
       <ConfirmAfterReturn />
 
-      <div className="max-w-2xl mx-auto space-y-6">
-        <header className="space-y-2">
-          <h1 className="text-3xl font-semibold">{exam.title}</h1>
-          <p className="text-muted-foreground">{exam.description}</p>
+      <div className="mx-auto max-w-4xl space-y-6">
+        <header className="rounded-2xl border bg-card p-6 shadow-sm space-y-4">
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Prüfungsdetails</div>
+            <h1 className="text-3xl font-semibold tracking-tight">{exam.title}</h1>
+            <p className="text-sm leading-relaxed text-muted-foreground">{exam.description}</p>
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+              {exam.questions.length} Frage{exam.questions.length === 1 ? "" : "n"}
+            </span>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+              Bestehensgrenze {exam.passPercent}%
+            </span>
+            <span className="rounded-full bg-muted px-2.5 py-1 text-muted-foreground">
+              {exam.allowImmediateFeedback ? "Sofort-Feedback möglich" : "Prüfungsmodus ohne Sofort-Feedback"}
+            </span>
+          </div>
         </header>
 
-        <div className="rounded-lg border p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Anzahl Fragen</span>
-            <span className="text-lg font-medium">{exam.questions.length}</span>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="text-xs text-muted-foreground">Fragen</div>
+            <div className="mt-1 text-2xl font-semibold">{exam.questions.length}</div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Bestehensgrenze</span>
-            <span className="text-lg">{exam.passPercent}%</span>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="text-xs text-muted-foreground">Bestehensgrenze</div>
+            <div className="mt-1 text-2xl font-semibold">{exam.passPercent}%</div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Sofort-Feedback</span>
-            <span className="text-lg">{exam.allowImmediateFeedback ? "Ja" : "Nein"}</span>
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <div className="text-xs text-muted-foreground">Feedback</div>
+            <div className="mt-1 text-base font-semibold">
+              {exam.allowImmediateFeedback ? "Optional direkt" : "Nach Abschluss"}
+            </div>
           </div>
         </div>
 
         {/* Tags anzeigen */}
         {uniqueTags.length > 0 && (
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Themengebiete</h3>
+          <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+            <div>
+              <h3 className="font-semibold">Themengebiete</h3>
+              <p className="text-sm text-muted-foreground">Diese Tags kannst du beim Start zum Filtern verwenden.</p>
+            </div>
             <div className="flex flex-wrap gap-2">
               {uniqueTags.map((tag) => (
                 <span
@@ -152,68 +172,55 @@ export default async function ExamPage({ params }: PageProps) {
           session?.user ? (
             <div className="space-y-4">
               {canBuyOnce && (
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                <div className="rounded-xl border border-primary/30 bg-primary/5 p-5 shadow-sm space-y-3">
                   <h3 className="text-lg font-semibold">Diese Prüfung einzeln kaufen</h3>
                   <p className="text-sm text-muted-foreground">
-                    Einmalzahlung {formatPrice(priceCents!)} – unbegrenzter Zugang zu genau dieser Prüfung,
-                    unabhängig von einem Abo. Die Zahlung läuft über Stripe.
+                    Einmalzahlung {formatPrice(priceCents!)}. Danach bleibt diese Prüfung dauerhaft freigeschaltet.
                   </p>
                   <CheckoutButton slug={exam.slug} />
                 </div>
               )}
-              <div className="text-center py-6 rounded-lg border bg-muted/30">
-                <h3 className="text-lg font-semibold mb-2">Oder alle Prüfungen mit Pro</h3>
-                <p className="text-muted-foreground mb-4 text-sm px-2">
+              <div className="rounded-xl border bg-card p-5 text-center shadow-sm">
+                <h3 className="text-lg font-semibold">Alle Prüfungen mit Pro</h3>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
                   Mit dem Pro-Abo nutzt du die gesamte Fragenbank und alle Pro-Funktionen.
                 </p>
-                <Link
-                  href="/subscription"
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  Zu Pro upgraden
-                </Link>
+                <Button className="mt-4" asChild>
+                  <Link href="/subscription">Pro ansehen</Link>
+                </Button>
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
+              <h3 className="text-lg font-semibold">Einloggen und loslegen</h3>
               <p className="text-sm text-muted-foreground">
-                Mit einem Konto kannst du diese Prüfung einzeln erwerben (sofern ein Preis gesetzt ist) oder alle
-                Inhalte mit Pro nutzen.
+                Mit einem Konto kannst du diese Prüfung freischalten oder Pro nutzen.
               </p>
               <div className="flex flex-wrap gap-2">
-                <Link
-                  href={`/login?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}
-                  className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
-                >
-                  Einloggen
-                </Link>
-                <Link
-                  href={`/register?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}
-                  className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-                >
-                  Registrieren
-                </Link>
+                <Button variant="outline" asChild>
+                  <Link href={`/login?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}>Einloggen</Link>
+                </Button>
+                <Button asChild>
+                  <Link href={`/register?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}>Registrieren</Link>
+                </Button>
               </div>
             </div>
           )
         ) : (
-          <div className="space-y-2">
+          <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
             {/* ⬇️ Start braucht die examId */}
             <div className="flex flex-wrap gap-2">
               <StartExamButton examId={exam.id} disableStartPopup={disableStartPopupReady ? !!exam.disableStartPopup : false} />
               {/* ✅ Neu: direkt üben (Practice-Modus) – erscheint nur nach Aktivierung */}
-              <Link
-                href={`/practice/${exam.id}`}
-                className="inline-flex h-10 items-center justify-center rounded-md border px-4 text-sm font-medium hover:bg-accent"
-              >
-                Üben
-              </Link>
+              <Button variant="outline" asChild>
+                <Link href={`/practice/${exam.id}`}>Übungsmodus</Link>
+              </Button>
             </div>
 
             <p className="text-sm text-muted-foreground">
-              Deine Versuche findest du unter{" "}
+              Deine bisherigen Versuche findest du in der{" "}
               <Link href="/dashboard/history" className="underline">
-                Verlauf
+                Historie
               </Link>
               .
             </p>
