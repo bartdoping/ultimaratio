@@ -30,8 +30,16 @@ export default async function AccountPage() {
   })
 
   return (
-    <div className="container mx-auto max-w-3xl py-8">
-      <h1 className="text-2xl font-semibold mb-6">Account</h1>
+    <div className="container mx-auto max-w-5xl py-8 space-y-6">
+      <div className="rounded-2xl border bg-card p-6 shadow-sm">
+        <div className="space-y-1">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Account</div>
+          <h1 className="text-3xl font-semibold tracking-tight">Profil und Sicherheit</h1>
+          <p className="text-sm text-muted-foreground">
+            Verwalte deine persönlichen Daten, Login-Informationen und Käufe.
+          </p>
+        </div>
+      </div>
       <AccountClient
         user={{
           id: me.id,

@@ -151,29 +151,47 @@ export default function AccountClient({
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Übersicht */}
-      <section className="rounded border p-4">
-        <h2 className="font-semibold mb-2">Übersicht</h2>
-        <div className="text-sm text-muted-foreground">
-          <div><span className="inline-block w-40">Vorname:</span> {user.name || "–"}</div>
-          <div><span className="inline-block w-40">Nachname:</span> {user.surname || "–"}</div>
-          <div><span className="inline-block w-40">E-Mail:</span> {user.email}</div>
-          <div><span className="inline-block w-40">Mitglied seit:</span> {memberSince}</div>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold">Account-Übersicht</h2>
+          <p className="text-sm text-muted-foreground">Deine aktuell gespeicherten Stammdaten.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">Vorname</div>
+            <div className="mt-1 font-medium">{user.name || "Nicht angegeben"}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">Nachname</div>
+            <div className="mt-1 font-medium">{user.surname || "Nicht angegeben"}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">E-Mail</div>
+            <div className="mt-1 font-medium break-all">{user.email}</div>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-3">
+            <div className="text-xs text-muted-foreground">Mitglied seit</div>
+            <div className="mt-1 font-medium">{memberSince}</div>
+          </div>
         </div>
       </section>
 
       {/* Profil bearbeiten */}
-      <section className="rounded border p-4 space-y-3">
-        <h2 className="font-semibold">Profil bearbeiten</h2>
-        {msgProfile && <p className="text-sm text-green-600">{msgProfile}</p>}
-        {errProfile && <p className="text-sm text-red-600">{errProfile}</p>}
+      <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Profil bearbeiten</h2>
+          <p className="text-sm text-muted-foreground">Name und Anzeige im Account aktualisieren.</p>
+        </div>
+        {msgProfile && <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">{msgProfile}</p>}
+        {errProfile && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errProfile}</p>}
         <div className="grid sm:grid-cols-2 gap-3">
-          <div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Vorname</label>
             <input className="input w-full" value={name} onChange={e=>setName(e.target.value)} />
           </div>
-          <div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Nachname</label>
             <input className="input w-full" value={surname} onChange={e=>setSurname(e.target.value)} />
           </div>
@@ -184,10 +202,13 @@ export default function AccountClient({
       </section>
 
       {/* E-Mail ändern */}
-      <section className="rounded border p-4 space-y-3">
-        <h2 className="font-semibold">E-Mail ändern</h2>
-        {msgEmail && <p className="text-sm text-green-600">{msgEmail}</p>}
-        {errEmail && <p className="text-sm text-red-600">{errEmail}</p>}
+      <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">E-Mail ändern</h2>
+          <p className="text-sm text-muted-foreground">Zur Sicherheit bestätigen wir die neue Adresse mit einem Code.</p>
+        </div>
+        {msgEmail && <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">{msgEmail}</p>}
+        {errEmail && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errEmail}</p>}
 
         {emailStage === "idle" && (
           <div className="max-w-md space-y-2">
@@ -200,14 +221,16 @@ export default function AccountClient({
               placeholder="neue-adresse@example.com"
             />
             <Button onClick={requestEmailCode} disabled={savingEmail || !newEmail}>
-              Code an neue E-Mail senden
+              Bestätigungscode senden
             </Button>
           </div>
         )}
 
         {emailStage === "code-sent" && (
           <div className="max-w-md space-y-2">
-            <div className="text-sm">Wir haben einen 6-stelligen Code an <b>{newEmail}</b> gesendet.</div>
+            <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+              Wir haben einen 6-stelligen Code an <b>{newEmail}</b> gesendet.
+            </div>
             <label className="text-sm font-medium">Bestätigungscode</label>
             <input
               className="input w-full"
@@ -231,21 +254,24 @@ export default function AccountClient({
       </section>
 
       {/* Passwort ändern */}
-      <section className="rounded border p-4 space-y-3">
-        <h2 className="font-semibold">Passwort ändern</h2>
-        {msgPw && <p className="text-sm text-green-600">{msgPw}</p>}
-        {errPw && <p className="text-sm text-red-600">{errPw}</p>}
+      <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Passwort ändern</h2>
+          <p className="text-sm text-muted-foreground">Wähle ein neues Passwort mit mindestens 8 Zeichen.</p>
+        </div>
+        {msgPw && <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300">{msgPw}</p>}
+        {errPw && <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">{errPw}</p>}
 
         <div className="max-w-md space-y-3">
-          <div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Altes Passwort</label>
             <input className="input w-full" type="password" value={oldPassword} onChange={e=>setOldPassword(e.target.value)} />
           </div>
-          <div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Neues Passwort</label>
             <input className="input w-full" type="password" value={newPassword} onChange={e=>setNewPassword(e.target.value)} minLength={8} />
           </div>
-          <div>
+          <div className="space-y-1">
             <label className="text-sm font-medium">Neues Passwort bestätigen</label>
             <input className="input w-full" type="password" value={confirmPassword} onChange={e=>setConfirmPassword(e.target.value)} minLength={8} />
           </div>
@@ -256,14 +282,19 @@ export default function AccountClient({
       </section>
 
       {/* Käufe */}
-      <section className="rounded border p-4 space-y-3">
-        <h2 className="font-semibold">Erworbene Produkte</h2>
+      <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Käufe</h2>
+          <p className="text-sm text-muted-foreground">Einzeln freigeschaltete Prüfungen bleiben dauerhaft in deinem Account.</p>
+        </div>
         {purchases.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Noch keine Käufe.</p>
+          <div className="rounded-lg border bg-muted/30 px-3 py-4 text-sm text-muted-foreground">
+            Noch keine Einzelkäufe vorhanden.
+          </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="overflow-hidden rounded-lg border">
             <table className="w-full text-sm">
-              <thead className="bg-secondary">
+              <thead className="bg-muted/60">
                 <tr className="text-left">
                   <th className="px-3 py-2">Datum</th>
                   <th className="px-3 py-2">Produkt</th>
@@ -272,7 +303,7 @@ export default function AccountClient({
               </thead>
               <tbody>
                 {purchases.map(p => (
-                  <tr key={p.id} className="odd:bg-muted/40">
+                  <tr key={p.id} className="border-t odd:bg-muted/20">
                     <td className="px-3 py-2">{new Date(p.createdAt).toLocaleString()}</td>
                     <td className="px-3 py-2">{p.examTitle}</td>
                     <td className="px-3 py-2">{(p.priceCents / 100).toFixed(2)} €</td>

@@ -172,20 +172,28 @@ export function SubscriptionManagement() {
   }
 
   if (loading) {
-    return <div className="text-center py-8">Lädt...</div>
+    return (
+      <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
+        Abo-Status wird geladen...
+      </div>
+    )
   }
 
   if (!subscription) {
-    return <div className="text-center py-8 text-red-600">Fehler beim Laden der Abonnement-Daten</div>
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700 shadow-sm dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
+        Abo-Daten konnten nicht geladen werden.
+      </div>
+    )
   }
 
   return (
     <div className="space-y-6">
       {/* Current Status */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Aktueller Status
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            Dein Tarif
             {subscription.isPro ? (
               <Badge variant="default" className="bg-green-600">
                 Pro
@@ -196,28 +204,28 @@ export function SubscriptionManagement() {
           </CardTitle>
           <CardDescription>
             {subscription.isPro
-              ? "Du hast Zugang zu allen Pro-Features"
-              : "Du nutzt den kostenlosen Plan. Für Übungen und den vollen Funktionsumfang ist Pro erforderlich."}
+              ? "Du hast Zugriff auf Pro-Funktionen und alle freigeschalteten Lernbereiche."
+              : "Du nutzt aktuell den kostenlosen Tarif. Pro erweitert Training, Decks und Wiederholung."}
           </CardDescription>
         </CardHeader>
       </Card>
 
       {/* Subscription Details */}
       {subscription.isPro && subscription.subscriptionDetails && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
-            <CardTitle>Abonnement-Details</CardTitle>
+            <CardTitle>Abonnement</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex justify-between">
-              <span>Status:</span>
+          <CardContent className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-lg border bg-muted/30 p-3">
+              <div className="text-xs text-muted-foreground">Status</div>
               <span className="font-medium">
                 {subscription.subscriptionDetails.cancelAtPeriodEnd ? "Wird gekündigt" : "Aktiv"}
               </span>
             </div>
             {subscription.subscriptionDetails.currentPeriodEnd && (
-              <div className="flex justify-between">
-                <span>Läuft bis:</span>
+              <div className="rounded-lg border bg-muted/30 p-3">
+                <div className="text-xs text-muted-foreground">Läuft bis</div>
                 <span className="font-medium">
                   {new Date(subscription.subscriptionDetails.currentPeriodEnd).toLocaleDateString("de-DE")}
                 </span>
@@ -228,41 +236,41 @@ export function SubscriptionManagement() {
       )}
 
       {/* Pro Features */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle>Pro-Features</CardTitle>
           <CardDescription>
-            Alle Vorteile von fragenkreuzen.de Pro
+            Was mit Pro freigeschaltet wird.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
                 <span>Unbegrenzte Fragen pro Tag</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
                 <span>Zugang zu allen Prüfungsfragen</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
                 <span>Detaillierte Statistiken</span>
               </div>
             </div>
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
                 <span>Spaced Repetition System</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
                 <span>Eigene Prüfungsdecks</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
                 <span className="text-green-600">✓</span>
-                <span>KI-Tutor Unterstützung</span>
+                <span>KI-Tutor-Unterstützung</span>
               </div>
             </div>
           </div>
@@ -270,16 +278,18 @@ export function SubscriptionManagement() {
       </Card>
 
       {/* Pricing */}
-      <Card>
+      <Card className="border-primary/30 bg-primary/5 shadow-sm">
         <CardHeader>
-          <CardTitle>Preise</CardTitle>
+          <CardTitle>Pro</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center space-y-4">
-            <div className="text-4xl font-bold text-primary">9,99€</div>
-            <div className="text-lg text-muted-foreground">pro Monat</div>
+          <div className="space-y-4 sm:flex sm:items-end sm:justify-between sm:gap-6 sm:space-y-0">
+            <div>
+              <div className="text-4xl font-bold text-primary">9,99 €</div>
+              <div className="text-sm text-muted-foreground">pro Monat</div>
+            </div>
             <div className="text-sm text-muted-foreground">
-              Jederzeit kündbar • Keine versteckten Kosten
+              Monatlich kündbar. Keine versteckten Kosten.
             </div>
           </div>
         </CardContent>
@@ -287,17 +297,17 @@ export function SubscriptionManagement() {
 
       {/* Abonnement-Status - nur für Pro-User anzeigen */}
       {subscription.isPro && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              Pro-Abonnement
+              Laufzeit
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {subscription.nextPaymentDate ? (
                 <div className="space-y-2">
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
                     <span className="text-sm text-muted-foreground">
                       {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
                     </span>
@@ -310,9 +320,9 @@ export function SubscriptionManagement() {
                     </span>
                   </div>
                   {subscription.periodStart && (
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
                       <span className="text-sm text-muted-foreground">
-                        Laufperiode von:
+                        Laufzeit seit:
                       </span>
                       <span className="font-medium">
                         {new Date(subscription.periodStart).toLocaleDateString('de-DE', {
@@ -361,18 +371,16 @@ export function SubscriptionManagement() {
 
       {/* Kostenloser User Status */}
       {!subscription.isPro && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span>⚪</span>
               Kostenloser Account
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               <div className="text-sm text-muted-foreground">
-                Im kostenlosen Tarif stehen dir die Pro-Funktionen (unbegrenztes Üben, eigene Decks,
-                Spaced Repetition usw.) nicht zur Verfügung.
+                Im kostenlosen Tarif sind Pro-Funktionen wie unbegrenztes Üben, eigene Decks und Spaced Repetition eingeschränkt.
               </div>
             </div>
           </CardContent>
@@ -380,7 +388,7 @@ export function SubscriptionManagement() {
       )}
 
       {/* Actions: Kündigen immer anbieten, solange Pro aktiv und keine Kündigung zum Periodenende geplant */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
         {subscription.isPro ? (
           <div className="flex flex-col gap-3">
             {subscription.cancelAtPeriodEnd ? (
@@ -401,10 +409,7 @@ export function SubscriptionManagement() {
                   {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
                 </Button>
                 <p className="text-sm text-muted-foreground max-w-md">
-                  Kündigung = Ende der automatischen Verlängerung. Pro bleibt bis zum Ende der
-                  laufenden, bereits bezahlten Periode aktiv (Stripe:{" "}
-                  <code className="text-xs">cancel_at_period_end</code>
-                  ). Danach wechselst du automatisch in den kostenlosen Tarif.
+                  Stoppt nur die automatische Verlängerung. Pro bleibt bis zum Ende der bereits bezahlten Laufzeit aktiv.
                 </p>
               </>
             )}
@@ -416,7 +421,7 @@ export function SubscriptionManagement() {
             disabled={actionLoading}
             className="bg-green-600 hover:bg-green-700"
           >
-            {actionLoading ? "Wird verarbeitet..." : "Jetzt upgraden - 9,99€/Monat"}
+            {actionLoading ? "Wird verarbeitet..." : "Jetzt auf Pro upgraden"}
           </Button>
         )}
       </div>

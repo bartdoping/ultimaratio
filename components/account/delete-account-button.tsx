@@ -20,11 +20,11 @@ export function DeleteAccountButton() {
 
   const handleDelete = async () => {
     if (confirmationText !== expectedConfirmation) {
-      setError("Bestätigungstext stimmt nicht überein")
+      setError("Der Bestätigungstext stimmt nicht überein.")
       return
     }
 
-    if (!confirm("⚠️ FINALE WARNUNG: Diese Aktion kann NICHT rückgängig gemacht werden!\n\nDein gesamter Account wird unwiderruflich gelöscht.")) {
+    if (!confirm("Finale Bestätigung: Dein gesamter Account wird unwiderruflich gelöscht. Fortfahren?")) {
       return
     }
 
@@ -41,15 +41,15 @@ export function DeleteAccountButton() {
       const data = await response.json()
 
       if (data.ok) {
-        alert("Account wurde erfolgreich gelöscht. Du wirst jetzt abgemeldet.")
+        alert("Account wurde gelöscht. Du wirst jetzt abgemeldet.")
         // Abmelden und zur Startseite weiterleiten
         await signOut({ callbackUrl: "/" })
       } else {
-        setError(data.error || "Fehler beim Löschen des Accounts")
+        setError(data.error || "Account konnte nicht gelöscht werden.")
       }
     } catch (error) {
       console.error("Delete account error:", error)
-      setError("Fehler beim Löschen des Accounts")
+      setError("Account konnte nicht gelöscht werden.")
     } finally {
       setIsDeleting(false)
     }
@@ -60,22 +60,21 @@ export function DeleteAccountButton() {
   }
 
   return (
-    <Card className="border-red-200">
+    <Card className="border-red-200 bg-red-50/40 shadow-sm dark:border-red-900 dark:bg-red-950/10">
       <CardHeader>
-        <CardTitle className="text-red-600">Account löschen</CardTitle>
+        <CardTitle className="text-red-700 dark:text-red-300">Gefahrenbereich</CardTitle>
         <CardDescription>
-          Diese Aktion kann nicht rückgängig gemacht werden. Alle deine Daten werden unwiderruflich gelöscht.
+          Lösche deinen Account nur, wenn du sicher bist. Diese Aktion kann nicht rückgängig gemacht werden.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <Alert className="border-red-200 bg-red-50">
-          <AlertDescription className="text-red-800">
-            <strong>⚠️ Warnung:</strong> Beim Löschen deines Accounts werden folgende Daten unwiderruflich entfernt:
+        <Alert className="border-red-200 bg-white/70 dark:border-red-900 dark:bg-red-950/20">
+          <AlertDescription className="text-red-800 dark:text-red-200">
+            <strong>Beim Löschen werden entfernt:</strong>
             <ul className="mt-2 ml-4 list-disc space-y-1">
-              <li>Alle deine Prüfungsergebnisse und Statistiken</li>
-              <li>Deine Abonnement-Daten und Zahlungshistorie</li>
-              <li>Deine persönlichen Einstellungen</li>
-              <li>Alle anderen mit deinem Account verknüpften Daten</li>
+              <li>Prüfungsergebnisse und Statistiken</li>
+              <li>Käufe, Abo-Daten und Zahlungshistorie</li>
+              <li>Persönliche Einstellungen und Accountdaten</li>
             </ul>
           </AlertDescription>
         </Alert>
@@ -92,7 +91,7 @@ export function DeleteAccountButton() {
           <div className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="confirmation">
-                Zur Bestätigung gib bitte folgendes ein: <strong>LÖSCHEN {userEmail.toUpperCase()}</strong>
+                Gib zur Bestätigung exakt ein: <strong>LÖSCHEN {userEmail.toUpperCase()}</strong>
               </Label>
               <Input
                 id="confirmation"
@@ -105,8 +104,8 @@ export function DeleteAccountButton() {
             </div>
 
             {error && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertDescription className="text-red-800">
+              <Alert className="border-red-200 bg-white/70 dark:border-red-900 dark:bg-red-950/20">
+                <AlertDescription className="text-red-800 dark:text-red-200">
                   {error}
                 </AlertDescription>
               </Alert>
