@@ -316,6 +316,9 @@ export function RunnerClient(props: Props) {
   const isCurrentFlagged = !!flagged[q.id]
   const media = (q.media ?? []).sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const hasQExplanation = !!(q.explanation && q.explanation.trim().length)
+  const [caseTextOpenByKey, setCaseTextOpenByKey] = useState<Record<string, boolean>>({})
+  const caseTextKey = q.caseId ?? q.id
+  const isCaseTextOpen = q.caseVignette ? caseTextOpenByKey[caseTextKey] !== false : false
 
   // --- KI-Tutor Kontext ---
 const aiContext = useMemo(() => {
@@ -993,9 +996,28 @@ const aiContext = useMemo(() => {
           <div className="max-w-4xl mx-auto">
             <div className="rounded-lg border bg-card shadow-sm p-8 space-y-6" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
               {q.caseVignette && (
-                <div className="rounded-lg border bg-secondary/40 p-5 space-y-2">
-                  <div className="font-semibold text-lg">Fall</div>
-                  <div className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{q.caseVignette}</div>
+                <div className="rounded-lg border bg-secondary/40">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setCaseTextOpenByKey(prev => ({
+                        ...prev,
+                        [caseTextKey]: !(prev[caseTextKey] !== false),
+                      }))
+                    }
+                    className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left font-semibold text-lg hover:bg-muted/50 transition-colors"
+                    aria-expanded={isCaseTextOpen}
+                  >
+                    <span>Fall</span>
+                    <svg className={`h-5 w-5 shrink-0 transition-transform duration-200 ${isCaseTextOpen ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                      <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                    </svg>
+                  </button>
+                  {isCaseTextOpen && (
+                    <div className="px-5 pb-5 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {q.caseVignette}
+                    </div>
+                  )}
                 </div>
               )}
 
