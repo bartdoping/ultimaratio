@@ -156,8 +156,11 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="bulk-json">JSON-Daten</Label>
+        <div className="space-y-1">
+          <Label htmlFor="bulk-json">Fragen-JSON</Label>
+          <p className="text-xs text-muted-foreground">
+            Erwartet ein Objekt mit <code>questions</code>. Falltexte kommen direkt als <code>caseVignette</code> an die jeweilige Frage.
+          </p>
           <Textarea
             id="bulk-json"
             name="bulk"
@@ -174,8 +177,8 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
       "images": [{ "url": "https://…/bild.jpg", "alt": "Röntgen" }],
       "options": [
         { "text": "Option A", "isCorrect": true, "explanation": "darum…" },
-        { "text": "Option B" },
-        { "text": "Option C" }
+        { "text": "Option B", "isCorrect": false, "explanation": null },
+        { "text": "Option C", "isCorrect": false, "explanation": null }
       ]
     }
   ]
@@ -186,7 +189,7 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
         {/* KI-Prompt für JSON-Konvertierung */}
         <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
           <div className="flex items-center justify-between">
-            <Label className="text-sm font-semibold">🤖 KI-Prompt für JSON-Konvertierung</Label>
+            <Label className="text-sm font-semibold">KI-Prompt für JSON-Konvertierung</Label>
             <Button
               type="button"
               variant="outline"
@@ -213,12 +216,12 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Kopiere diesen Prompt und füge ihn in eine KI (ChatGPT, Claude, etc.) ein. Die KI wird dann beliebige Prüfungsfragen automatisch in das korrekte JSON-Format konvertieren.
+            Kopiere diesen Prompt in ein KI-Tool, um Rohmaterial in das passende Importformat umzuwandeln.
           </p>
         </div>
 
-        <Button type="submit" disabled={loading || !jsonData.trim()}>
-          {loading ? "Importiere..." : "Generieren"}
+        <Button type="submit" disabled={loading || !jsonData.trim()} className="w-full">
+          {loading ? "Importiere..." : "Fragen importieren"}
         </Button>
       </form>
 
@@ -256,7 +259,7 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
       {/* Debug-Informationen */}
       <details className="text-xs text-muted-foreground">
         <summary className="cursor-pointer hover:text-foreground">
-          🔍 Debug-Informationen anzeigen
+          Hilfe bei Importfehlern anzeigen
         </summary>
         <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded text-xs font-mono">
           <p><strong>Wo findest du Fehlermeldungen:</strong></p>

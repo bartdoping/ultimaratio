@@ -23,39 +23,47 @@ export default async function NewExamPage({ searchParams }: Props) {
   const errorMessage = errorKey ? ERROR_TEXT[errorKey] ?? null : null
 
   return (
-    <div className="space-y-4 max-w-2xl">
-      <h1 className="text-2xl font-semibold">Neue Prüfung</h1>
+    <div className="max-w-2xl space-y-6">
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Admin</div>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight">Neue Prüfung anlegen</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Erstelle zuerst die Prüfung. Fragen, Fälle, Tags und Import verwaltest du danach im Editor.
+        </p>
+      </div>
       {errorMessage ? (
         <p className="rounded-md border border-destructive/50 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {errorMessage}
         </p>
       ) : null}
-      <form action={createExamAction} className="space-y-3">
-        <div>
+      <form action={createExamAction} className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+        <div className="space-y-1">
           <Label htmlFor="title">Titel</Label>
-          <Input id="title" name="title" required />
+          <Input id="title" name="title" placeholder="z. B. Innere Medizin Probeexamen" required />
         </div>
-        <div>
+        <div className="space-y-1">
           <Label htmlFor="slug">Slug</Label>
-          <Input id="slug" name="slug" required />
+          <Input id="slug" name="slug" placeholder="z. B. innere-medizin-probeexamen" required />
+          <p className="text-xs text-muted-foreground">Der Slug erscheint später in URLs und sollte eindeutig sein.</p>
         </div>
-        <div>
+        <div className="space-y-1">
           <Label htmlFor="description">Beschreibung</Label>
-          <Input id="description" name="description" />
+          <Input id="description" name="description" placeholder="Kurze Beschreibung für Admin und Nutzeransicht" />
         </div>
-        <div>
+        <div className="space-y-1">
           <Label htmlFor="passPercent">Bestehensgrenze (%)</Label>
           <Input id="passPercent" name="passPercent" type="number" defaultValue={60} />
         </div>
-        <div className="flex items-center gap-3">
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
           <div className="text-sm text-muted-foreground">
-            ✓ Sofort-Feedback global ist automatisch aktiviert
+            Sofort-Feedback ist global automatisch aktiviert.
           </div>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" name="isPublished" /> Veröffentlicht
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" name="isPublished" />
+            Direkt veröffentlichen
           </label>
         </div>
-        <Button type="submit">Anlegen</Button>
+        <Button type="submit">Prüfung anlegen</Button>
       </form>
     </div>
   )

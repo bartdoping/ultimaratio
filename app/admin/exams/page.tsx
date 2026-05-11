@@ -152,18 +152,26 @@ export default async function AdminExamsPage() {
   })
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Prüfungen</h1>
-        <Button asChild><Link href="/admin/exams/create">Neue Prüfung</Link></Button>
+    <div className="space-y-6">
+      <div className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-1">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Admin</div>
+            <h1 className="text-2xl font-semibold tracking-tight">Prüfungen</h1>
+            <p className="text-sm text-muted-foreground">
+              Verwalte Prüfungen, Preise, Sichtbarkeit und Kategorien an einem Ort.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/admin/exams/create">Neue Prüfung anlegen</Link>
+          </Button>
+        </div>
       </div>
 
-      <p className="text-sm text-muted-foreground max-w-3xl">
-        <strong>Einzelpreis (EUR):</strong> Wenn gesetzt, können eingeloggte Nutzer ohne Pro-Abo diese Prüfung per
-        Stripe-Einmalzahlung dauerhaft freischalten (Zugang bleibt auch nach Abo-Kündigung). Leer lassen = kein
-        Einzelverkauf. Für korrekte Stripe-Rückleitungen sollte{" "}
-        <code className="rounded bg-muted px-1">NEXT_PUBLIC_APP_URL</code> die öffentliche Basis-URL der App sein.
-      </p>
+      <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+        <strong className="text-foreground">Einzelpreis:</strong> Wenn ein Preis gesetzt ist, können Nutzer ohne Pro-Abo
+        diese Prüfung dauerhaft per Einmalzahlung freischalten. Leer lassen bedeutet: kein Einzelverkauf.
+      </div>
 
       {!examsPageVisibilityColumnReady && (
         <div className="rounded-md border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-100">

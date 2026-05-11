@@ -706,45 +706,69 @@ export default async function EditExamPage({ params, searchParams }: Props) {
   const editingValid = editing && editing.examId === id ? editing : null
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[1fr_22rem]">
+    <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
       <div className="space-y-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold">Prüfung bearbeiten</h1>
-          <Link href="/admin" className="text-sm underline text-muted-foreground">Zur Übersicht</Link>
+        <div className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-2">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Prüfung bearbeiten</div>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">{exam.title}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Slug: <code className="rounded bg-muted px-1.5 py-0.5">{exam.slug}</code>
+                  {exam.category?.name ? ` · Kategorie: ${exam.category.name}` : ""}
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <span className={`rounded-full px-2.5 py-1 ${exam.isPublished ? "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300" : "bg-muted text-muted-foreground"}`}>
+                  {exam.isPublished ? "Veröffentlicht" : "Entwurf"}
+                </span>
+                {exam.isFreeTrialDemo && (
+                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-primary">Kostenloses Probedeck</span>
+                )}
+              </div>
+            </div>
+            <Button variant="outline" asChild>
+              <Link href="/admin/exams">Zur Prüfungsübersicht</Link>
+            </Button>
+          </div>
         </div>
 
         {/* Globale Tags */}
         <ExamGlobalTags examId={exam.id} />
 
         {/* Fragen-Regal (Kästchen, DnD, Paging) */}
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Fragen-Regal</h2>
-            <span className="text-sm text-muted-foreground">Hover = Vorschau · Drag&Drop = Reihenfolge</span>
+        <section className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Fragen-Regal</h2>
+              <p className="text-sm text-muted-foreground">Frage anklicken, um sie unten zu bearbeiten. Ziehen ändert die Reihenfolge.</p>
+            </div>
           </div>
           <QuestionShelf examId={id} />
         </section>
 
         {/* Editor der ausgewählten Frage (optional) */}
         {edit && !editingValid && (
-          <section className="rounded border p-4 space-y-2" id="edit-question">
+          <section className="rounded-xl border bg-card p-4 shadow-sm space-y-2" id="edit-question">
             <div className="font-semibold">Frage bearbeiten</div>
             <div className="text-sm text-red-600">
               {editingLoadError ?? "Diese Frage existiert nicht (mehr) oder gehört nicht zu dieser Prüfung."}
             </div>
             <div>
-              <Link href={`/admin/exams/${id}`} className="text-sm underline text-muted-foreground">
-                Schließen
-              </Link>
+              <Button variant="outline" size="sm" asChild>
+                <Link href={`/admin/exams/${id}`}>Editor schließen</Link>
+              </Button>
             </div>
           </section>
         )}
         {editingValid && (
-          <section className="rounded border p-4 space-y-4" id="edit-question">
-            <div className="flex items-start justify-between gap-3">
+          <section className="rounded-xl border bg-card p-5 shadow-sm space-y-5" id="edit-question">
+            <div className="flex flex-col gap-3 border-b pb-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
-                <div className="font-semibold">Frage bearbeiten</div>
-                <div className="text-xs text-muted-foreground">ID: {editingValid.id}</div>
+                <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Aktive Frage</div>
+                <div className="text-xl font-semibold">Frage bearbeiten</div>
+                <div className="text-xs text-muted-foreground">ID: <code>{editingValid.id}</code></div>
               </div>
               <div className="flex items-center gap-2">
                 <form action={duplicateQuestionAction}>
@@ -752,18 +776,18 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   <input type="hidden" name="qid" value={editingValid.id} />
                   <Button size="sm" variant="outline">Duplizieren</Button>
                 </form>
-                <Link href={`/admin/exams/${id}`} className="text-sm underline text-muted-foreground">
-                  Schließen
-                </Link>
+                <Button size="sm" variant="ghost" asChild>
+                  <Link href={`/admin/exams/${id}`}>Schließen</Link>
+                </Button>
               </div>
             </div>
 
             {/* Falltext */}
-            <div className="rounded-lg border bg-muted/20 p-4 space-y-3" key={`case-${editingValid.id}`}>
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 space-y-4" key={`case-${editingValid.id}`}>
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold">Falltext</h3>
+                <h3 className="text-base font-semibold">Falltext</h3>
                 <p className="text-xs text-muted-foreground">
-                  Optional. Wenn mehrere Fragen denselben Falltext nutzen, kannst du einen vorhandenen Fall zuordnen.
+                  Optional für Fallfragen. Gleicher Falltext kann mehreren Fragen zugeordnet werden.
                 </p>
               </div>
               <form action={assignCaseToQuestionAction} className="flex items-center gap-2">
@@ -777,10 +801,10 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                     </option>
                   ))}
                 </select>
-                <button className="btn btn-sm" type="submit">Zuordnen</button>
+                <Button type="submit" variant="secondary" size="sm">Zuordnen</Button>
               </form>
               {editingValid.caseId && (
-                <div className="text-xs text-muted-foreground">
+                <div className="rounded-md border bg-background/70 px-3 py-2 text-xs text-muted-foreground">
                   <details className="cursor-pointer">
                     <summary className="hover:text-foreground">Fall verwalten</summary>
                     <div className="mt-2 space-y-1">
@@ -799,7 +823,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   </details>
                 </div>
               )}
-              <form action={saveQuestionCaseAction} className="rounded-md border bg-muted/30 p-3 space-y-3">
+              <form action={saveQuestionCaseAction} className="rounded-md border bg-background p-3 space-y-3">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
                 <input type="hidden" name="caseId" value={editingValid.case?.id ?? ""} />
@@ -814,23 +838,26 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   )}
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Falltext / Vignette</Label>
+                  <Label className="text-xs">Falltext</Label>
                   <textarea
                     name="vignette"
                     className="input w-full h-36"
                     defaultValue={editingValid.case?.vignette ?? ""}
-                    placeholder="Falltext der Fallfrage eingeben..."
+                    placeholder="Anamnese, Befunde, Laborwerte oder andere Fallinformationen..."
                   />
                 </div>
-                <Button type="submit" variant="outline" size="sm">
+                <Button type="submit" variant="default" size="sm">
                   {editingValid.case ? "Falltext speichern" : "Fall erstellen und zuordnen"}
                 </Button>
               </form>
             </div>
 
             {/* Fragestellung */}
-            <div className="rounded-lg border p-4 space-y-2" key={`stem-${editingValid.id}`}>
-              <h3 className="text-sm font-semibold">Fragestellung</h3>
+            <div className="rounded-lg border bg-card p-4 space-y-3" key={`stem-${editingValid.id}`}>
+              <div>
+                <h3 className="text-base font-semibold">Fragestellung</h3>
+                <p className="text-xs text-muted-foreground">Die eigentliche Frage, die in der Prüfung angezeigt wird.</p>
+              </div>
               <form action={updateQuestionStemAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -840,26 +867,31 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   defaultValue={editingValid.stem}
                   placeholder="Fragestellung eingeben..."
                 />
-                <Button type="submit" variant="outline" size="sm">Fragestellung speichern</Button>
+                <Button type="submit" variant="default" size="sm">Fragestellung speichern</Button>
               </form>
             </div>
 
             {/* Antwortoptionen */}
-            <div className="rounded-lg border p-4 space-y-3">
-              <h3 className="text-sm font-semibold">Antwortoptionen</h3>
+            <div className="rounded-lg border bg-card p-4 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold">Antwortoptionen</h3>
+                <p className="text-xs text-muted-foreground">Antworttexte und optionale Erklärungen direkt bearbeiten.</p>
+              </div>
               <div className="space-y-2">
                 {editingValid.options.map(
                   (o: { id: string; text: string; isCorrect: boolean; explanation: string | null }) => (
-                  <div key={o.id} className="rounded border p-3 space-y-3">
+                  <div key={o.id} className={`rounded-lg border p-3 space-y-3 ${o.isCorrect ? "border-green-300 bg-green-50/70 dark:border-green-900 dark:bg-green-950/20" : "bg-muted/20"}`}>
                     <div className="flex items-center justify-between gap-2">
-                      <div className={`text-sm font-medium ${o.isCorrect ? "text-green-600" : ""}`}>
+                      <div className={`text-sm font-medium ${o.isCorrect ? "text-green-700 dark:text-green-300" : ""}`}>
                         {o.isCorrect ? "Korrekte Antwort" : "Antwortoption"}
                       </div>
                       <form action={setCorrectOptionAction}>
                         <input type="hidden" name="examId" value={id} />
                         <input type="hidden" name="qid" value={editingValid.id} />
                         <input type="hidden" name="oid" value={o.id} />
-                        <Button variant="outline" size="sm">Als korrekt</Button>
+                        <Button variant={o.isCorrect ? "secondary" : "outline"} size="sm" disabled={o.isCorrect}>
+                          {o.isCorrect ? "Ist korrekt" : "Als korrekt markieren"}
+                        </Button>
                       </form>
                     </div>
                     <form action={updateOptionAction} className="space-y-2">
@@ -884,7 +916,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                           placeholder="Erklärung warum diese Option richtig/falsch ist..."
                         />
                       </div>
-                      <Button type="submit" variant="outline" size="sm">Option speichern</Button>
+                      <Button type="submit" variant="secondary" size="sm">Option speichern</Button>
                     </form>
                   </div>
                 ))}
@@ -892,8 +924,11 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
 
             {/* Zusammenfassende Erläuterung */}
-            <div className="rounded-lg border p-4 space-y-2" key={`explanation-${editingValid.id}`}>
-              <h3 className="text-sm font-semibold">Zusammenfassende Erläuterung</h3>
+            <div className="rounded-lg border bg-card p-4 space-y-3" key={`explanation-${editingValid.id}`}>
+              <div>
+                <h3 className="text-base font-semibold">Zusammenfassende Erläuterung</h3>
+                <p className="text-xs text-muted-foreground">Wird nach der Bearbeitung oder im Feedback-Kontext angezeigt.</p>
+              </div>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -903,19 +938,22 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   defaultValue={editingValid.explanation ?? ""}
                   placeholder="Zusammenfassende Erklärung zur Frage..."
                 />
-                <Button type="submit" variant="outline" size="sm">Erläuterung speichern</Button>
+                <Button type="submit" variant="secondary" size="sm">Erläuterung speichern</Button>
               </form>
             </div>
 
             {/* Tag-Management */}
-            <div className="rounded-lg border p-4 space-y-2">
-              <h3 className="text-sm font-semibold">Tags</h3>
+            <div className="rounded-lg border bg-card p-4 space-y-3">
+              <div>
+                <h3 className="text-base font-semibold">Tags</h3>
+                <p className="text-xs text-muted-foreground">Tags steuern Suche, Filter und spätere Zuordnung.</p>
+              </div>
               <CompactTagManager questionId={editingValid.id} />
             </div>
 
 
             {/* Löschen */}
-            <div className="pt-2">
+            <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
               <form action={deleteQuestionAction}>
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -927,16 +965,16 @@ export default async function EditExamPage({ params, searchParams }: Props) {
 
         {/* JSON-Download für gesamte Fragensammlung */}
         <section className="space-y-3">
-          <div className="rounded border p-4 bg-blue-50 dark:bg-blue-950/20">
-            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Fragensammlung exportieren</h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-              Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
+          <div className="rounded-xl border bg-card p-4 shadow-sm">
+            <h3 className="font-semibold">Fragensammlung exportieren</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Lade alle Fragen dieser Prüfung als JSON-Datei herunter.
             </p>
             <Link 
               href={`/api/admin/exams/${exam.id}/download-json`}
-              className="inline-flex"
+              className="mt-3 inline-flex"
             >
-              <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button variant="outline">
                 JSON herunterladen
               </Button>
             </Link>
@@ -947,8 +985,13 @@ export default async function EditExamPage({ params, searchParams }: Props) {
 
 
         {/* Neue Frage anlegen (mit Bild & 5 Optionen) */}
-        <div className="rounded border p-3 space-y-2" id="new-question">
-          <h3 className="font-medium">Neue Frage</h3>
+        <div className="rounded-xl border bg-card p-5 shadow-sm space-y-4" id="new-question">
+          <div>
+            <h3 className="text-lg font-semibold">Neue Frage anlegen</h3>
+            <p className="text-sm text-muted-foreground">
+              Für einzelne Ergänzungen. Große Sammlungen importierst du rechts per JSON.
+            </p>
+          </div>
           <form action={addQuestionAction} className="space-y-4">
             <input type="hidden" name="examId" value={exam.id} />
             <NewQuestionForm examId={exam.id} />
@@ -958,8 +1001,8 @@ export default async function EditExamPage({ params, searchParams }: Props) {
 
       {/* Rechte Sidebar: Bulk Import */}
       <aside className="space-y-4">
-        <form action={setDisableStartPopupAction} className="rounded border p-3 space-y-3">
-          <h3 className="font-medium">Start-Popup</h3>
+        <form action={setDisableStartPopupAction} className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
+          <h3 className="font-semibold">Startverhalten</h3>
           <p className="text-xs text-muted-foreground">
             Wenn deaktiviert, startet die Prüfung direkt mit allen Fragen (ohne Konfigurations-Popup).
           </p>
@@ -977,16 +1020,16 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               className="mt-1"
               disabled={!disableStartPopupReady}
             />
-            <span>Start-Popup für diese Prüfung deaktivieren</span>
+            <span>Direkt starten, ohne Start-Popup</span>
           </label>
           <input type="hidden" name="id" value={exam.id} />
           <Button type="submit" variant="secondary" size="sm" className="w-full">
-            Einstellung speichern
+            Startverhalten speichern
           </Button>
         </form>
 
-        <form action={setFreeTrialDemoExamAction} className="rounded border border-primary/30 bg-primary/5 p-3 space-y-3">
-          <h3 className="font-medium">Kostenloses Probedeck</h3>
+        <form action={setFreeTrialDemoExamAction} className="rounded-xl border border-primary/30 bg-primary/5 p-4 shadow-sm space-y-3">
+          <h3 className="font-semibold">Kostenloses Probedeck</h3>
           <p className="text-xs text-muted-foreground">
             Nur für <strong>Nicht-Pro</strong>-Accounts sichtbar (Homepage, Prüfungen, Dashboard). Pro-Nutzer werden
             zur normalen Übersicht umgeleitet. Es kann immer nur <strong>eine</strong> Prüfung aktiv sein – Fragen
@@ -999,22 +1042,22 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               defaultChecked={exam.isFreeTrialDemo}
               className="mt-1"
             />
-            <span>Diese Prüfung als kostenloses Probedeck verwenden</span>
+            <span>Diese Prüfung als kostenloses Probedeck anzeigen</span>
           </label>
           <input type="hidden" name="id" value={exam.id} />
           <Button type="submit" variant="secondary" size="sm" className="w-full">
-            Probedeck-Einstellung speichern
+            Probedeck speichern
           </Button>
         </form>
 
-        <div className="rounded border p-3">
-          <h3 className="font-medium mb-2">Mehrere Fragen einfügen</h3>
-          <p className="text-xs text-muted-foreground mb-2">
-            Füge JSON im unten beschriebenen Format ein. Fallfragen nutzen direkt <code>caseVignette</code>.
+        <div className="rounded-xl border bg-card p-4 shadow-sm">
+          <h3 className="font-semibold">JSON-Import</h3>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Importiere mehrere Fragen auf einmal. Fallfragen verwenden direkt <code>caseVignette</code>.
           </p>
           
           {/* JSON-Upload */}
-          <div className="mb-4 p-3 bg-muted/50 rounded border">
+          <div className="my-4 rounded-lg border bg-muted/40 p-3">
             <JsonUploadSimple />
           </div>
 
