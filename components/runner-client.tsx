@@ -835,6 +835,17 @@ const aiContext = useMemo(() => {
               </svg>
               <span className="hidden sm:inline ml-2">Labor</span>
             </Button>
+
+            {mode === "exam" && (
+              <Button
+                variant="destructive"
+                onClick={finish}
+                disabled={submitting}
+                className="h-10 px-4 font-semibold"
+              >
+                Beenden & Auswerten
+              </Button>
+            )}
           </div>
         </div>
 
@@ -1068,16 +1079,7 @@ const aiContext = useMemo(() => {
                     {primaryJumpLabel}
                   </Button>
 
-                  {mode === "exam" ? (
-                    <Button
-                      variant="destructive"
-                      onClick={finish}
-                      disabled={submitting}
-                      className="h-11 px-6 text-base font-semibold"
-                    >
-                      Beenden & Auswerten
-                    </Button>
-                  ) : (
+                  {mode === "practice" && (
                     <Button
                       variant="secondary"
                       onClick={endPractice}
