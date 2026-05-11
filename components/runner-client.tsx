@@ -495,35 +495,42 @@ const aiContext = useMemo(() => {
       setShowLimitPopup(true)
       return
     }
+
+    const questionId = q.id
+    const previousAnswer = answers[questionId]
+    if (previousAnswer === optionId) return
     
+    // Die Auswahl darf nicht auf die Datenbank warten: UI sofort aktualisieren,
+    // Persistenz im Hintergrund nachziehen und bei Fehler zurückrollen.
+    setAnswers(a => ({ ...a, [questionId]: optionId }))
     setSubmitting(true)
     try {
       if (mode === "practice") {
         const res = await fetch(`/api/practice/answer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
+          body: JSON.stringify({ questionId, answerOptionId: optionId }),
         })
         const j = await res.json().catch(() => ({}))
         if (!res.ok) {
           if (j.upgradeRequired) {
+            setAnswers(a => ({ ...a, [questionId]: previousAnswer }))
             setShowLimitPopup(true)
             return
           }
           throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
         }
-        setAnswers(a => ({ ...a, [q.id]: optionId }))
       } else {
         const res = await fetch(`/api/attempts/${attemptId}/answer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ questionId: q.id, answerOptionId: optionId }),
+          body: JSON.stringify({ questionId, answerOptionId: optionId }),
         })
         const j = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
-        setAnswers(a => ({ ...a, [q.id]: optionId }))
       }
     } catch (e) {
+      setAnswers(a => ({ ...a, [questionId]: previousAnswer }))
       alert((e as Error).message)
     } finally {
       setSubmitting(false)
