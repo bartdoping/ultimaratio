@@ -17,10 +17,12 @@ interface QuestionFormProps {
   onQuestionUpdate?: () => void
 }
 
+const normalizeText = (value?: string | null) => value ?? ""
+
 export default function QuestionForm({ question, examId, onQuestionUpdate }: QuestionFormProps) {
   const [stem, setStem] = useState(question.stem)
-  const [explanation, setExplanation] = useState(question.explanation || "")
-  const [tip, setTip] = useState(question.tip || "")
+  const [explanation, setExplanation] = useState(normalizeText(question.explanation))
+  const [tip, setTip] = useState(normalizeText(question.tip))
   const [allowImmediate, setAllowImmediate] = useState(question.hasImmediateFeedbackAllowed)
   const [saving, setSaving] = useState(false)
   const [autoSaving, setAutoSaving] = useState(false)
@@ -35,8 +37,8 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
     }
     
     setStem(question.stem)
-    setExplanation(question.explanation || "")
-    setTip(question.tip || "")
+    setExplanation(normalizeText(question.explanation))
+    setTip(normalizeText(question.tip))
     setAllowImmediate(question.hasImmediateFeedbackAllowed)
   }, [question.id, question.stem, question.explanation, question.tip, question.hasImmediateFeedbackAllowed])
 
@@ -123,8 +125,8 @@ export default function QuestionForm({ question, examId, onQuestionUpdate }: Que
     debounceRef.current = setTimeout(async () => {
       const hasStemChanges = question.stem !== stem
       const hasMetaChanges = 
-        question.explanation !== (explanation || "") ||
-        question.tip !== (tip || "") ||
+        normalizeText(question.explanation) !== explanation ||
+        normalizeText(question.tip) !== tip ||
         question.hasImmediateFeedbackAllowed !== allowImmediate
       
       if (hasStemChanges && hasMetaChanges) {

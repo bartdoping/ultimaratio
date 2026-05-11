@@ -107,6 +107,7 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
         loadQuestionTags()
         onTagChange?.()
         onQuestionTagsUpdate?.()
+        window.dispatchEvent(new CustomEvent('tagUpdated'))
       } else {
         const error = await response.json()
         setError(error.error || 'Fehler beim Zuweisen des Tags')
@@ -133,6 +134,7 @@ export default function CompactTagManager({ questionId, onTagChange, onQuestionT
         loadQuestionTags()
         onTagChange?.()
         onQuestionTagsUpdate?.()
+        window.dispatchEvent(new CustomEvent('tagUpdated'))
       } else {
         const error = await response.json()
         setError(error.error || 'Fehler beim Entfernen des Tags')

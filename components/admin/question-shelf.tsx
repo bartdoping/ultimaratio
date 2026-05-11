@@ -1,7 +1,7 @@
 // components/admin/question-shelf.tsx
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, useTransition } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Trash2, X, Check, Copy } from "lucide-react"
@@ -20,11 +20,13 @@ type Item = {
 export default function QuestionShelf({ examId }: { examId: string }) {
   const router = useRouter()
   const sp = useSearchParams()
+  const selectedQuestionId = sp.get("edit")
+  const [isPending, startTransition] = useTransition()
   const [page, setPage] = useState<number>(() => {
     const p = Number(sp.get("qpage") || 1)
     return Number.isFinite(p) && p > 0 ? p : 1
   })
-  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(sp.get("edit"))
+  const [currentQuestionId, setCurrentQuestionId] = useState<string | null>(selectedQuestionId)
 
   const [items, setItems] = useState<Item[]>([])
   const [total, setTotal] = useState(0)
@@ -66,17 +68,11 @@ export default function QuestionShelf({ examId }: { examId: string }) {
 
   useEffect(() => { load() }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Reagiere auf URL-Änderungen (nur wenn sich edit-Parameter ändert)
+  // Reagiere auf URL-Änderungen, ohne das Regal erneut zu laden.
+  // Der Fragewechsel lädt serverseitig nur den Editor; die Regal-Liste ist davon unabhängig.
   useEffect(() => {
-    const currentEdit = sp.get("edit")
-    if (currentEdit !== currentQuestionId) {
-      setCurrentQuestionId(currentEdit)
-      // Nur laden wenn sich die Frage tatsächlich geändert hat
-      if (currentEdit !== null) {
-        load()
-      }
-    }
-  }, [sp.get("edit"), currentQuestionId]) // eslint-disable-line react-hooks/exhaustive-deps
+    setCurrentQuestionId(selectedQuestionId)
+  }, [selectedQuestionId])
   
   // Reagiere auf Tag-Updates mit Debouncing
   useEffect(() => {
@@ -224,7 +220,9 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     params.set("edit", id)
     params.set("qpage", String(page))
     setCurrentQuestionId(id)
-    router.push(`/admin/exams/${encodeURIComponent(examId)}?${params.toString()}`)
+    startTransition(() => {
+      router.push(`/admin/exams/${encodeURIComponent(examId)}?${params.toString()}`, { scroll: false })
+    })
   }
 
   // Reorder-Helper lokal (optimistisches Update)
@@ -465,6 +463,11 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                 </div>
               )
             })}
+          </div>
+        )}
+        {isPending && (
+          <div className="mt-3 text-xs text-muted-foreground">
+            Frage wird geöffnet…
           </div>
         )}
       </div>

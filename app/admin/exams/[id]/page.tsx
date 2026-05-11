@@ -8,8 +8,6 @@ import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popu
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import QuestionForm from "@/components/admin/question-form"
-import QuestionEditorWrapper from "@/components/admin/question-editor-wrapper"
 import QuestionShelf from "@/components/admin/question-shelf"
 import ExamGlobalTags from "@/components/admin/exam-global-tags"
 import ImageUpload from "@/components/admin/image-upload"
@@ -17,6 +15,7 @@ import NewQuestionForm from "@/components/admin/new-question-form"
 import JsonUploadSimple from "@/components/admin/json-upload-simple"
 import JsonUploadForm from "@/components/admin/json-upload-form"
 import ConfirmSubmitButton from "@/components/admin/confirm-submit-button"
+import CompactTagManager from "@/components/admin/compact-tag-manager"
 import Link from "next/link"
 import { revalidatePath } from "next/cache"
 
@@ -73,7 +72,7 @@ async function setDisableStartPopupAction(formData: FormData) {
   }
   await prisma.exam.update({
     where: { id },
-    data: { disableStartPopup },
+    data: { disableStartPopup } as any,
   })
   revalidatePath("/exams")
   revalidatePath("/dashboard")
@@ -319,6 +318,49 @@ async function assignCaseToQuestionAction(formData: FormData) {
     where: { id: qid },
     data: { caseId: caseId || null },
   })
+  redirect(`/admin/exams/${examId}?edit=${qid}`)
+}
+
+async function saveQuestionCaseAction(formData: FormData) {
+  "use server"
+  await requireAdmin()
+  const examId = String(formData.get("examId") || "")
+  const qid = String(formData.get("qid") || "")
+  const caseId = String(formData.get("caseId") || "")
+  const title = String(formData.get("title") || "").trim()
+  const vignette = String(formData.get("vignette") || "").trim()
+  const order = Number(formData.get("order") || 0)
+
+  if (!examId || !qid || !title) {
+    redirect(`/admin/exams/${examId}?edit=${qid}`)
+  }
+
+  if (caseId) {
+    await prisma.questionCase.updateMany({
+      where: { id: caseId, examId },
+      data: {
+        title,
+        vignette: vignette || null,
+        order: Number.isFinite(order) ? order : 0,
+      },
+    })
+  } else {
+    const created = await prisma.questionCase.create({
+      data: {
+        examId,
+        title,
+        vignette: vignette || null,
+        order: Number.isFinite(order) ? order : 0,
+      },
+      select: { id: true },
+    })
+    await prisma.question.update({
+      where: { id: qid },
+      data: { caseId: created.id },
+    })
+  }
+
+  revalidatePath(`/admin/exams/${examId}`)
   redirect(`/admin/exams/${examId}?edit=${qid}`)
 }
 
@@ -678,6 +720,14 @@ export default async function EditExamPage({ params, searchParams }: Props) {
       editing = await prisma.question.findUnique({
         where: { id: edit },
         include: {
+          case: {
+            select: {
+              id: true,
+              title: true,
+              vignette: true,
+              order: true,
+            },
+          },
           options: { orderBy: { order: "asc" } },
           media: { include: { media: true }, orderBy: { order: "asc" } },
         },
@@ -799,6 +849,53 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                   </details>
                 </div>
               )}
+              <form action={saveQuestionCaseAction} className="rounded-md border bg-muted/30 p-3 space-y-3">
+                <input type="hidden" name="examId" value={id} />
+                <input type="hidden" name="qid" value={editingValid.id} />
+                <input type="hidden" name="caseId" value={editingValid.case?.id ?? ""} />
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-medium">
+                    {editingValid.case ? "Falltext bearbeiten" : "Neuen Fall für diese Frage anlegen"}
+                  </h4>
+                  {editingValid.case && (
+                    <span className="text-xs text-muted-foreground">
+                      Gilt für alle Fragen dieses Falls
+                    </span>
+                  )}
+                </div>
+                <div className="grid gap-3 md:grid-cols-[1fr_7rem]">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Falltitel</Label>
+                    <Input
+                      name="title"
+                      defaultValue={editingValid.case?.title ?? ""}
+                      placeholder="z. B. Fall 1"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Reihenfolge</Label>
+                    <Input
+                      name="order"
+                      type="number"
+                      defaultValue={editingValid.case?.order ?? 0}
+                      min={0}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Falltext / Vignette</Label>
+                  <textarea
+                    name="vignette"
+                    className="input w-full h-36"
+                    defaultValue={editingValid.case?.vignette ?? ""}
+                    placeholder="Falltext der Fallfrage eingeben..."
+                  />
+                </div>
+                <Button type="submit" variant="outline" size="sm">
+                  {editingValid.case ? "Falltext speichern" : "Fall erstellen und zuordnen"}
+                </Button>
+              </form>
             </div>
 
             {/* 2. Fragestellung (Stem) */}
@@ -897,16 +994,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             {/* 6. Tag-Management */}
             <div className="space-y-2">
               <h3 className="text-sm font-medium">6. Tag-Management:</h3>
-              <QuestionEditorWrapper 
-                question={{
-                  id: editingValid.id,
-                  stem: editingValid.stem,
-                  explanation: editingValid.explanation ?? null,
-                  tip: editingValid.tip ?? null,
-                  hasImmediateFeedbackAllowed: editingValid.hasImmediateFeedbackAllowed,
-                }}
-                examId={id}
-              />
+              <CompactTagManager questionId={editingValid.id} />
             </div>
 
 
