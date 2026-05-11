@@ -52,7 +52,7 @@ export default async function ExamRunPage({ params }: Props) {
             select: { id: true, text: true, isCorrect: true, explanation: true },
           },
           media: { orderBy: { order: "asc" }, include: { media: true } },
-          case: { select: { id: true, vignette: true, order: true } },
+          case: { select: { id: true, vignette: true } },
         },
       },
     },
@@ -88,7 +88,6 @@ export default async function ExamRunPage({ params }: Props) {
       })) ?? [],
     caseId: q.case?.id ?? null,
     caseVignette: q.case?.vignette ?? null,
-    caseOrder: q.case?.order ?? null,
   }))
 
   return (

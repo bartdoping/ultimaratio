@@ -21,7 +21,6 @@ type Question = {
   }>
   caseId?: string | null
   caseVignette?: string | null
-  caseOrder?: number | null
 }
 
 type Props = {

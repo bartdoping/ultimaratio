@@ -18,7 +18,6 @@ type Question = {
   media?: { id: string; url: string; alt: string; order: number }[]
   caseId?: string | null
   caseVignette?: string | null
-  caseOrder?: number | null
   examId?: string | null
 }
 
@@ -347,25 +346,19 @@ const aiContext = useMemo(() => {
 
   // Gruppen
   const groups = useMemo(() => {
-    const res: { id: string | null; label: string; indices: number[]; order: number }[] = []
+    const res: { id: string | null; label: string; indices: number[] }[] = []
     const byId = new Map<string | null, number>()
     questions.forEach((qu, i) => {
       const key = qu.caseId ?? null
       if (!byId.has(key)) {
-        const order = qu.caseOrder ?? 0
-        // Keine Fall-Titel anzeigen (Spoiler-Gefahr)
         const label = key ? "Fall" : "Einzelfragen"
         byId.set(key, res.length)
-        res.push({ id: key, label, indices: [i], order })
+        res.push({ id: key, label, indices: [i] })
       } else {
         res[byId.get(key)!].indices.push(i)
       }
     })
-    return res.sort((a, b) => {
-      if (a.id === null && b.id !== null) return 1
-      if (a.id !== null && b.id === null) return -1
-      return a.order - b.order
-    })
+    return res
   }, [questions])
 
   // Counters & Ziel-Listen

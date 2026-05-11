@@ -233,10 +233,10 @@ export async function POST(req: Request) {
       const caseGroups = new Map<string, string[]>()
       const standaloneQuestions: string[] = []
       
-      // Hole alle Fragen mit ihren Case-IDs und caseOrder
+      // Hole alle Fragen mit ihren Case-IDs
       const questionsWithCases = await prisma.question.findMany({
         where: { id: { in: questionIds } },
-        select: { id: true, caseId: true, caseOrder: true }
+        select: { id: true, caseId: true }
       })
       
       questionsWithCases.forEach(q => {
@@ -254,16 +254,8 @@ export async function POST(req: Request) {
       const shuffledCases = shuffleArray(Array.from(caseGroups.values()))
       const shuffledStandalone = shuffleArray(standaloneQuestions)
       
-      // Sortiere Fragen innerhalb jedes Falls nach caseOrder (NICHT shuffeln!)
-      const sortedCaseQuestions = shuffledCases.map(caseQuestions => {
-        return caseQuestions.sort((a, b) => {
-          const questionA = questionsWithCases.find(q => q.id === a)
-          const questionB = questionsWithCases.find(q => q.id === b)
-          const orderA = questionA?.caseOrder ?? 0
-          const orderB = questionB?.caseOrder ?? 0
-          return orderA - orderB
-        })
-      })
+      // Auch innerhalb eines Falls gibt es keine feste Reihenfolge mehr.
+      const sortedCaseQuestions = shuffledCases.map(caseQuestions => shuffleArray(caseQuestions))
       
       // Kombiniere: erst Fälle (mit sortierten Fragen), dann standalone
       questionIds = [...sortedCaseQuestions.flat(), ...shuffledStandalone]
@@ -362,7 +354,7 @@ export async function POST(req: Request) {
     
     const allQuestions = await prisma.question.findMany({
       where: { examId },
-      select: { id: true, caseId: true, caseOrder: true }
+      select: { id: true, caseId: true }
     })
     
     questionIds = allQuestions.map(q => q.id)
@@ -388,16 +380,8 @@ export async function POST(req: Request) {
       const shuffledCases = shuffleArray(Array.from(caseGroups.values()))
       const shuffledStandalone = shuffleArray(standaloneQuestions)
       
-      // Sortiere Fragen innerhalb jedes Falls nach caseOrder
-      const sortedCaseQuestions = shuffledCases.map(caseQuestions => {
-        return caseQuestions.sort((a, b) => {
-          const questionA = allQuestions.find(q => q.id === a)
-          const questionB = allQuestions.find(q => q.id === b)
-          const orderA = questionA?.caseOrder ?? 0
-          const orderB = questionB?.caseOrder ?? 0
-          return orderA - orderB
-        })
-      })
+      // Auch innerhalb eines Falls gibt es keine feste Reihenfolge mehr.
+      const sortedCaseQuestions = shuffledCases.map(caseQuestions => shuffleArray(caseQuestions))
       
       questionIds = [...sortedCaseQuestions.flat(), ...shuffledStandalone]
     } else {

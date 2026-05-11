@@ -123,7 +123,6 @@ model Question {
 
   caseId    String?
   case      QuestionCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
-  caseOrder Int?
 
   exam      Exam               @relation(fields: [examId], references: [id], onDelete: Cascade)
   section   Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
@@ -260,12 +259,11 @@ model QuestionCase {
   id       String  @id @default(cuid())
   examId   String
   vignette String?
-  order    Int     @default(0)
 
   exam      Exam       @relation(fields: [examId], references: [id], onDelete: Cascade)
   questions Question[]
 
-  @@index([examId, order])
+  @@index([examId])
 }
 
 model ExamGlobalTag {

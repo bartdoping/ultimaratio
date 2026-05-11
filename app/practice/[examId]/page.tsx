@@ -113,7 +113,7 @@ export default async function PracticePage({ params, searchParams }: Props) {
             select: { id: true, text: true, isCorrect: true, explanation: true },
           },
           media: { orderBy: { order: "asc" }, include: { media: true } },
-          case: { select: { id: true, vignette: true, order: true } },
+          case: { select: { id: true, vignette: true } },
         },
       },
     },
@@ -165,7 +165,6 @@ export default async function PracticePage({ params, searchParams }: Props) {
       })) ?? [],
     caseId: q.case?.id ?? null,
     caseVignette: q.case?.vignette ?? null,
-    caseOrder: q.case?.order ?? null,
     __starred: starredSet.has(q.id),
   }))
 

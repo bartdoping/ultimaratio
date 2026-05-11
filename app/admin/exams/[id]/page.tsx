@@ -293,16 +293,6 @@ async function removeImageFromQuestionAction(formData: FormData) {
   redirect(`/admin/exams/${examId}?edit=${qid}`)
 }
 
-async function createCaseAction(formData: FormData) {
-  "use server"
-  await requireAdmin()
-  const examId = String(formData.get("examId") || "")
-  const vignette = String(formData.get("vignette") || "")
-  const order = Number(formData.get("order") || 0)
-  await prisma.questionCase.create({ data: { examId, vignette, order } })
-  redirect(`/admin/exams/${examId}`)
-}
-
 async function assignCaseToQuestionAction(formData: FormData) {
   "use server"
   await requireAdmin()
@@ -323,7 +313,6 @@ async function saveQuestionCaseAction(formData: FormData) {
   const qid = String(formData.get("qid") || "")
   const caseId = String(formData.get("caseId") || "")
   const vignette = String(formData.get("vignette") || "").trim()
-  const order = Number(formData.get("order") || 0)
 
   if (!examId || !qid) {
     redirect(`/admin/exams/${examId}?edit=${qid}`)
@@ -334,15 +323,13 @@ async function saveQuestionCaseAction(formData: FormData) {
       where: { id: caseId, examId },
       data: {
         vignette: vignette || null,
-        order: Number.isFinite(order) ? order : 0,
       },
     })
-  } else {
+  } else if (vignette) {
     const created = await prisma.questionCase.create({
       data: {
         examId,
-        vignette: vignette || null,
-        order: Number.isFinite(order) ? order : 0,
+        vignette,
       },
       select: { id: true },
     })
@@ -409,7 +396,6 @@ async function duplicateQuestionAction(formData: FormData) {
         explanation: q.explanation ?? null,
         hasImmediateFeedbackAllowed: q.hasImmediateFeedbackAllowed,
         caseId: q.caseId ?? null,
-        caseOrder: q.caseOrder ?? null,
         order: maxOrder + 1,
       },
     })
@@ -447,15 +433,12 @@ async function duplicateQuestionAction(formData: FormData) {
  * BULK-IMPORT
  * Erwartet JSON in diesem Format (Beispiel):
  * {
- *   "cases": [
- *     { "vignette": "…", "order": 1 }
- *   ],
  *   "questions": [
  *     {
  *       "stem": "Fragetext …",
  *       "explanation": "Zusammenfassung…",
  *       "allowImmediate": true,
- *       "caseOrder": 1,                   // optional: ordnet Frage einem Fall nach Reihenfolge zu
+ *       "caseVignette": "Falltext …",     // optional
  *       "images": [{ "url": "https://…", "alt": "…" }],
  *       "options": [
  *         { "text": "A", "isCorrect": true, "explanation": "…" },
@@ -488,14 +471,10 @@ async function bulkImportAction(formData: FormData) {
       return { success: false, error: "Ungültiges JSON-Format" }
     }
 
-    const cases: Array<{ vignette?: string; order?: number }> = Array.isArray(data?.cases)
-      ? data.cases
-      : []
-
     const questions: Array<any> = Array.isArray(data?.questions) ? data.questions : []
-    if (questions.length === 0 && cases.length === 0) {
+    if (questions.length === 0) {
       console.error("No questions or cases to import")
-      return { success: false, error: "Keine Fragen oder Fälle zum Importieren" }
+      return { success: false, error: "Keine Fragen zum Importieren" }
     }
 
     // Globale Tags außerhalb der Transaktion laden
@@ -514,31 +493,7 @@ async function bulkImportAction(formData: FormData) {
 
     console.log(`Processing ${questionChunks.length} chunks of questions`)
 
-    // Fälle zuerst außerhalb der Transaktion erstellen
-    const orderToCaseId = new Map<number, string>()
-    for (let caseIndex = 0; caseIndex < cases.length; caseIndex++) {
-      const c = cases[caseIndex]
-      const order = Number.isFinite(c?.order) ? Number(c.order) : caseIndex + 1
-      try {
-        const found = await prisma.questionCase.findFirst({
-          where: { examId, order },
-          select: { id: true },
-        })
-        if (found) {
-          orderToCaseId.set(order, found.id)
-          continue
-        }
-        const created = await prisma.questionCase.create({
-          data: { examId, vignette: c?.vignette || null, order },
-          select: { id: true },
-        })
-        orderToCaseId.set(order, created.id)
-        console.log(`Created case order ${order}`)
-      } catch (caseError) {
-        console.error("Error creating case:", caseError)
-        throw new Error(`Fehler beim Erstellen des Falls #${order}: ${caseError}`)
-      }
-    }
+    const vignetteToCaseId = new Map<string, string>()
 
     // Berechne maxOrder einmal außerhalb der Schleife
     const initialMaxOrder = (await prisma.question.aggregate({
@@ -568,8 +523,30 @@ async function bulkImportAction(formData: FormData) {
             currentOrder++
 
             const allowImmediate = !!q?.allowImmediate
-            const caseOrder = Number(q?.caseOrder || 0)
-            const caseId = Number.isFinite(caseOrder) && caseOrder > 0 ? orderToCaseId.get(caseOrder) ?? null : null
+            const caseVignette = q?.caseVignette ? String(q.caseVignette).trim() : ""
+            let caseId: string | null = null
+
+            if (caseVignette) {
+              const cachedCaseId = vignetteToCaseId.get(caseVignette)
+              if (cachedCaseId) {
+                caseId = cachedCaseId
+              } else {
+                const found = await tx.questionCase.findFirst({
+                  where: { examId, vignette: caseVignette },
+                  select: { id: true },
+                })
+                if (found) {
+                  caseId = found.id
+                } else {
+                  const createdCase = await tx.questionCase.create({
+                    data: { examId, vignette: caseVignette },
+                    select: { id: true },
+                  })
+                  caseId = createdCase.id
+                }
+                vignetteToCaseId.set(caseVignette, caseId)
+              }
+            }
 
             const created = await tx.question.create({
               data: {
@@ -652,7 +629,7 @@ async function bulkImportAction(formData: FormData) {
 
     return { 
       success: true, 
-      message: `${questions.length} Fragen und ${cases.length} Fälle erfolgreich importiert`,
+      message: `${questions.length} Fragen erfolgreich importiert`,
       examId 
     }
   } catch (error) {
@@ -686,7 +663,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
       isFreeTrialDemo: true,
       categoryId: true,
       ...(disableStartPopupReady ? { disableStartPopup: true as const } : {}),
-      cases: true,
+      cases: { select: { id: true, vignette: true } },
       category: true,
     },
   })
@@ -712,7 +689,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             select: {
               id: true,
               vignette: true,
-              order: true,
             },
           },
           options: { orderBy: { order: "asc" } },
@@ -749,24 +725,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
           <QuestionShelf examId={id} />
         </section>
 
-        {/* JSON-Download für gesamte Fragensammlung */}
-        <section className="space-y-3">
-          <div className="rounded border p-4 bg-blue-50 dark:bg-blue-950/20">
-            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">📥 Fragensammlung exportieren</h3>
-            <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
-              Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
-            </p>
-            <Link 
-              href={`/api/admin/exams/${exam.id}/download-json`}
-              className="inline-flex"
-            >
-              <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
-                📥 JSON herunterladen
-              </Button>
-            </Link>
-          </div>
-        </section>
-
         {/* Editor der ausgewählten Frage (optional) */}
         {edit && !editingValid && (
           <section className="rounded border p-4 space-y-2" id="edit-question">
@@ -800,17 +758,22 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            {/* 1. Fall-Zuordnung */}
-            <div className="space-y-2" key={`case-${editingValid.id}`}>
-              <h3 className="text-sm font-medium">1. Fall:</h3>
+            {/* Falltext */}
+            <div className="rounded-lg border bg-muted/20 p-4 space-y-3" key={`case-${editingValid.id}`}>
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Falltext</h3>
+                <p className="text-xs text-muted-foreground">
+                  Optional. Wenn mehrere Fragen denselben Falltext nutzen, kannst du einen vorhandenen Fall zuordnen.
+                </p>
+              </div>
               <form action={assignCaseToQuestionAction} className="flex items-center gap-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
                 <select name="caseId" className="input flex-1" defaultValue={editingValid.caseId ?? ""}>
                   <option value="">– keiner –</option>
-                  {exam.cases?.sort((a, b) => a.order - b.order).map((c) => (
+                  {exam.cases?.map((c, index) => (
                     <option key={c.id} value={c.id}>
-                      #{c.order} – Fall
+                      Fall {index + 1}: {(c.vignette || "Ohne Falltext").slice(0, 80)}
                     </option>
                   ))}
                 </select>
@@ -850,17 +813,6 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                     </span>
                   )}
                 </div>
-                <div className="grid gap-3 md:grid-cols-[7rem_1fr]">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Reihenfolge</Label>
-                    <Input
-                      name="order"
-                      type="number"
-                      defaultValue={editingValid.case?.order ?? 0}
-                      min={0}
-                    />
-                  </div>
-                </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Falltext / Vignette</Label>
                   <textarea
@@ -876,9 +828,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </form>
             </div>
 
-            {/* 2. Fragestellung (Stem) */}
-            <div className="space-y-2" key={`stem-${editingValid.id}`}>
-              <h3 className="text-sm font-medium">2. Fragestellung:</h3>
+            {/* Fragestellung */}
+            <div className="rounded-lg border p-4 space-y-2" key={`stem-${editingValid.id}`}>
+              <h3 className="text-sm font-semibold">Fragestellung</h3>
               <form action={updateQuestionStemAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -892,16 +844,16 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </form>
             </div>
 
-            {/* 3. Antwortoptionen */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">3. Antwortoptionen:</h3>
+            {/* Antwortoptionen */}
+            <div className="rounded-lg border p-4 space-y-3">
+              <h3 className="text-sm font-semibold">Antwortoptionen</h3>
               <div className="space-y-2">
                 {editingValid.options.map(
                   (o: { id: string; text: string; isCorrect: boolean; explanation: string | null }) => (
-                  <div key={o.id} className="rounded border p-3 space-y-2">
+                  <div key={o.id} className="rounded border p-3 space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className={`flex-1 ${o.isCorrect ? "text-green-600 font-medium" : ""}`}>
-                        {o.text} {o.isCorrect ? "✓" : ""}
+                      <div className={`text-sm font-medium ${o.isCorrect ? "text-green-600" : ""}`}>
+                        {o.isCorrect ? "Korrekte Antwort" : "Antwortoption"}
                       </div>
                       <form action={setCorrectOptionAction}>
                         <input type="hidden" name="examId" value={id} />
@@ -910,22 +862,38 @@ export default async function EditExamPage({ params, searchParams }: Props) {
                         <Button variant="outline" size="sm">Als korrekt</Button>
                       </form>
                     </div>
-                    <div>
-                      <Label className="text-xs">Erklärung (warum richtig/falsch):</Label>
-                      <textarea
-                        className="input w-full h-16 text-xs"
-                        defaultValue={o.explanation ?? ""}
-                        placeholder="Erklärung warum diese Option richtig/falsch ist..."
-                      />
-                    </div>
+                    <form action={updateOptionAction} className="space-y-2">
+                      <input type="hidden" name="examId" value={id} />
+                      <input type="hidden" name="qid" value={editingValid.id} />
+                      <input type="hidden" name="oid" value={o.id} />
+                      <div className="space-y-1">
+                        <Label className="text-xs">Antworttext</Label>
+                        <textarea
+                          name="text"
+                          className="input w-full h-16 text-sm"
+                          defaultValue={o.text}
+                          placeholder="Antworttext..."
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Erklärung (warum richtig/falsch)</Label>
+                        <textarea
+                          name="explanation"
+                          className="input w-full h-16 text-xs"
+                          defaultValue={o.explanation ?? ""}
+                          placeholder="Erklärung warum diese Option richtig/falsch ist..."
+                        />
+                      </div>
+                      <Button type="submit" variant="outline" size="sm">Option speichern</Button>
+                    </form>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* 4. Zusammenfassende Erläuterung */}
-            <div className="space-y-2" key={`explanation-${editingValid.id}`}>
-              <h3 className="text-sm font-medium">4. Zusammenfassende Erläuterung:</h3>
+            {/* Zusammenfassende Erläuterung */}
+            <div className="rounded-lg border p-4 space-y-2" key={`explanation-${editingValid.id}`}>
+              <h3 className="text-sm font-semibold">Zusammenfassende Erläuterung</h3>
               <form action={updateQuestionMetaAction} className="space-y-2">
                 <input type="hidden" name="examId" value={id} />
                 <input type="hidden" name="qid" value={editingValid.id} />
@@ -939,9 +907,9 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               </form>
             </div>
 
-            {/* 5. Tag-Management */}
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">5. Tag-Management:</h3>
+            {/* Tag-Management */}
+            <div className="rounded-lg border p-4 space-y-2">
+              <h3 className="text-sm font-semibold">Tags</h3>
               <CompactTagManager questionId={editingValid.id} />
             </div>
 
@@ -956,6 +924,24 @@ export default async function EditExamPage({ params, searchParams }: Props) {
             </div>
           </section>
         )}
+
+        {/* JSON-Download für gesamte Fragensammlung */}
+        <section className="space-y-3">
+          <div className="rounded border p-4 bg-blue-50 dark:bg-blue-950/20">
+            <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Fragensammlung exportieren</h3>
+            <p className="text-sm text-blue-700 dark:text-blue-300 mb-3">
+              Lade die gesamte Fragensammlung dieser Prüfung als JSON-Datei herunter.
+            </p>
+            <Link 
+              href={`/api/admin/exams/${exam.id}/download-json`}
+              className="inline-flex"
+            >
+              <Button variant="default" className="bg-blue-600 hover:bg-blue-700 text-white">
+                JSON herunterladen
+              </Button>
+            </Link>
+          </div>
+        </section>
 
 
 
@@ -1024,7 +1010,7 @@ export default async function EditExamPage({ params, searchParams }: Props) {
         <div className="rounded border p-3">
           <h3 className="font-medium mb-2">Mehrere Fragen einfügen</h3>
           <p className="text-xs text-muted-foreground mb-2">
-            Füge JSON im unten beschriebenen Format ein. Fälle können über <code>caseOrder</code> zugeordnet werden.
+            Füge JSON im unten beschriebenen Format ein. Fallfragen nutzen direkt <code>caseVignette</code>.
           </p>
           
           {/* JSON-Upload */}

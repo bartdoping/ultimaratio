@@ -22,7 +22,6 @@ type ClientQuestion = {
   media: { id: string; url: string; alt: string; order: number }[]
   caseId: string | null
   caseVignette: string | null
-  caseOrder: number | null
   examId?: string | null
 }
 
@@ -60,7 +59,7 @@ export default async function DeckPracticePage({ params }: Props) {
             id: true, stem: true, explanation: true, examId: true,
             options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
             media: { orderBy: { order: "asc" }, include: { media: true } },
-            case: { select: { id: true, vignette: true, order: true } },
+            case: { select: { id: true, vignette: true } },
           }
         })
         // Reihenfolge wie flags
@@ -75,7 +74,6 @@ export default async function DeckPracticePage({ params }: Props) {
           media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
           caseId: q.case?.id ?? null,
           caseVignette: q.case?.vignette ?? null,
-          caseOrder: q.case?.order ?? null,
           examId: q.examId,
         }))
       }
@@ -95,7 +93,7 @@ export default async function DeckPracticePage({ params }: Props) {
             id: true, stem: true, explanation: true, examId: true,
             options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
             media: { orderBy: { order: "asc" }, include: { media: true } },
-            case: { select: { id: true, vignette: true, order: true } },
+            case: { select: { id: true, vignette: true } },
           }
         })
         // Reihenfolge wie wrongs
@@ -110,7 +108,6 @@ export default async function DeckPracticePage({ params }: Props) {
           media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
           caseId: q.case?.id ?? null,
           caseVignette: q.case?.vignette ?? null,
-          caseOrder: q.case?.order ?? null,
           examId: q.examId,
         }))
       }
@@ -140,7 +137,7 @@ export default async function DeckPracticePage({ params }: Props) {
                 id: true, stem: true, explanation: true, examId: true,
                 options: { orderBy: { id: "asc" }, select: { id: true, text: true, isCorrect: true, explanation: true } },
                 media: { orderBy: { order: "asc" }, include: { media: true } },
-                case: { select: { id: true, vignette: true, order: true } },
+                case: { select: { id: true, vignette: true } },
               }
             }
           }
@@ -161,7 +158,6 @@ export default async function DeckPracticePage({ params }: Props) {
       media: (q.media ?? []).map((m: any) => ({ id: m.media.id, url: m.media.url, alt: m.media.alt ?? "", order: m.order ?? 0 })),
       caseId: q.case?.id ?? null,
       caseVignette: q.case?.vignette ?? null,
-      caseOrder: q.case?.order ?? null,
       examId: q.examId ?? null,
     }))
   }

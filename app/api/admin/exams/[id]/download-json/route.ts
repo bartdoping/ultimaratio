@@ -53,20 +53,16 @@ export async function GET(
         case: {
           select: {
             vignette: true,
-            order: true
           }
         }
       }
     })
 
-    // Erkennen, ob überhaupt Fälle existieren
-    const hasCases = questions.some(q => !!q.case)
-
     const normalizedQuestions = questions.map(q => ({
       stem: q.stem,
       explanation: q.explanation,
       allowImmediate: q.hasImmediateFeedbackAllowed,
-      caseOrder: q.case?.order || undefined,
+      caseVignette: q.case?.vignette || undefined,
       images: q.media.map(m => ({
         url: m.media.url,
         alt: m.media.alt
@@ -78,24 +74,10 @@ export async function GET(
       }))
     }))
 
-    const jsonData = hasCases
-      ? {
-          schemaVersion: "1",
-          cases: questions
-            .filter(q => q.case)
-            .map(q => ({
-              vignette: q.case!.vignette,
-              order: q.case!.order
-            }))
-            .filter((case_, index, arr) =>
-              arr.findIndex(c => c.order === case_.order) === index
-            ),
-          questions: normalizedQuestions
-        }
-      : {
-          schemaVersion: "1",
-          questions: normalizedQuestions
-        }
+    const jsonData = {
+      schemaVersion: "1",
+      questions: normalizedQuestions,
+    }
 
     // Dateiname mit Exam-Titel
     const exam = await prisma.exam.findUnique({
