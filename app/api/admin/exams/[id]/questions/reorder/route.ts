@@ -7,7 +7,7 @@ import { requireAdminJson } from "@/lib/authz"
 export const runtime = "nodejs"
 
 const Body = z.object({
-  ids: z.array(z.string().min(1)).min(1).max(100), // Reihenfolge der *Seite*
+  ids: z.array(z.string().min(1)).min(1).max(500), // Reihenfolge der *Seite*
   offset: z.number().int().min(0),                 // Startindex der Seite (z.B. (page-1)*100)
 })
 

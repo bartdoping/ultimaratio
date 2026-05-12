@@ -3,6 +3,7 @@ import { z } from "zod"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { computeScore } from "@/lib/scoring"
 
 export const runtime = "nodejs"
 
@@ -65,8 +66,7 @@ export async function POST(
 
     const correctCount = answers.filter(a => a.isCorrect).length
     const totalQuestions = selectedQuestionIds.length || exam._count.questions || 0
-    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
-    const passed = scorePercent >= exam.passPercent
+    const { scorePercent, passed } = computeScore(totalQuestions, correctCount, exam.passPercent)
 
     const derivedElapsed =
       attempt.startedAt

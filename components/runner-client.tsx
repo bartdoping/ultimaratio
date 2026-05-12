@@ -301,6 +301,7 @@ export function RunnerClient(props: Props) {
   // Filter-Init
   const [filterMode, setFilterMode] = useState<FilterMode>(() => {
     if (typeof window === "undefined") return initialFilterMode ?? "all"
+    if (initialFilterMode) return initialFilterMode
     const raw = window.localStorage.getItem(LS_FILTER)
     if (raw === "all" || raw === "open" || raw === "flagged" || raw === "wrong") return raw
     return initialFilterMode ?? "all"

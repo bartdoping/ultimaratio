@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -32,6 +32,16 @@ export default function StartExamModal({
     total: number
     available: number
   } | null>(null)
+
+  useEffect(() => {
+    setPreview(null)
+  }, [selectedTagIds, selectedSuperTagIds, requireAnd, includeCases, limit])
+
+  const effectivePreviewCount = useMemo(() => {
+    if (!preview) return null
+    if (typeof limit === "number" && limit > 0) return Math.min(limit, preview.total)
+    return preview.total
+  }, [limit, preview])
 
   const handlePreview = async () => {
     // Erlaube Preview auch ohne Tag-Auswahl (zeigt alle verfügbaren Fragen)
@@ -75,6 +85,11 @@ export default function StartExamModal({
     try {
       setLoading(true)
       setError(null)
+
+      if (preview && preview.total === 0) {
+        setError("Für diese Auswahl wurden keine Fragen gefunden. Bitte Filter anpassen.")
+        return
+      }
 
       const response = await fetch("/api/attempts", {
         method: "POST",
@@ -222,10 +237,15 @@ export default function StartExamModal({
 
                 {/* Preview */}
                 {preview && (
-                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950/20">
-                    <div className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                  <div className={`rounded-xl border p-4 ${preview.total === 0 ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20" : "border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/20"}`}>
+                    <div className={`text-sm font-medium ${preview.total === 0 ? "text-amber-800 dark:text-amber-300" : "text-blue-800 dark:text-blue-300"}`}>
                       Verfügbare Fragen: {preview.total}
                     </div>
+                    {preview.total === 0 && (
+                      <div className="text-xs text-amber-700 dark:text-amber-300">
+                        Mit dieser Auswahl kann keine Prüfung gestartet werden. Passe Tags oder Fallfragen-Optionen an.
+                      </div>
+                    )}
                     {selectedTagIds.length === 0 && selectedSuperTagIds.length === 0 && (
                       <div className="text-xs text-blue-700 dark:text-blue-300">
                         Alle verfügbaren Fragen werden verwendet.
@@ -238,7 +258,8 @@ export default function StartExamModal({
                     )}
                     {typeof limit === "number" && limit > 0 && (
                       <div className="text-xs text-blue-700 dark:text-blue-300">
-                        Es werden {Math.min(limit, preview.total)} Fragen verwendet.
+                        Es werden {effectivePreviewCount ?? 0} Fragen verwendet.
+                        {limit > preview.total && preview.total > 0 ? " Das Limit ist höher als die Trefferzahl." : ""}
                       </div>
                     )}
                     <div className="text-xs text-blue-700 dark:text-blue-300 mt-1">
@@ -263,7 +284,7 @@ export default function StartExamModal({
                   </Button>
                   <Button
                     onClick={handleStart}
-                    disabled={loading}
+                    disabled={loading || preview?.total === 0}
                   >
                     {loading ? "Starte..." : "Prüfung starten"}
                   </Button>

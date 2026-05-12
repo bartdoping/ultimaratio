@@ -129,6 +129,11 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            {wrongCount > 0 && (
+              <Button asChild>
+                <Link href="/practice/deck/auto:wrong">Fehlertraining starten</Link>
+              </Button>
+            )}
             <Button variant="outline" asChild>
               <Link href={`/practice/${attempt.exam.id}`}>Diese Prüfung üben</Link>
             </Button>
@@ -175,21 +180,34 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
         </div>
 
         {priorityItems.length > 0 ? (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {priorityItems.slice(0, 6).map((item, idx) => (
-              <a
-                key={item.question.id}
-                href={`#review-${item.question.id}`}
-                className="rounded-lg border bg-muted/20 px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="line-clamp-2">{idx + 1}. {item.question.stem}</span>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${reviewBadgeClass(item.status)}`}>
-                    {item.status === "wrong" ? "falsch" : "offen"}
-                  </span>
-                </div>
-              </a>
-            ))}
+          <div className="mt-4 space-y-3">
+            {wrongCount > 0 && (
+              <div className="rounded-xl border bg-red-50/70 p-3 text-sm dark:bg-red-950/20">
+                <div className="font-medium text-red-800 dark:text-red-300">Direkt weiterlernen</div>
+                <p className="mt-1 text-red-700 dark:text-red-300">
+                  Wiederhole deine falsch beantworteten Fragen gebündelt im Fehlertraining.
+                </p>
+                <Button className="mt-3" size="sm" asChild>
+                  <Link href="/practice/deck/auto:wrong">Fehlertraining starten</Link>
+                </Button>
+              </div>
+            )}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {priorityItems.slice(0, 6).map((item, idx) => (
+                <a
+                  key={item.question.id}
+                  href={`#review-${item.question.id}`}
+                  className="rounded-lg border bg-muted/20 px-3 py-2 text-sm hover:bg-muted/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="line-clamp-2">{idx + 1}. {item.question.stem}</span>
+                    <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${reviewBadgeClass(item.status)}`}>
+                      {item.status === "wrong" ? "falsch" : "offen"}
+                    </span>
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
         ) : (
           <p className="mt-4 rounded-lg border bg-green-50 px-3 py-2 text-sm text-green-700 dark:bg-green-950/30 dark:text-green-300">

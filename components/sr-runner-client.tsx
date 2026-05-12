@@ -45,7 +45,7 @@ export default function SRRunnerClient({ mode = "deck", deckId }: Props) {
   useEffect(() => { loadNext() }, [loadNext])
 
   async function submit(optionId: string) {
-    if (!q) return
+    if (!q || selected) return
     setSubmitting(true)
     try {
       const res = await fetch(`/api/sr/answer`, {
@@ -56,7 +56,6 @@ export default function SRRunnerClient({ mode = "deck", deckId }: Props) {
       const j = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(j?.error || "Antwort konnte nicht gespeichert werden.")
       setSelected(optionId)
-      setTimeout(loadNext, 500)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -73,7 +72,9 @@ export default function SRRunnerClient({ mode = "deck", deckId }: Props) {
     <div className="space-y-4 rounded border p-4">
       <div className="flex items-center justify-between">
         <div className="text-sm text-muted-foreground">Fällig: {dueLeft}</div>
-        <Button variant="outline" size="sm" onClick={loadNext}>Überspringen</Button>
+        <Button variant="outline" size="sm" onClick={loadNext}>
+          {selected ? "Nächste Karte" : "Überspringen"}
+        </Button>
       </div>
 
       <div className="font-medium">{q.stem}</div>
@@ -85,7 +86,7 @@ export default function SRRunnerClient({ mode = "deck", deckId }: Props) {
           return (
             <button
               key={o.id}
-              disabled={submitting}
+              disabled={submitting || !!selected}
               onClick={() => submit(o.id)}
               className={[
                 "w-full text-left px-3 py-2 rounded border transition",
@@ -106,6 +107,17 @@ export default function SRRunnerClient({ mode = "deck", deckId }: Props) {
           )
         })}
       </div>
+
+      {selected && (
+        <div className="rounded-lg border bg-muted/30 p-3">
+          {q.explanation && (
+            <div className="mb-3 text-sm text-muted-foreground whitespace-pre-wrap">
+              {q.explanation}
+            </div>
+          )}
+          <Button onClick={loadNext}>Weiter zur nächsten Karte</Button>
+        </div>
+      )}
     </div>
   )
 }

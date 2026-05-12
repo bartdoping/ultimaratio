@@ -24,6 +24,22 @@ export async function GET() {
       status: string
       count: bigint
     }>>`
+      WITH scoped_questions AS (
+        SELECT att.id AS "attemptId", aq."questionId"
+        FROM "Attempt" att
+        JOIN "AttemptQuestion" aq ON aq."attemptId" = att.id
+        WHERE att."userId" = ${user.id}
+
+        UNION ALL
+
+        SELECT att.id AS "attemptId", q.id AS "questionId"
+        FROM "Attempt" att
+        JOIN "Question" q ON q."examId" = att."examId"
+        WHERE att."userId" = ${user.id}
+          AND NOT EXISTS (
+            SELECT 1 FROM "AttemptQuestion" aq WHERE aq."attemptId" = att.id
+          )
+      )
       SELECT 
         CASE 
           WHEN aa."answerOptionId" IS NULL THEN 'unanswered'
@@ -31,10 +47,8 @@ export async function GET() {
           ELSE 'incorrect'
         END as status,
         COUNT(*) as count
-      FROM "Attempt" att
-      JOIN "Question" q ON q."examId" = att."examId"
-      LEFT JOIN "AttemptAnswer" aa ON aa."attemptId" = att.id AND aa."questionId" = q.id
-      WHERE att."userId" = ${user.id}
+      FROM scoped_questions sq
+      LEFT JOIN "AttemptAnswer" aa ON aa."attemptId" = sq."attemptId" AND aa."questionId" = sq."questionId"
       GROUP BY status
     `
 
@@ -43,16 +57,28 @@ export async function GET() {
       status: string
       count: bigint
     }>>`
+      WITH seen_questions AS (
+        SELECT DISTINCT aq."questionId"
+        FROM "Attempt" att
+        JOIN "AttemptQuestion" aq ON aq."attemptId" = att.id
+        WHERE att."userId" = ${user.id}
+
+        UNION
+
+        SELECT DISTINCT aa."questionId"
+        FROM "Attempt" att
+        JOIN "AttemptAnswer" aa ON aa."attemptId" = att.id
+        WHERE att."userId" = ${user.id}
+      )
       SELECT 
         CASE 
-          WHEN aa."questionId" IS NOT NULL THEN 'used'
+          WHEN sq."questionId" IS NOT NULL THEN 'used'
           ELSE 'unused'
         END as status,
         COUNT(DISTINCT q.id) as count
       FROM "Question" q
       JOIN "Exam" e ON e.id = q."examId"
-      LEFT JOIN "Attempt" att ON att."examId" = e.id AND att."userId" = ${user.id}
-      LEFT JOIN "AttemptAnswer" aa ON aa."attemptId" = att.id AND aa."questionId" = q.id
+      LEFT JOIN seen_questions sq ON sq."questionId" = q.id
       WHERE e."isPublished" = true
       GROUP BY status
     `

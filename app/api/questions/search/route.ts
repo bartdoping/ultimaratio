@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
   const requireAnd = searchParams.get("requireAnd") === "1"
   const includeCases = searchParams.get("includeCases") !== "0"
 
+  if (!examId) {
+    return NextResponse.json({ error: "examId required" }, { status: 400 })
+  }
+
   // Lade Tag-Hierarchie für UND-Logik
   let tagHierarchy: { [key: string]: string[] } = {}
   
@@ -63,21 +67,22 @@ export async function GET(req: NextRequest) {
   // Für UND-Logik: Verwende die ursprünglich gewählten Tags (nicht die effektiven)
   const originalSelectedTags = [...tagIds, ...superTagIds]
 
-  if (effectiveTagIds.length === 0) {
-    return NextResponse.json({ items: [], total: 0 })
-  }
-
   // WHERE-Bedingungen
-  const whereBase: any = {}
-  
-  if (examId) {
-    whereBase.examId = examId
-  }
+  const whereBase: any = { examId }
 
   // Fragen finden - direkte Prisma-Abfrage
   let questions: Array<{ id: string; caseId: string | null }> = []
 
-  if (effectiveTagIds.length > 0) {
+  if (effectiveTagIds.length === 0) {
+    questions = await prisma.question.findMany({
+      where: {
+        ...whereBase,
+        ...(includeCases ? {} : { caseId: null }),
+      },
+      select: { id: true, caseId: true },
+      orderBy: { id: "asc" },
+    })
+  } else {
     // UND-Logik nur anwenden wenn mehr als ein ursprünglich gewähltes Tag vorhanden ist
     const shouldUseAndLogic = requireAnd && originalSelectedTags.length > 1
     
@@ -145,7 +150,7 @@ export async function GET(req: NextRequest) {
     
     if (caseIds.length > 0) {
       const caseQuestions = await prisma.question.findMany({
-        where: { caseId: { in: caseIds } },
+        where: { examId, caseId: { in: caseIds } },
         select: { id: true }
       })
       caseQuestions.forEach(q => questionIds.add(q.id))

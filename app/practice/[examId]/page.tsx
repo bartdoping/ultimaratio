@@ -27,6 +27,11 @@ export default async function PracticePage({ params, searchParams }: Props) {
     if (typeof v === "string") return v
     return undefined
   })()
+  const initialFilterMode = (() => {
+    const v = sp?.filter
+    const raw = Array.isArray(v) ? v[0] : v
+    return raw === "open" || raw === "flagged" || raw === "wrong" || raw === "all" ? raw : "all"
+  })()
 
   // Session & User
   const session = await getServerSession(authOptions)
@@ -180,7 +185,7 @@ export default async function PracticePage({ params, searchParams }: Props) {
         initialAnswers={initialAnswers}
         initialElapsedSec={initialElapsedSec}
         mode="practice"
-        initialFilterMode="all"
+        initialFilterMode={initialFilterMode}
       />
   )
 }

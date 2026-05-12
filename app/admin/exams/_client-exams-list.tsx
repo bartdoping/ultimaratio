@@ -25,7 +25,7 @@ interface Exam {
     score: number
     tone: "good" | "warning" | "critical" | "empty"
     summary: string
-    issues: string[]
+    issues: Array<{ code: string; label: string }>
     totalQuestions: number
   }
 }
@@ -106,6 +106,19 @@ export default function AdminExamsList({
                   <span className="text-xs opacity-80">{e.contentHealth.totalQuestions} Fragen</span>
                 </div>
                 <div className="mt-1 text-xs opacity-90">{e.contentHealth.summary}</div>
+                {e.contentHealth.issues.length > 0 && e.contentHealth.issues[0].code !== "empty" && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {e.contentHealth.issues.slice(0, 3).map(issue => (
+                      <Link
+                        key={issue.code}
+                        href={`/admin/exams/${e.id}?health=${issue.code}`}
+                        className="rounded-full bg-background/70 px-2 py-0.5 text-xs underline-offset-2 hover:underline"
+                      >
+                        {issue.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
                 {e.contentHealth.issues.length > 2 && (
                   <div className="mt-1 text-xs opacity-80">
                     +{e.contentHealth.issues.length - 2} weitere Hinweise im Frageneditor prüfen

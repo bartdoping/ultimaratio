@@ -13,7 +13,23 @@ type Item = {
   isCase: boolean
   order: number
   hasTags: boolean
+  healthProblems?: string[]
 }
+
+type HealthFilter =
+  | "missing-explanation"
+  | "option-problem"
+  | "missing-option-explanation"
+  | "missing-tags"
+  | "case-text-problem"
+
+const HEALTH_FILTERS: Array<{ value: HealthFilter; label: string }> = [
+  { value: "missing-explanation", label: "Ohne Erklärung" },
+  { value: "option-problem", label: "Optionsproblem" },
+  { value: "missing-option-explanation", label: "Optionserklärung fehlt" },
+  { value: "missing-tags", label: "Ohne Tags" },
+  { value: "case-text-problem", label: "Falltext fehlt" },
+]
 
 // Seitengröße ist konfigurierbar
 
@@ -21,6 +37,10 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const router = useRouter()
   const sp = useSearchParams()
   const selectedQuestionId = sp.get("edit")
+  const healthParam = sp.get("health")
+  const initialHealthFilter = HEALTH_FILTERS.some(filter => filter.value === healthParam)
+    ? healthParam as HealthFilter
+    : null
   const [isPending, startTransition] = useTransition()
   const [page, setPage] = useState<number>(() => {
     const p = Number(sp.get("qpage") || 1)
@@ -35,6 +55,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const [pageSize, setPageSize] = useState(100)
   const [showOnlyUntagged, setShowOnlyUntagged] = useState(false)
   const [showOnlyDuplicates, setShowOnlyDuplicates] = useState(false)
+  const [healthFilter, setHealthFilter] = useState<HealthFilter | null>(initialHealthFilter)
   
   // Löschfunktionalität
   const [selectedQuestions, setSelectedQuestions] = useState<Set<string>>(new Set())
@@ -51,8 +72,13 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   async function load() {
     setLoading(true); setErr(null)
     try {
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      })
+      if (healthFilter) params.set("health", healthFilter)
       const res = await fetch(
-        `/api/admin/exams/${encodeURIComponent(examId)}/questions?page=${page}&pageSize=${pageSize}`,
+        `/api/admin/exams/${encodeURIComponent(examId)}/questions?${params.toString()}`,
         { cache: "no-store" }
       )
       const j = await res.json()
@@ -66,7 +92,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     }
   }
 
-  useEffect(() => { load() }, [page, pageSize]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [page, pageSize, healthFilter]) // eslint-disable-line react-hooks/exhaustive-deps
   
   // Reagiere auf URL-Änderungen, ohne das Regal erneut zu laden.
   // Der Fragewechsel lädt serverseitig nur den Editor; die Regal-Liste ist davon unabhängig.
@@ -240,7 +266,7 @@ export default function QuestionShelf({ examId }: { examId: string }) {
     await fetch(`/api/admin/exams/${encodeURIComponent(examId)}/questions/reorder`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ orderedIds }),
+      body: JSON.stringify({ ids: orderedIds, offset: (page - 1) * pageSize }),
     })
   }
 
@@ -340,7 +366,10 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           <Button
             size="sm"
             variant={showOnlyUntagged ? "default" : "outline"}
-            onClick={() => setShowOnlyUntagged(v => !v)}
+            onClick={() => {
+              setShowOnlyUntagged(v => !v)
+              setHealthFilter(null)
+            }}
           >
             Ohne Tags
           </Button>
@@ -351,6 +380,20 @@ export default function QuestionShelf({ examId }: { examId: string }) {
           >
             Duplikate
           </Button>
+          {HEALTH_FILTERS.map(filter => (
+            <Button
+              key={filter.value}
+              size="sm"
+              variant={healthFilter === filter.value ? "default" : "outline"}
+              onClick={() => {
+                setHealthFilter(current => current === filter.value ? null : filter.value)
+                setPage(1)
+                setShowOnlyUntagged(false)
+              }}
+            >
+              {filter.label}
+            </Button>
+          ))}
           <div className="ml-auto flex items-center gap-2">
             <span className="text-xs text-muted-foreground">Pro Seite</span>
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
@@ -377,12 +420,14 @@ export default function QuestionShelf({ examId }: { examId: string }) {
             {items
               .filter((it) => (showOnlyUntagged ? !it.hasTags : true))
               .filter((it) => (showOnlyDuplicates ? isDuplicate(it.id) : true))
+              .filter((it) => (healthFilter ? (it.healthProblems ?? []).includes(healthFilter) : true))
               .map((it, i) => {
               const isDragging = draggingId === it.id
               const isOver = overId === it.id && draggingId !== it.id
               const isHovered = hoveredId === it.id
               const isCurrent = currentQuestionId === it.id
               const isUntagged = !it.hasTags
+              const healthProblems = it.healthProblems ?? []
               return (
                 <div key={it.id} className="relative group w-full">
                   <button
@@ -432,6 +477,14 @@ export default function QuestionShelf({ examId }: { examId: string }) {
                     {/* Tag indicator */}
                     {isUntagged && (
                       <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border border-white dark:border-gray-800"></div>
+                    )}
+                    {healthProblems.length > 0 && (
+                      <div
+                        className="absolute bottom-1 right-1 rounded bg-amber-100 px-1 text-[10px] font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                        title={healthProblems.join(", ")}
+                      >
+                        {healthProblems.length}
+                      </div>
                     )}
                     {/* Duplicate indicator */}
                     {isDuplicate(it.id) && (

@@ -218,6 +218,7 @@ export default function ExamsCategorized({
             const canUseExam = hasProAccess || purchasedSet.has(exam.id)
             const category = exam.categoryId ? categories.find(c => c.id === exam.categoryId) : null
             const examOpenAttempts = openAttempts.filter(attempt => attempt.examId === exam.id)
+            const primaryOpenAttempt = examOpenAttempts[0]
             const sellable =
               typeof exam.priceCents === "number" &&
               Number.isFinite(exam.priceCents) &&
@@ -280,6 +281,11 @@ export default function ExamsCategorized({
                     )}
 
                     <div className="flex flex-wrap gap-2">
+                      {primaryOpenAttempt && (
+                        <Button asChild>
+                          <Link href={`/exam-run/${primaryOpenAttempt.id}`}>Fortsetzen</Link>
+                        </Button>
+                      )}
                       <Button variant="outline" asChild>
                         <Link href={`/exams/${exam.slug}`}>Details</Link>
                       </Button>

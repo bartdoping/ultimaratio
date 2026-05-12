@@ -123,7 +123,7 @@ function computeContentHealth(exam: {
       score: 0,
       tone: "empty" as const,
       summary: "Keine Fragen",
-      issues: ["Noch keine Fragen angelegt"],
+      issues: [{ code: "empty", label: "Noch keine Fragen angelegt" }],
       totalQuestions,
     }
   }
@@ -158,17 +158,17 @@ function computeContentHealth(exam: {
   const maxIssues = Math.max(1, totalQuestions * 5.5)
   const score = Math.max(0, Math.round(100 - (weightedIssues / maxIssues) * 100))
   const issues = [
-    missingQuestionExplanation > 0 ? `${missingQuestionExplanation} ohne Fragenerklärung` : null,
-    optionProblems > 0 ? `${optionProblems} mit Optionsproblem` : null,
-    missingOptionExplanations > 0 ? `${missingOptionExplanations} mit fehlenden Optionserklärungen` : null,
-    untaggedQuestions > 0 ? `${untaggedQuestions} ohne Tags` : null,
-    caseTextProblems > 0 ? `${caseTextProblems} Fallfragen ohne Falltext` : null,
-  ].filter((issue): issue is string => Boolean(issue))
+    missingQuestionExplanation > 0 ? { code: "missing-explanation", label: `${missingQuestionExplanation} ohne Fragenerklärung` } : null,
+    optionProblems > 0 ? { code: "option-problem", label: `${optionProblems} mit Optionsproblem` } : null,
+    missingOptionExplanations > 0 ? { code: "missing-option-explanation", label: `${missingOptionExplanations} mit fehlenden Optionserklärungen` } : null,
+    untaggedQuestions > 0 ? { code: "missing-tags", label: `${untaggedQuestions} ohne Tags` } : null,
+    caseTextProblems > 0 ? { code: "case-text-problem", label: `${caseTextProblems} Fallfragen ohne Falltext` } : null,
+  ].filter((issue): issue is { code: string; label: string } => Boolean(issue))
 
   return {
     score,
     tone: score >= 85 ? "good" as const : score >= 65 ? "warning" as const : "critical" as const,
-    summary: issues.length > 0 ? issues.slice(0, 2).join(" · ") : "Keine offensichtlichen Lücken",
+    summary: issues.length > 0 ? issues.slice(0, 2).map(issue => issue.label).join(" · ") : "Keine offensichtlichen Lücken",
     issues,
     totalQuestions,
   }
