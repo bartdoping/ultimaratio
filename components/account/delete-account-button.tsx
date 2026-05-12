@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { toast } from "sonner"
 
 export function DeleteAccountButton() {
   const { data: session } = useSession()
@@ -41,7 +42,9 @@ export function DeleteAccountButton() {
       const data = await response.json()
 
       if (data.ok) {
-        alert("Account wurde gelöscht. Du wirst jetzt abgemeldet.")
+        toast.success("Account wurde gelöscht", {
+          description: "Du wirst jetzt abgemeldet.",
+        })
         // Abmelden und zur Startseite weiterleiten
         await signOut({ callbackUrl: "/" })
       } else {

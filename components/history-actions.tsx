@@ -4,6 +4,7 @@
 import { useRouter } from "next/navigation"
 import { useTransition } from "react"
 import { Button } from "@/components/ui/button"
+import { toast } from "sonner"
 
 export function DeleteAttemptButton({ id }: { id: string }) {
   const router = useRouter()
@@ -14,9 +15,10 @@ export function DeleteAttemptButton({ id }: { id: string }) {
     const res = await fetch(`/api/history/${id}`, { method: "DELETE" })
     const j = await res.json().catch(() => ({}))
     if (!res.ok || !j?.ok) {
-      alert(j?.error || "Der Versuch konnte nicht gelöscht werden.")
+      toast.error(j?.error || "Der Versuch konnte nicht gelöscht werden.")
       return
     }
+    toast.success("Versuch gelöscht")
     startTransition(() => router.refresh())
   }
 
@@ -36,9 +38,10 @@ export function DeleteAllAttemptsButton() {
     const res = await fetch("/api/history", { method: "DELETE" })
     const j = await res.json().catch(() => ({}))
     if (!res.ok || !j?.ok) {
-      alert(j?.error || "Die Historie konnte nicht gelöscht werden.")
+      toast.error(j?.error || "Die Historie konnte nicht gelöscht werden.")
       return
     }
+    toast.success("Historie gelöscht")
     startTransition(() => router.refresh())
   }
 

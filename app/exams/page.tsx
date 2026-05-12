@@ -10,6 +10,37 @@ import { showFreeTrialExamPromo } from "@/lib/exam-access"
 
 export const dynamic = "force-dynamic"
 
+function normalizeCatalogExam(exam: {
+  id: string
+  slug: string
+  title: string
+  description: string
+  priceCents: number | null
+  disableStartPopup?: boolean
+  category?: { id: string; name: string; color: string | null } | null
+  _count: { questions: number }
+  questions: Array<{ tags: Array<{ tag: { id: string; name: string; slug: string } }> }>
+}) {
+  const tags = new Map<string, { id: string; name: string; slug: string }>()
+  for (const question of exam.questions) {
+    for (const link of question.tags) {
+      tags.set(link.tag.id, link.tag)
+    }
+  }
+
+  return {
+    id: exam.id,
+    slug: exam.slug,
+    title: exam.title,
+    description: exam.description,
+    priceCents: exam.priceCents,
+    disableStartPopup: exam.disableStartPopup,
+    category: exam.category ?? null,
+    _count: exam._count,
+    tags: Array.from(tags.values()).sort((a, b) => a.name.localeCompare(b.name, "de")),
+  }
+}
+
 export default async function ExamsListPage() {
   const session = await getServerSession(authOptions)
 
@@ -46,7 +77,16 @@ export default async function ExamsListPage() {
         select: {
           questions: true
         }
-      }
+      },
+      questions: {
+        select: {
+          tags: {
+            select: {
+              tag: { select: { id: true, name: true, slug: true } }
+            }
+          }
+        }
+      },
     },
   })
 
@@ -75,7 +115,16 @@ export default async function ExamsListPage() {
             select: {
               questions: true
             }
-          }
+          },
+          questions: {
+            select: {
+              tags: {
+                select: {
+                  tag: { select: { id: true, name: true, slug: true } }
+                }
+              }
+            }
+          },
         }
       }
     }
@@ -138,8 +187,14 @@ export default async function ExamsListPage() {
       })
     : null
 
+  const catalogExams = exams.map(normalizeCatalogExam)
+  const catalogCategories = categories.map(category => ({
+    ...category,
+    exams: category.exams.map(normalizeCatalogExam),
+  }))
+
   // Prüfungen ohne Kategorie
-  const examsWithoutCategory = exams.filter(exam => !exam.category)
+  const examsWithoutCategory = catalogExams.filter(exam => !exam.category)
 
   const trialPayload = freeTrialExam
     ? {
@@ -165,7 +220,7 @@ export default async function ExamsListPage() {
       </header>
       
       <ExamsCategorized 
-        categories={categories}
+        categories={catalogCategories}
         examsWithoutCategory={examsWithoutCategory}
         hasProAccess={hasProAccess}
         purchasedExamIds={purchasedExamIds}

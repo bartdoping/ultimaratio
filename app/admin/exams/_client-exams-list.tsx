@@ -21,6 +21,13 @@ interface Exam {
     name: string
     color: string | null
   } | null
+  contentHealth: {
+    score: number
+    tone: "good" | "warning" | "critical" | "empty"
+    summary: string
+    issues: string[]
+    totalQuestions: number
+  }
 }
 
 interface Category {
@@ -55,6 +62,13 @@ export default function AdminExamsList({
     window.location.reload()
   }
 
+  const contentHealthClass = (tone: Exam["contentHealth"]["tone"]) => {
+    if (tone === "good") return "border-green-200 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950/30 dark:text-green-300"
+    if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-300"
+    if (tone === "critical") return "border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300"
+    return "border-muted bg-muted/30 text-muted-foreground"
+  }
+
   return (
     <div className="space-y-3">
       {exams.map(e => (
@@ -85,6 +99,18 @@ export default function AdminExamsList({
                     ? `${(e.priceCents / 100).toFixed(2).replace(".", ",")} EUR`
                     : "Kein Einzelpreis"}
                 </span>
+              </div>
+              <div className={`rounded-lg border px-3 py-2 text-sm ${contentHealthClass(e.contentHealth.tone)}`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">Content-Health: {e.contentHealth.score}%</span>
+                  <span className="text-xs opacity-80">{e.contentHealth.totalQuestions} Fragen</span>
+                </div>
+                <div className="mt-1 text-xs opacity-90">{e.contentHealth.summary}</div>
+                {e.contentHealth.issues.length > 2 && (
+                  <div className="mt-1 text-xs opacity-80">
+                    +{e.contentHealth.issues.length - 2} weitere Hinweise im Frageneditor prüfen
+                  </div>
+                )}
               </div>
             </div>
 

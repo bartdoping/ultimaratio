@@ -107,6 +107,73 @@ async function renameExamAction(formData: FormData) {
   redirect("/admin/exams")
 }
 
+function computeContentHealth(exam: {
+  questions: Array<{
+    stem: string
+    explanation: string | null
+    caseId: string | null
+    case: { vignette: string | null } | null
+    options: Array<{ text: string; isCorrect: boolean; explanation: string | null }>
+    tags: Array<{ tagId: string }>
+  }>
+}) {
+  const totalQuestions = exam.questions.length
+  if (totalQuestions === 0) {
+    return {
+      score: 0,
+      tone: "empty" as const,
+      summary: "Keine Fragen",
+      issues: ["Noch keine Fragen angelegt"],
+      totalQuestions,
+    }
+  }
+
+  let missingQuestionExplanation = 0
+  let optionProblems = 0
+  let missingOptionExplanations = 0
+  let untaggedQuestions = 0
+  let caseTextProblems = 0
+
+  for (const question of exam.questions) {
+    if (!question.explanation?.trim()) missingQuestionExplanation += 1
+    if (question.tags.length === 0) untaggedQuestions += 1
+    if (question.caseId && !question.case?.vignette?.trim()) caseTextProblems += 1
+
+    const correctCount = question.options.filter(option => option.isCorrect).length
+    const hasEmptyOption = question.options.some(option => !option.text.trim())
+    if (question.options.length < 2 || correctCount !== 1 || hasEmptyOption) {
+      optionProblems += 1
+    }
+    if (question.options.some(option => !option.explanation?.trim())) {
+      missingOptionExplanations += 1
+    }
+  }
+
+  const weightedIssues =
+    missingQuestionExplanation +
+    optionProblems * 2 +
+    missingOptionExplanations * 0.5 +
+    untaggedQuestions +
+    caseTextProblems * 2
+  const maxIssues = Math.max(1, totalQuestions * 5.5)
+  const score = Math.max(0, Math.round(100 - (weightedIssues / maxIssues) * 100))
+  const issues = [
+    missingQuestionExplanation > 0 ? `${missingQuestionExplanation} ohne Fragenerklärung` : null,
+    optionProblems > 0 ? `${optionProblems} mit Optionsproblem` : null,
+    missingOptionExplanations > 0 ? `${missingOptionExplanations} mit fehlenden Optionserklärungen` : null,
+    untaggedQuestions > 0 ? `${untaggedQuestions} ohne Tags` : null,
+    caseTextProblems > 0 ? `${caseTextProblems} Fallfragen ohne Falltext` : null,
+  ].filter((issue): issue is string => Boolean(issue))
+
+  return {
+    score,
+    tone: score >= 85 ? "good" as const : score >= 65 ? "warning" as const : "critical" as const,
+    summary: issues.length > 0 ? issues.slice(0, 2).join(" · ") : "Keine offensichtlichen Lücken",
+    issues,
+    totalQuestions,
+  }
+}
+
 export default async function AdminExamsPage() {
   await requireAdmin()
   
@@ -133,11 +200,29 @@ export default async function AdminExamsPage() {
           color: true,
         },
       },
+      questions: {
+        select: {
+          stem: true,
+          explanation: true,
+          caseId: true,
+          case: { select: { vignette: true } },
+          options: { select: { text: true, isCorrect: true, explanation: true } },
+          tags: { select: { tagId: true } },
+        },
+      },
     },
   })
 
   const exams = examsRaw.map((row) => ({
-    ...row,
+    id: row.id,
+    slug: row.slug,
+    title: row.title,
+    isPublished: row.isPublished,
+    priceCents: row.priceCents,
+    isFreeTrialDemo: row.isFreeTrialDemo,
+    categoryId: row.categoryId,
+    category: row.category,
+    contentHealth: computeContentHealth(row),
     visibleOnExamsPage:
       examsPageVisibilityColumnReady && "visibleOnExamsPage" in row && typeof row.visibleOnExamsPage === "boolean"
         ? row.visibleOnExamsPage

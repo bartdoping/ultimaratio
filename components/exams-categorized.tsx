@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { StartExamButton } from "@/components/start-exam-button"
 import {
   FreeTrialExamPromo,
@@ -21,6 +22,11 @@ interface Exam {
   _count: {
     questions: number
   }
+  tags?: Array<{
+    id: string
+    name: string
+    slug: string
+  }>
 }
 
 interface Category {
@@ -61,6 +67,8 @@ export default function ExamsCategorized({
   loggedIn = false,
 }: ExamsCategorizedProps) {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedTagId, setSelectedTagId] = useState<string | null>(null)
+  const [searchQuery, setSearchQuery] = useState("")
 
   const purchasedSet = new Set(purchasedExamIds)
 
@@ -71,13 +79,44 @@ export default function ExamsCategorized({
     )
   ]
 
-  const displayedExams = selectedCategory
-    ? allExams.filter(exam =>
+  const allTags = Array.from(
+    new Map(
+      allExams
+        .flatMap(exam => exam.tags ?? [])
+        .map(tag => [tag.id, tag] as const)
+    ).values()
+  ).sort((a, b) => a.name.localeCompare(b.name, "de"))
+
+  const normalizedSearch = searchQuery.trim().toLowerCase()
+
+  const displayedExams = allExams
+    .filter(exam =>
+      selectedCategory
+        ? (
         selectedCategory === "uncategorized"
           ? exam.categoryId === null
           : exam.categoryId === selectedCategory
-      )
-    : allExams
+        )
+        : true
+    )
+    .filter(exam =>
+      selectedTagId
+        ? (exam.tags ?? []).some(tag => tag.id === selectedTagId)
+        : true
+    )
+    .filter(exam => {
+      if (!normalizedSearch) return true
+      const categoryName = exam.categoryId
+        ? categories.find(category => category.id === exam.categoryId)?.name ?? ""
+        : ""
+      const haystack = [
+        exam.title,
+        exam.description,
+        categoryName,
+        ...(exam.tags ?? []).map(tag => tag.name),
+      ].join(" ").toLowerCase()
+      return haystack.includes(normalizedSearch)
+    })
 
   return (
     <div className="space-y-6">
@@ -88,9 +127,16 @@ export default function ExamsCategorized({
       {/* Kategorie-Filter */}
       <div className="rounded-xl border bg-card p-4 shadow-sm space-y-3">
         <div>
-          <h2 className="text-lg font-semibold">Kategorien</h2>
-          <p className="text-sm text-muted-foreground">Filtere den Katalog nach Fachbereich oder Thema.</p>
+          <h2 className="text-lg font-semibold">Katalog filtern</h2>
+          <p className="text-sm text-muted-foreground">Suche nach Prüfung, Fachbereich oder Tag und grenze die Liste nach Kategorie ein.</p>
         </div>
+        <Input
+          value={searchQuery}
+          onChange={(event) => setSearchQuery(event.target.value)}
+          placeholder="Suche nach Titel, Beschreibung, Kategorie oder Tag..."
+          aria-label="Prüfungskatalog durchsuchen"
+          className="max-w-2xl"
+        />
         <div className="flex flex-wrap gap-2">
           <Button
             variant={selectedCategory === null ? "default" : "outline"}
@@ -128,17 +174,38 @@ export default function ExamsCategorized({
             </Button>
           )}
         </div>
+        {allTags.length > 0 && (
+          <div className="space-y-2 border-t pt-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Tags</div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                variant={selectedTagId === null ? "secondary" : "outline"}
+                onClick={() => setSelectedTagId(null)}
+                size="sm"
+              >
+                Alle Tags
+              </Button>
+              {allTags.slice(0, 18).map(tag => (
+                <Button
+                  key={tag.id}
+                  variant={selectedTagId === tag.id ? "default" : "outline"}
+                  onClick={() => setSelectedTagId(tag.id)}
+                  size="sm"
+                >
+                  {tag.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Prüfungen anzeigen */}
       <div className="space-y-4">
-        {selectedCategory && (
+        {(selectedCategory || selectedTagId || normalizedSearch) && (
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-medium">
-              {selectedCategory === "uncategorized" 
-                ? "Prüfungen ohne Kategorie" 
-                : categories.find(c => c.id === selectedCategory)?.name
-              }
+              Gefilterte Prüfungen
             </h3>
             <Badge variant="secondary">
               {displayedExams.length} Prüfung{displayedExams.length !== 1 ? 'en' : ''}
@@ -177,6 +244,11 @@ export default function ExamsCategorized({
                             {category.name}
                           </Badge>
                         )}
+                        {(exam.tags ?? []).slice(0, 3).map(tag => (
+                          <Badge key={tag.id} variant="outline" className="text-xs">
+                            {tag.name}
+                          </Badge>
+                        ))}
                         <Badge variant="secondary" className="text-xs">
                           {exam._count.questions} Frage{exam._count.questions !== 1 ? 'n' : ''}
                         </Badge>
@@ -250,7 +322,7 @@ export default function ExamsCategorized({
 
         {displayedExams.length === 0 && (
           <div className="rounded-xl border bg-card py-12 text-center text-muted-foreground">
-            <p>Keine Prüfungen in dieser Kategorie gefunden.</p>
+            <p>Keine Prüfungen für diese Filter gefunden.</p>
           </div>
         )}
       </div>

@@ -203,6 +203,48 @@ export default async function DashboardPage() {
     orderBy: { startedAt: "desc" }
   })
 
+  const wrongAutoDeck = autoDecks.find(deck => deck.title === "Falsch beantwortet" && deck._count.items > 0)
+  const nextAction =
+    openAttempts[0]
+      ? {
+          eyebrow: "Fortsetzen",
+          title: `${openAttempts[0].exam.title} weiterbearbeiten`,
+          description: "Du hast hier bereits begonnen. Setze zuerst diesen Durchlauf fort, damit kein Lernkontext verloren geht.",
+          href: `/exam-run/${openAttempts[0].id}`,
+          cta: "Durchlauf fortsetzen",
+        }
+      : srTableExists && dueTotal > 0
+        ? {
+            eyebrow: "Wiederholen",
+            title: `${dueTotal} Spaced-Repetition-Fragen sind fällig`,
+            description: "Kurze Wiederholungen bringen heute wahrscheinlich den höchsten Lerneffekt.",
+            href: "/sr/all",
+            cta: "Reviews starten",
+          }
+        : wrongAutoDeck && canUseDecks
+          ? {
+              eyebrow: "Nacharbeiten",
+              title: `${wrongAutoDeck._count.items} falsch beantwortete Fragen wiederholen`,
+              description: "Bearbeite gezielt die Fragen, die zuletzt Schwierigkeiten gemacht haben.",
+              href: `/decks/${wrongAutoDeck.id}`,
+              cta: "Fehlerdeck öffnen",
+            }
+          : freeTrialExamDash
+            ? {
+                eyebrow: "Kostenlos testen",
+                title: freeTrialExamDash.title,
+                description: "Starte mit dem kostenlosen Probedeck und sieh direkt, wie die Prüfungsauswertung funktioniert.",
+                href: `/exams/${freeTrialExamDash.slug}`,
+                cta: "Probedeck ansehen",
+              }
+            : {
+                eyebrow: "Weiterlernen",
+                title: "Wähle die nächste passende Prüfung",
+                description: "Öffne den Prüfungskatalog und starte nach Fachbereich, Umfang oder offenem Lernziel.",
+                href: "/exams",
+                cta: "Prüfungen öffnen",
+              }
+
   return (
     <div className="mx-auto max-w-6xl space-y-8">
       <SubscriptionSuccessHandler />
@@ -254,6 +296,20 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
+
+      <section className="rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card p-5 shadow-sm">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="space-y-1">
+            <div className="text-xs font-medium uppercase tracking-wide text-primary">{nextAction.eyebrow}</div>
+            <h2 className="text-xl font-semibold tracking-tight">Nächste beste Aktion</h2>
+            <h3 className="text-lg font-medium">{nextAction.title}</h3>
+            <p className="max-w-2xl text-sm text-muted-foreground">{nextAction.description}</p>
+          </div>
+          <Button asChild className="w-full md:w-auto">
+            <Link href={nextAction.href}>{nextAction.cta}</Link>
+          </Button>
+        </div>
+      </section>
 
       {freeTrialExamDash && (
         <section className="space-y-3">

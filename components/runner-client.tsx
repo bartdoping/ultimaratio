@@ -563,7 +563,7 @@ const aiContext = useMemo(() => {
         window.localStorage.removeItem(LS_FLAGGED)
         window.localStorage.removeItem(LS_FILTER)
       } catch {}
-      router.push(`/dashboard/history/${attemptId}`)
+      router.push(`/dashboard/history/${attemptId}?review=1`)
     } catch (e) {
       alert((e as Error).message)
     } finally {

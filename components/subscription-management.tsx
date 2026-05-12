@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { toast } from "sonner"
 
 interface SubscriptionData {
   status: "free" | "pro"
@@ -79,11 +80,15 @@ export function SubscriptionManagement() {
         window.location.href = data.url
       } else {
         console.error("Upgrade failed:", data)
-        alert(`Fehler beim Erstellen des Abonnements: ${data.details || data.error || "Unbekannter Fehler"}`)
+        toast.error("Abo konnte nicht gestartet werden", {
+          description: data.details || data.error || "Unbekannter Fehler",
+        })
       }
     } catch (error) {
       console.error("Upgrade failed:", error)
-      alert(`Fehler beim Upgrade: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      toast.error("Fehler beim Upgrade", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -122,19 +127,19 @@ export function SubscriptionManagement() {
             })}.`
           }
         }
-        alert(msg)
+        toast.success("Kündigung eingetragen", { description: msg })
         fetchSubscriptionStatus()
       } else {
         console.error("Cancel failed:", data)
         const detail =
           typeof data.details === "string" ? data.details : data.error
-        alert(
-          `Kündigung fehlgeschlagen: ${detail || "Unbekannter Fehler"}`
-        )
+        toast.error("Kündigung fehlgeschlagen", { description: detail || "Unbekannter Fehler" })
       }
     } catch (error) {
       console.error("Cancel failed:", error)
-      alert(`Fehler beim Kündigen des Abonnements: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      toast.error("Fehler beim Kündigen des Abonnements", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
     } finally {
       setActionLoading(false)
     }
@@ -155,17 +160,21 @@ export function SubscriptionManagement() {
       const data = await response.json()
 
       if (data.ok) {
-        alert(
-          "Abonnement wurde reaktiviert. Die automatische Verlängerung ist wieder aktiv."
-        )
+        toast.success("Abonnement reaktiviert", {
+          description: "Die automatische Verlängerung ist wieder aktiv.",
+        })
         fetchSubscriptionStatus()
       } else {
         console.error("Reactivation failed:", data)
-        alert(`Fehler beim Reaktivieren des Abonnements: ${data.error || "Unbekannter Fehler"}`)
+        toast.error("Reaktivierung fehlgeschlagen", {
+          description: data.error || "Unbekannter Fehler",
+        })
       }
     } catch (error) {
       console.error("Reactivation failed:", error)
-      alert(`Fehler beim Reaktivieren des Abonnements: ${error instanceof Error ? error.message : "Unbekannter Fehler"}`)
+      toast.error("Fehler beim Reaktivieren", {
+        description: error instanceof Error ? error.message : "Unbekannter Fehler",
+      })
     } finally {
       setActionLoading(false)
     }
