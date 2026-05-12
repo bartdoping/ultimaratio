@@ -1,24 +1,22 @@
 // app/api/admin/create-test-user/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
 import prisma from "@/lib/db";
 import { hashPassword } from "@/lib/password";
+import { requireAdminMaintenanceJson } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
-    const isAdmin = (session?.user as any)?.role === "admin";
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+    const guard = await requireAdminMaintenanceJson();
+    if (guard.response) return guard.response;
 
     // Test-User erstellen
-    const testEmail = "test@fragenkreuzen.de";
-    const testPassword = "test123456";
+    const testEmail = process.env.TEST_USER_EMAIL || "test@fragenkreuzen.de";
+    const testPassword = process.env.TEST_USER_PASSWORD;
+    if (!testPassword) {
+      return NextResponse.json({ error: "missing_test_user_password" }, { status: 400 });
+    }
     
     // Prüfe ob User bereits existiert
     const existingUser = await prisma.user.findUnique({
@@ -29,8 +27,7 @@ export async function POST() {
       return NextResponse.json({ 
         ok: true, 
         message: "Test user already exists",
-        email: testEmail,
-        password: testPassword
+        email: testEmail
       });
     }
 
@@ -52,7 +49,6 @@ export async function POST() {
       ok: true, 
       message: "Test user created successfully",
       email: testEmail,
-      password: testPassword,
       userId: user.id
     });
   } catch (error) {

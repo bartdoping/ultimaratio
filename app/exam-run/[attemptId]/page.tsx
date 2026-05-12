@@ -26,7 +26,17 @@ export default async function ExamRunPage({ params }: Props) {
   // Attempt (Ownership) + bisherige Zeit
   const attempt = await prisma.attempt.findUnique({
     where: { id: attemptId },
-    select: { id: true, userId: true, examId: true, elapsedSec: true, finishedAt: true },
+    select: {
+      id: true,
+      userId: true,
+      examId: true,
+      elapsedSec: true,
+      finishedAt: true,
+      selectedQuestions: {
+        orderBy: { order: "asc" },
+        select: { questionId: true },
+      },
+    },
   })
   if (!attempt || attempt.userId !== me.id) notFound()
   if (attempt.finishedAt) {
@@ -68,8 +78,17 @@ export default async function ExamRunPage({ params }: Props) {
     given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
 
+  const selectedQuestionIds = attempt.selectedQuestions.map(q => q.questionId)
+  const questionById = new Map(exam.questions.map(q => [q.id, q]))
+  const examQuestions =
+    selectedQuestionIds.length > 0
+      ? selectedQuestionIds
+          .map(id => questionById.get(id))
+          .filter((q): q is (typeof exam.questions)[number] => Boolean(q))
+      : exam.questions
+
   // Client-Shape
-  const questions = exam.questions.map((q) => ({
+  const questions = examQuestions.map((q) => ({
     id: q.id,
     stem: q.stem,
     explanation: q.explanation ?? null,

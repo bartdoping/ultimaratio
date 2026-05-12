@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 // Cache für Duplikat-Ergebnisse (5 Minuten)
 const duplicatesCache = new Map<string, { data: any, timestamp: number }>()
@@ -12,20 +11,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    // Prüfe Admin-Status
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { role: true }
-    })
-
-    if (!user || user.role !== "admin") {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     const { id: examId } = await params
 

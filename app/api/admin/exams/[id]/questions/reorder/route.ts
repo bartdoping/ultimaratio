@@ -2,8 +2,7 @@
 import { NextResponse } from "next/server"
 import { z } from "zod"
 import prisma from "@/lib/db"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
@@ -17,8 +16,8 @@ export async function POST(
   ctx: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user) return NextResponse.json({ error: "unauthorized" }, { status: 401 })
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     const { id: examId } = await ctx.params
     const parsed = Body.safeParse(await req.json().catch(() => ({})))

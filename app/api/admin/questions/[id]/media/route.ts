@@ -1,9 +1,8 @@
 // app/api/admin/questions/[id]/media/route.ts
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { z } from "zod"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
@@ -14,11 +13,8 @@ const attachSchema = z.object({
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return NextResponse.json({ ok: false }, { status: 401 })
-
-  const me = await prisma.user.findUnique({ where: { email: session.user.email } })
-  if (!me || me.role !== "admin") return NextResponse.json({ ok: false }, { status: 403 })
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const body = await req.json().catch(() => null)
   const parsed = attachSchema.safeParse(body)
@@ -44,11 +40,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return NextResponse.json({ ok: false }, { status: 401 })
-
-  const me = await prisma.user.findUnique({ where: { email: session.user.email } })
-  if (!me || me.role !== "admin") return NextResponse.json({ ok: false }, { status: 403 })
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   // mediaId via Query ?mediaId=...
   const url = new URL(req.url)

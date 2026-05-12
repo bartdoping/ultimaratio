@@ -1,29 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export async function POST(req: NextRequest) {
   try {
     console.log("Upload API called")
     
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      console.log("No session found")
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
-
-    console.log("Session found for:", session.user.email)
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { role: true }
-    })
-
-    if (!user || user.role !== "admin") {
-      console.log("User not admin:", user?.role)
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     const formData = await req.formData()
     const file = formData.get("file") as File
@@ -81,24 +65,24 @@ export async function POST(req: NextRequest) {
     // Erstelle eine kürzere URL für die Datenbank
     const url = `/media/upload_${timestamp}.${extension}`
     
-    // Speichere Base64-Daten in einem separaten Feld oder externen Service
-    // Für jetzt verwenden wir eine einfache URL-Struktur
-
     console.log("Creating media asset with URL:", url.substring(0, 50) + "...")
-
-    // Temporärer Speicher für Base64-Daten (in Produktion würde man Redis oder ähnliches verwenden)
-    const tempStorage = global as any
-    if (!tempStorage.uploadCache) tempStorage.uploadCache = new Map()
-    tempStorage.uploadCache.set(url, base64)
     
     // Speichere in Datenbank
     const asset = await prisma.mediaAsset.upsert({
       where: { url },
-      update: { alt: file.name },
+      update: {
+        alt: file.name,
+        dataBase64: base64,
+        mimeType: file.type,
+        sizeBytes: file.size,
+      },
       create: { 
         url, 
         alt: file.name, 
-        kind: "image" 
+        kind: "image",
+        dataBase64: base64,
+        mimeType: file.type,
+        sizeBytes: file.size,
       },
     })
 

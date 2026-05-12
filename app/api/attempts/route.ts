@@ -85,10 +85,21 @@ export async function POST(req: Request) {
   if (wantsDefaultStart) {
     const existing = await prisma.attempt.findFirst({
       where: { userId: me.id, examId, finishedAt: null },
-      select: { id: true },
+      select: {
+        id: true,
+        selectedQuestions: {
+          orderBy: { order: "asc" },
+          select: { questionId: true },
+        },
+      },
     })
     if (existing) {
-      return NextResponse.json({ ok: true, attemptId: existing.id, reused: true })
+      return NextResponse.json({
+        ok: true,
+        attemptId: existing.id,
+        reused: true,
+        filteredQuestionIds: existing.selectedQuestions.map(q => q.questionId),
+      })
     }
   }
 
@@ -402,12 +413,24 @@ export async function POST(req: Request) {
   }
 
   // Neu anlegen
-  const attempt = await prisma.attempt.create({
-    data: { 
-      userId: me.id, 
-      examId
-    },
-    select: { id: true },
+  const attempt = await prisma.$transaction(async (tx) => {
+    const created = await tx.attempt.create({
+      data: {
+        userId: me.id,
+        examId
+      },
+      select: { id: true },
+    })
+
+    await tx.attemptQuestion.createMany({
+      data: questionIds.map((questionId, order) => ({
+        attemptId: created.id,
+        questionId,
+        order,
+      })),
+    })
+
+    return created
   })
 
   return NextResponse.json({ 

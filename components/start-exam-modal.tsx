@@ -101,11 +101,6 @@ export default function StartExamModal({
         throw new Error("No attempt ID returned")
       }
 
-      // Speichere die gefilterten Fragen-IDs im SessionStorage
-      if (data.filteredQuestionIds && data.filteredQuestionIds.length > 0) {
-        sessionStorage.setItem(`filteredQuestions_${data.attemptId}`, JSON.stringify(data.filteredQuestionIds))
-      }
-
       setOpen(false)
       if (onStart) {
         onStart(data.attemptId)

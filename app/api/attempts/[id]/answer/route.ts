@@ -68,6 +68,17 @@ export async function POST(
       return NextResponse.json({ error: "question does not belong to this exam" }, { status: 400 })
     }
 
+    const selectedQuestionCount = await prisma.attemptQuestion.count({ where: { attemptId } })
+    if (selectedQuestionCount > 0) {
+      const selectedQuestion = await prisma.attemptQuestion.findUnique({
+        where: { attemptId_questionId: { attemptId, questionId } },
+        select: { id: true },
+      })
+      if (!selectedQuestion) {
+        return NextResponse.json({ error: "question is not part of this attempt" }, { status: 400 })
+      }
+    }
+
     await prisma.attemptAnswer.upsert({
       where: { attemptId_questionId: { attemptId, questionId } },
       update: { answerOptionId, isCorrect: opt.isCorrect },

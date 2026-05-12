@@ -1,6 +1,11 @@
 // app/api/ai/assistant/route.ts
 import { NextResponse } from "next/server"
 import OpenAI from "openai"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
+import { assertSameOrigin } from "@/lib/security"
+import { isUserPro } from "@/lib/subscription"
 
 export const runtime = "nodejs"
 
@@ -53,18 +58,44 @@ function buildPrompt(ctx: any, messages: ChatMsg[], answerStyle?: AnswerStyle) {
 
 export async function POST(req: Request) {
   try {
+    assertSameOrigin(req)
+
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email.toLowerCase().trim() },
+      select: { id: true, role: true },
+    })
+    if (!user) {
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
+    }
+
+    const canUseAssistant = user.role === "admin" || await isUserPro(user.id)
+    if (!canUseAssistant) {
+      return NextResponse.json(
+        { ok: false, error: "upgrade_required", upgradeRequired: true },
+        { status: 403 }
+      )
+    }
+
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ ok: false, error: "OPENAI_API_KEY fehlt auf dem Server." }, { status: 500 })
     }
 
     const body = await req.json().catch(() => ({}))
+    if (JSON.stringify(body).length > 40_000) {
+      return NextResponse.json({ ok: false, error: "payload_too_large" }, { status: 413 })
+    }
 
     // Nachrichten säubern/typisieren
     const messages: ChatMsg[] = Array.isArray(body?.messages)
-      ? body.messages
+      ? body.messages.slice(-12)
           .map((m: any) => ({
             role: (m?.role === "assistant" ? "assistant" : m?.role === "system" ? "system" : "user") as Role,
-            content: String(m?.content ?? "")
+            content: String(m?.content ?? "").slice(0, 4_000)
           }))
           .filter((m: ChatMsg) => m.content.trim().length > 0)
       : []
@@ -92,11 +123,14 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, text })
   } catch (e: any) {
+    if (e?.status) {
+      return NextResponse.json({ ok: false, error: "forbidden" }, { status: e.status })
+    }
     console.error("assistant route failed:", e)
     return NextResponse.json({ ok: false, error: e?.message || "AI error" }, { status: 500 })
   }
 }
 
 export async function GET() {
-  return NextResponse.json({ ok: true, route: "/api/ai/assistant" })
+  return NextResponse.json({ ok: false, error: "method_not_allowed" }, { status: 405 })
 }

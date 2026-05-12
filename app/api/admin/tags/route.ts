@@ -1,17 +1,14 @@
 // app/api/admin/tags/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
 // GET: Alle Tags mit Hierarchie laden
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const tags = await prisma.tag.findMany({
     orderBy: [
@@ -47,10 +44,8 @@ export async function GET() {
 
 // POST: Neuen Tag erstellen
 export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const { name, slug, isSuper, parentId } = await req.json().catch(() => ({}))
   
@@ -95,10 +90,8 @@ export async function POST(req: NextRequest) {
 
 // PUT: Tag aktualisieren
 export async function PUT(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const { id, name, slug, isSuper, parentId } = await req.json().catch(() => ({}))
   
@@ -144,10 +137,8 @@ export async function PUT(req: NextRequest) {
 
 // DELETE: Tag löschen
 export async function DELETE(req: NextRequest) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const { id } = await req.json().catch(() => ({}))
   

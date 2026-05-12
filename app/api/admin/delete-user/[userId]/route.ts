@@ -1,8 +1,7 @@
 // app/api/admin/delete-user/[userId]/route.ts
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
@@ -11,12 +10,8 @@ export async function DELETE(
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
-    // Nur Admins dürfen das
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email || 
-        (session.user.email !== "info@ultima-rat.io" && session.user.email !== "admin@fragenkreuzen.de")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     const { userId } = await params
 

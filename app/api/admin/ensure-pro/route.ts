@@ -1,19 +1,14 @@
 // app/api/admin/ensure-pro/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
 import { ensureAdminProStatus } from "@/lib/subscription";
+import { requireAdminJson } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const session = await getServerSession(authOptions);
-    const isAdmin = (session?.user as any)?.role === "admin";
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    }
+    const guard = await requireAdminJson();
+    if (guard.response) return guard.response;
 
     await ensureAdminProStatus();
     

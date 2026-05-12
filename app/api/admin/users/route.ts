@@ -1,17 +1,14 @@
 // app/api/admin/users/route.ts
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
 // GET: Alle User für Admin
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   try {
     const users = await prisma.user.findMany({

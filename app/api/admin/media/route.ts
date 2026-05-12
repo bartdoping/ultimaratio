@@ -1,9 +1,8 @@
 // app/api/admin/media/route.ts
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { z } from "zod"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
@@ -13,12 +12,8 @@ const bodySchema = z.object({
 })
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions)
-  if (!session?.user?.email) return NextResponse.json({ ok: false }, { status: 401 })
-
-  // Optional: nur Admin erlauben
-  const me = await prisma.user.findUnique({ where: { email: session.user.email } })
-  if (!me || me.role !== "admin") return NextResponse.json({ ok: false }, { status: 403 })
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const json = await req.json().catch(() => null)
   const parsed = bodySchema.safeParse(json)

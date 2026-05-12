@@ -1,16 +1,13 @@
 import { NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
 // GET: Datenbank-Statistiken
 export async function GET() {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   try {
     // Vereinfachte Abfragen ohne komplexe SQL

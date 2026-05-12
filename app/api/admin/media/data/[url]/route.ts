@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import prisma from "@/lib/db"
 
 export async function GET(
   req: NextRequest,
@@ -7,20 +8,17 @@ export async function GET(
   try {
     const { url } = await params
     const decodedUrl = decodeURIComponent(url)
-    
-    // Hole Base64-Daten aus temporärem Speicher
-    const tempStorage = global as any
-    if (!tempStorage.uploadCache) {
-      return NextResponse.json({ error: "No data found" }, { status: 404 })
-    }
-    
-    const base64Data = tempStorage.uploadCache.get(decodedUrl)
-    if (!base64Data) {
+
+    const media = await prisma.mediaAsset.findUnique({
+      where: { url: decodedUrl },
+      select: { dataBase64: true, mimeType: true },
+    })
+    if (!media?.dataBase64) {
       return NextResponse.json({ error: "Data not found" }, { status: 404 })
     }
     
     // Erstelle Data URL
-    const dataUrl = `data:image/jpeg;base64,${base64Data}`
+    const dataUrl = `data:${media.mimeType || "image/jpeg"};base64,${media.dataBase64}`
     
     return NextResponse.json({ dataUrl })
     

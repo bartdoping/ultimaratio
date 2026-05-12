@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { requireAdmin } from "@/lib/authz"
+import { requireAdminJson } from "@/lib/authz"
 
 export async function POST(req: NextRequest) {
   try {
-    await requireAdmin()
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
     
     const formData = await req.formData()
     const examId = formData.get("examId") as string

@@ -25,17 +25,22 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   // Attempt prüfen
   const attempt = await prisma.attempt.findUnique({
     where: { id: resolvedParams.id },
-    select: { id: true, userId: true, examId: true },
+    select: {
+      id: true,
+      userId: true,
+      examId: true,
+      selectedQuestions: {
+        orderBy: { order: "asc" },
+        select: { questionId: true },
+      },
+    },
   })
   
   if (!attempt || attempt.userId !== me.id) {
     return NextResponse.json({ error: "attempt not found" }, { status: 404 })
   }
 
-  // Prüfe ob es gefilterte Fragen gibt (aus SessionStorage)
-  // Da wir das nicht direkt abrufen können, geben wir null zurück
-  // Die Client-Komponente wird das SessionStorage verwenden
   return NextResponse.json({ 
-    filteredQuestionIds: null // Wird vom Client aus SessionStorage gelesen
+    filteredQuestionIds: attempt.selectedQuestions.map(q => q.questionId)
   })
 }

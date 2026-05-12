@@ -1,20 +1,15 @@
 // app/api/admin/fix-subscriptions/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
 import prisma from "@/lib/db";
 import stripe from "@/lib/stripe";
+import { requireAdminJson } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    // Nur Admins dürfen das
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.email || 
-        (session.user.email !== "info@ultima-rat.io" && session.user.email !== "admin@fragenkreuzen.de")) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const guard = await requireAdminJson();
+    if (guard.response) return guard.response;
 
     console.log("Starting subscription fix...");
 

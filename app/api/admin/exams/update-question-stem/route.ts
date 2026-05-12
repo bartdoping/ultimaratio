@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     const formData = await req.formData()
     const examId = formData.get("examId") as string
@@ -19,10 +16,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing parameters" }, { status: 400 })
     }
 
-    await prisma.question.update({
-      where: { id: qid },
+    const result = await prisma.question.updateMany({
+      where: { id: qid, examId },
       data: { stem },
     })
+    if (result.count === 0) {
+      return NextResponse.json({ error: "Question not found" }, { status: 404 })
+    }
 
     return NextResponse.json({ success: true })
   } catch (error) {

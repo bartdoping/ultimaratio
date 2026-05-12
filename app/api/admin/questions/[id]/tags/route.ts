@@ -1,17 +1,14 @@
 // app/api/admin/questions/[id]/tags/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
 // GET: Tags einer Frage laden
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const resolvedParams = await params
   const question = await prisma.question.findUnique({
@@ -51,10 +48,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
 // POST: Tags zu einer Frage hinzufügen
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const resolvedParams = await params
   const { tagIds } = await req.json().catch(() => ({}))
@@ -101,10 +96,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 // DELETE: Tag von einer Frage entfernen
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   const resolvedParams = await params
   const { tagId } = await req.json().catch(() => ({}))

@@ -1,19 +1,16 @@
 // app/api/admin/exams/[id]/global-tags/route.ts
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { applyGlobalTagsToAllQuestions, removeGlobalTagsFromAllQuestions } from "@/lib/apply-global-tags"
 import { initGlobalTagsTable } from "@/lib/init-global-tags-table"
+import { requireAdminJson } from "@/lib/authz"
 
 export const runtime = "nodejs"
 
 // GET: Globale Tags eines Examens laden
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   // Initialisiere Tabelle falls nötig
   await initGlobalTagsTable()
@@ -56,10 +53,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 
 // POST: Globale Tags zu einem Examen hinzufügen
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   // Initialisiere Tabelle falls nötig
   await initGlobalTagsTable()
@@ -126,10 +121,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 // DELETE: Globalen Tag von einem Examen entfernen
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await getServerSession(authOptions)
-  if ((session?.user as any)?.role !== "admin") {
-    return NextResponse.json({ error: "forbidden" }, { status: 403 })
-  }
+  const guard = await requireAdminJson()
+  if (guard.response) return guard.response
 
   // Initialisiere Tabelle falls nötig
   await initGlobalTagsTable()

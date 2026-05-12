@@ -29,7 +29,15 @@ export async function POST(
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
-      select: { id: true, userId: true, examId: true, startedAt: true, finishedAt: true, elapsedSec: true },
+      select: {
+        id: true,
+        userId: true,
+        examId: true,
+        startedAt: true,
+        finishedAt: true,
+        elapsedSec: true,
+        selectedQuestions: { select: { questionId: true } },
+      },
     })
     if (!attempt || attempt.userId !== userId) {
       return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
@@ -46,13 +54,17 @@ export async function POST(
       return NextResponse.json({ ok: false, error: "Exam not found" }, { status: 404 })
     }
 
+    const selectedQuestionIds = attempt.selectedQuestions.map(q => q.questionId)
     const answers = await prisma.attemptAnswer.findMany({
-      where: { attemptId },
+      where: {
+        attemptId,
+        ...(selectedQuestionIds.length > 0 ? { questionId: { in: selectedQuestionIds } } : {}),
+      },
       select: { questionId: true, isCorrect: true },
     })
 
     const correctCount = answers.filter(a => a.isCorrect).length
-    const totalQuestions = exam._count.questions || 0
+    const totalQuestions = selectedQuestionIds.length || exam._count.questions || 0
     const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
     const passed = scorePercent >= exam.passPercent
 

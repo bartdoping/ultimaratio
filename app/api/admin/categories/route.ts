@@ -1,16 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
 import { prisma } from "@/lib/db"
 import { initCategoriesTables } from "@/lib/init-categories-tables"
+import { requireAdminJson } from "@/lib/authz"
 
 // GET: Alle Kategorien abrufen
 export async function GET() {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     // Stelle sicher, dass die Tabellen existieren
     await initCategoriesTables()
@@ -39,10 +36,8 @@ export async function GET() {
 // POST: Neue Kategorie erstellen
 export async function POST(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
-    if (!session?.user || session.user.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-    }
+    const guard = await requireAdminJson()
+    if (guard.response) return guard.response
 
     // Stelle sicher, dass die Tabellen existieren
     await initCategoriesTables()

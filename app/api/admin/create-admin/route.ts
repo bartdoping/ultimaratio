@@ -2,13 +2,20 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { requireAdminMaintenanceJson } from "@/lib/authz";
 
 export const runtime = "nodejs";
 
 export async function POST() {
   try {
-    const adminEmail = "info@ultima-rat.io";
-    const adminPassword = "admin123456"; // Temporäres Passwort
+    const guard = await requireAdminMaintenanceJson();
+    if (guard.response) return guard.response;
+
+    const adminEmail = process.env.ADMIN_BOOTSTRAP_EMAIL || "info@ultima-rat.io";
+    const adminPassword = process.env.ADMIN_BOOTSTRAP_PASSWORD;
+    if (!adminPassword) {
+      return NextResponse.json({ error: "missing_admin_bootstrap_password" }, { status: 400 });
+    }
     
     // Prüfe ob Admin bereits existiert
     const existingAdmin = await prisma.user.findUnique({
@@ -33,7 +40,6 @@ export async function POST() {
         ok: true,
         message: "Admin user repaired successfully",
         email: adminEmail,
-        password: adminPassword,
         role: updatedAdmin.role,
         emailVerified: !!updatedAdmin.emailVerifiedAt
       });
@@ -58,7 +64,6 @@ export async function POST() {
       ok: true,
       message: "Admin user created successfully",
       email: adminEmail,
-      password: adminPassword,
       role: newAdmin.role,
       emailVerified: !!newAdmin.emailVerifiedAt
     });
