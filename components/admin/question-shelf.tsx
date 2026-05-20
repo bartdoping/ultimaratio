@@ -241,6 +241,14 @@ export default function QuestionShelf({ examId }: { examId: string }) {
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [hoverPreview, setHoverPreview] = useState<string | null>(null)
 
+  function syncHealthInUrl(next: HealthFilter | null) {
+    const params = new URLSearchParams(sp.toString())
+    if (next) params.set("health", next)
+    else params.delete("health")
+    const qs = params.toString()
+    router.replace(`/admin/exams/${encodeURIComponent(examId)}${qs ? `?${qs}` : ""}`, { scroll: false })
+  }
+
   function openEditor(id: string) {
     const params = new URLSearchParams(sp.toString())
     params.set("edit", id)
@@ -386,9 +394,11 @@ export default function QuestionShelf({ examId }: { examId: string }) {
               size="sm"
               variant={healthFilter === filter.value ? "default" : "outline"}
               onClick={() => {
-                setHealthFilter(current => current === filter.value ? null : filter.value)
+                const next = healthFilter === filter.value ? null : filter.value
+                setHealthFilter(next)
                 setPage(1)
                 setShowOnlyUntagged(false)
+                syncHealthInUrl(next)
               }}
             >
               {filter.label}

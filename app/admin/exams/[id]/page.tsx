@@ -29,7 +29,7 @@ import { revalidatePath } from "next/cache"
 
 type Props = {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ edit?: string; qpage?: string }>
+  searchParams: Promise<{ edit?: string; qpage?: string; health?: string }>
 }
 
 // ----------------- Actions -----------------
@@ -646,7 +646,15 @@ export default async function EditExamPage({ params, searchParams }: Props) {
   await initCategoriesTables()
   
   const { id } = await params
-  const { edit } = await searchParams
+  const { edit, health } = await searchParams
+  const healthLabels: Record<string, string> = {
+    "missing-explanation": "Ohne Fragenerklärung",
+    "option-problem": "Optionsproblem",
+    "missing-option-explanation": "Fehlende Optionserklärungen",
+    "missing-tags": "Ohne Tags",
+    "case-text-problem": "Falltext fehlt",
+  }
+  const activeHealthLabel = health && healthLabels[health] ? healthLabels[health] : null
 
   const disableStartPopupReady = await examDisableStartPopupColumnExists()
 
@@ -745,6 +753,11 @@ export default async function EditExamPage({ params, searchParams }: Props) {
               <p className="text-sm text-muted-foreground">Frage anklicken, um sie unten zu bearbeiten. Ziehen ändert die Reihenfolge.</p>
             </div>
           </div>
+          {activeHealthLabel && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-200">
+              Content-Health-Filter aktiv: <strong>{activeHealthLabel}</strong>. Klicke eine Frage zum Bearbeiten.
+            </div>
+          )}
           <QuestionShelf examId={id} />
         </section>
 

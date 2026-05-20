@@ -4,6 +4,7 @@ import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
+import { computeScore } from "@/lib/scoring"
 
 type Props = {
   params: Promise<{ attemptId: string }>
@@ -103,7 +104,8 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
   const caseCount = reviewItems.filter(item => !!item.question.case?.vignette).length
   const priorityItems = reviewItems.filter(item => item.status !== "correct")
   const percent =
-    attempt.scorePercent ?? (total > 0 ? Math.round((correctCount / total) * 100) : 0)
+    attempt.scorePercent ??
+    computeScore(total, correctCount, attempt.exam.passPercent ?? 60).scorePercent
 
   // Dauer: bevorzugt persisted elapsedSec (Sekunden), sonst (finishedAt - startedAt)
   const durationMs =
@@ -130,9 +132,14 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
           </div>
           <div className="flex flex-wrap gap-2">
             {wrongCount > 0 && (
-              <Button asChild>
-                <Link href="/practice/deck/auto:wrong">Fehlertraining starten</Link>
-              </Button>
+              <>
+                <Button asChild>
+                  <Link href={`/practice/${attempt.exam.id}?filter=wrong`}>Falsche dieser Prüfung</Link>
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link href="/practice/deck/auto:wrong">Fehlerdeck öffnen</Link>
+                </Button>
+              </>
             )}
             <Button variant="outline" asChild>
               <Link href={`/practice/${attempt.exam.id}`}>Diese Prüfung üben</Link>

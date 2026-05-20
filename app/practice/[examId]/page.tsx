@@ -137,18 +137,36 @@ export default async function PracticePage({ params, searchParams }: Props) {
   // Bereits gegebene Antworten (falls vorhanden)
   const given = await prisma.attemptAnswer.findMany({
     where: { attemptId: attempt.id },
-    select: { questionId: true, answerOptionId: true },
+    select: { questionId: true, answerOptionId: true, isCorrect: true },
   })
   const initialAnswers = Object.fromEntries(
     given.map((g) => [g.questionId, g.answerOptionId] as const)
   )
 
-  // Optional: Markierungen (Stars) des Users für diese Prüfung
-  const stars = await prisma.questionStar.findMany({
-    where: { userId: me.id, question: { examId } },
-    select: { questionId: true },
-  })
-  const starredSet = new Set<string>(stars.map((s) => s.questionId as string))
+  // Practice-Filter serverseitig: nur passende Fragen in den Runner geben
+  if (initialFilterMode === "open") {
+    const answeredIds = new Set(given.map((g) => g.questionId))
+    qs = qs.filter((q) => !answeredIds.has(q.id))
+  } else if (initialFilterMode === "wrong") {
+    const wrongIds = new Set(
+      given.filter((g) => g.isCorrect === false).map((g) => g.questionId)
+    )
+    if (wrongIds.size === 0) {
+      const wrongStats = await prisma.userQuestionStat.findMany({
+        where: { userId: me.id, wrongCount: { gt: 0 }, question: { examId } },
+        select: { questionId: true },
+      })
+      wrongStats.forEach((s) => wrongIds.add(s.questionId))
+    }
+    qs = qs.filter((q) => wrongIds.has(q.id))
+  } else if (initialFilterMode === "flagged") {
+    const flagged = await prisma.userQuestionFlag.findMany({
+      where: { userId: me.id, question: { examId } },
+      select: { questionId: true },
+    })
+    const flaggedIds = new Set(flagged.map((f) => f.questionId))
+    qs = qs.filter((q) => flaggedIds.has(q.id))
+  }
 
   // Client-Shape
   const questions = qs.map((q) => ({
@@ -170,7 +188,6 @@ export default async function PracticePage({ params, searchParams }: Props) {
       })) ?? [],
     caseId: q.case?.id ?? null,
     caseVignette: q.case?.vignette ?? null,
-    __starred: starredSet.has(q.id),
   }))
 
   const initialElapsedSec = attempt.elapsedSec ?? 0

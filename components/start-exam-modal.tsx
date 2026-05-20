@@ -43,31 +43,35 @@ export default function StartExamModal({
     return preview.total
   }, [limit, preview])
 
+  const fetchPreview = async () => {
+    const params = new URLSearchParams({
+      examId,
+      tagIds: selectedTagIds.join(","),
+      superTagIds: selectedSuperTagIds.join(","),
+      requireAnd: requireAnd ? "1" : "0",
+      includeCases: includeCases ? "1" : "0",
+    })
+
+    const response = await fetch(`/api/questions/search?${params}`)
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || "Failed to preview questions")
+    }
+
+    const data = await response.json()
+    const nextPreview = {
+      total: data.total,
+      available: data.total,
+    }
+    setPreview(nextPreview)
+    return nextPreview
+  }
+
   const handlePreview = async () => {
-    // Erlaube Preview auch ohne Tag-Auswahl (zeigt alle verfügbaren Fragen)
     try {
       setPreviewLoading(true)
       setError(null)
-
-      const params = new URLSearchParams({
-        examId,
-        tagIds: selectedTagIds.join(","),
-        superTagIds: selectedSuperTagIds.join(","),
-        requireAnd: requireAnd ? "1" : "0",
-        includeCases: includeCases ? "1" : "0"
-      })
-
-      const response = await fetch(`/api/questions/search?${params}`)
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || "Failed to preview questions")
-      }
-
-      const data = await response.json()
-      setPreview({
-        total: data.total,
-        available: data.total
-      })
+      await fetchPreview()
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to preview questions")
     } finally {
@@ -86,7 +90,8 @@ export default function StartExamModal({
       setLoading(true)
       setError(null)
 
-      if (preview && preview.total === 0) {
+      const effectivePreview = preview ?? await fetchPreview()
+      if (effectivePreview.total === 0) {
         setError("Für diese Auswahl wurden keine Fragen gefunden. Bitte Filter anpassen.")
         return
       }

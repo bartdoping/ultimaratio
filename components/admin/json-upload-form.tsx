@@ -12,12 +12,119 @@ interface JsonUploadFormProps {
   bulkImportAction: (formData: FormData) => Promise<{ success: boolean; message?: string; error?: string; examId?: string }>
 }
 
+type ValidateResult =
+  | { ok: true; questionCount: number; caseCount: number; imageCount: number }
+  | { ok: false; error: string }
+
+function validateBulkJson(raw: string): ValidateResult {
+  let data: unknown
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    return { ok: false, error: "Ungültiges JSON: Syntaxfehler." }
+  }
+
+  if (!data || typeof data !== "object") {
+    return { ok: false, error: 'Ungültiges JSON: Top-Level muss ein Objekt sein.' }
+  }
+  if (!Array.isArray((data as { questions?: unknown }).questions)) {
+    return { ok: false, error: 'Ungültiges JSON: Feld "questions" fehlt oder ist kein Array.' }
+  }
+
+  const questions = (data as { questions: unknown[] }).questions
+  let caseCount = 0
+  let imageCount = 0
+
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i] as Record<string, unknown>
+    if (!q || typeof q !== "object") {
+      return { ok: false, error: `Ungültige Frage an Position ${i + 1}: muss ein Objekt sein.` }
+    }
+    if (typeof q.stem !== "string" || !q.stem.trim()) {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: "stem" fehlt oder ist leer.` }
+    }
+    if (typeof q.allowImmediate !== "boolean") {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: "allowImmediate" muss boolean sein.` }
+    }
+    if (q.explanation != null && typeof q.explanation !== "string") {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: "explanation" muss string oder null sein.` }
+    }
+    if (q.caseVignette != null && typeof q.caseVignette !== "string") {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: "caseVignette" muss string oder null sein.` }
+    }
+    if (typeof q.caseVignette === "string" && q.caseVignette.trim()) caseCount += 1
+
+    const options = q.options
+    if (!Array.isArray(options) || options.length < 2 || options.length > 6) {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: "options" muss ein Array mit 2 bis 6 Elementen sein.` }
+    }
+
+    let hasCorrect = false
+    for (let j = 0; j < options.length; j++) {
+      const o = options[j] as Record<string, unknown>
+      if (!o || typeof o !== "object") {
+        return { ok: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} muss ein Objekt sein.` }
+      }
+      if (typeof o.text !== "string" || !o.text.trim()) {
+        return { ok: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "text" fehlt oder ist leer.` }
+      }
+      if (typeof o.isCorrect !== "boolean") {
+        return { ok: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "isCorrect" muss boolean sein.` }
+      }
+      if (o.explanation != null && typeof o.explanation !== "string") {
+        return { ok: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "explanation" muss string oder null sein.` }
+      }
+      if (o.isCorrect) hasCorrect = true
+    }
+    if (!hasCorrect) {
+      return { ok: false, error: `Ungültige Frage ${i + 1}: Mindestens eine Option muss "isCorrect": true haben.` }
+    }
+
+    if (q.images != null) {
+      if (!Array.isArray(q.images)) {
+        return { ok: false, error: `Ungültige Frage ${i + 1}: "images" muss ein Array sein.` }
+      }
+      for (let k = 0; k < q.images.length; k++) {
+        const img = q.images[k] as Record<string, unknown>
+        if (!img || typeof img !== "object") {
+          return { ok: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} muss ein Objekt sein.` }
+        }
+        if (typeof img.url !== "string" || !/^https?:\/\//.test(img.url)) {
+          return { ok: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} "url" muss mit http:// oder https:// beginnen.` }
+        }
+        if (img.alt != null && typeof img.alt !== "string") {
+          return { ok: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} "alt" muss string oder null sein.` }
+        }
+        imageCount += 1
+      }
+    }
+  }
+
+  return { ok: true, questionCount: questions.length, caseCount, imageCount }
+}
+
 export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadFormProps) {
   const [jsonData, setJsonData] = useState("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ success: boolean; message?: string; error?: string } | null>(null)
   const [progress, setProgress] = useState({ current: 0, total: 0, stage: "" })
   const [promptCopied, setPromptCopied] = useState(false)
+  const [dryRunLoading, setDryRunLoading] = useState(false)
+
+  const handleDryRun = () => {
+    setDryRunLoading(true)
+    setResult(null)
+    const checked = validateBulkJson(jsonData)
+    if (!checked.ok) {
+      setResult({ success: false, error: checked.error })
+    } else {
+      setResult({
+        success: true,
+        message: `Dry-Run OK: ${checked.questionCount} Fragen, ${checked.caseCount} mit Falltext, ${checked.imageCount} Bilder. Import kann gestartet werden.`,
+      })
+    }
+    setDryRunLoading(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -26,96 +133,13 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
     setProgress({ current: 0, total: 0, stage: "Analysiere JSON..." })
 
     try {
-      // Analysiere JSON um Anzahl zu bestimmen
-      const data = JSON.parse(jsonData)
-      // Minimal-Validierung: verhindert kaputte Imports durch KI-Ausgaben
-      if (!data || typeof data !== "object") {
-        setResult({ success: false, error: 'Ungültiges JSON: Top-Level muss ein Objekt sein.' })
-        return
-      }
-      if (!Array.isArray((data as any).questions)) {
-        setResult({ success: false, error: 'Ungültiges JSON: Feld "questions" fehlt oder ist kein Array.' })
+      const checked = validateBulkJson(jsonData)
+      if (!checked.ok) {
+        setResult({ success: false, error: checked.error })
         return
       }
 
-      const questions = (data as any).questions as any[]
-      for (let i = 0; i < questions.length; i++) {
-        const q = questions[i]
-        if (!q || typeof q !== "object") {
-          setResult({ success: false, error: `Ungültige Frage an Position ${i + 1}: muss ein Objekt sein.` })
-          return
-        }
-        if (typeof q.stem !== "string" || !q.stem.trim()) {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "stem" fehlt oder ist leer.` })
-          return
-        }
-        if (typeof q.allowImmediate !== "boolean") {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "allowImmediate" muss boolean sein.` })
-          return
-        }
-        if (q.explanation != null && typeof q.explanation !== "string") {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "explanation" muss string oder null sein.` })
-          return
-        }
-        if (q.caseVignette != null && typeof q.caseVignette !== "string") {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "caseVignette" muss string oder null sein.` })
-          return
-        }
-        if (!Array.isArray(q.options) || q.options.length < 2 || q.options.length > 6) {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: "options" muss ein Array mit 2 bis 6 Elementen sein.` })
-          return
-        }
-        let hasCorrect = false
-        for (let j = 0; j < q.options.length; j++) {
-          const o = q.options[j]
-          if (!o || typeof o !== "object") {
-            setResult({ success: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} muss ein Objekt sein.` })
-            return
-          }
-          if (typeof o.text !== "string" || !o.text.trim()) {
-            setResult({ success: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "text" fehlt oder ist leer.` })
-            return
-          }
-          if (typeof o.isCorrect !== "boolean") {
-            setResult({ success: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "isCorrect" muss boolean sein.` })
-            return
-          }
-          if (o.explanation != null && typeof o.explanation !== "string") {
-            setResult({ success: false, error: `Ungültige Frage ${i + 1}: Option ${j + 1} "explanation" muss string oder null sein.` })
-            return
-          }
-          if (o.isCorrect) hasCorrect = true
-        }
-        if (!hasCorrect) {
-          setResult({ success: false, error: `Ungültige Frage ${i + 1}: Mindestens eine Option muss "isCorrect": true haben.` })
-          return
-        }
-
-        if (q.images != null) {
-          if (!Array.isArray(q.images)) {
-            setResult({ success: false, error: `Ungültige Frage ${i + 1}: "images" muss ein Array sein.` })
-            return
-          }
-          for (let k = 0; k < q.images.length; k++) {
-            const img = q.images[k]
-            if (!img || typeof img !== "object") {
-              setResult({ success: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} muss ein Objekt sein.` })
-              return
-            }
-            if (typeof img.url !== "string" || !/^https?:\/\//.test(img.url)) {
-              setResult({ success: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} "url" muss mit http:// oder https:// beginnen.` })
-              return
-            }
-            if (img.alt != null && typeof img.alt !== "string") {
-              setResult({ success: false, error: `Ungültige Frage ${i + 1}: Bild ${k + 1} "alt" muss string oder null sein.` })
-              return
-            }
-          }
-        }
-      }
-
-      const questionCount = Array.isArray(data?.questions) ? data.questions.length : 0
-      
+      const questionCount = checked.questionCount
       setProgress({ current: 0, total: questionCount, stage: "Bereite Import vor..." })
 
       const formData = new FormData()
@@ -220,9 +244,20 @@ export default function JsonUploadForm({ examId, bulkImportAction }: JsonUploadF
           </p>
         </div>
 
-        <Button type="submit" disabled={loading || !jsonData.trim()} className="w-full">
-          {loading ? "Importiere..." : "Fragen importieren"}
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={dryRunLoading || loading || !jsonData.trim()}
+            onClick={handleDryRun}
+            className="flex-1"
+          >
+            {dryRunLoading ? "Prüfe..." : "JSON prüfen (Dry-Run)"}
+          </Button>
+          <Button type="submit" disabled={loading || !jsonData.trim()} className="flex-1">
+            {loading ? "Importiere..." : "Fragen importieren"}
+          </Button>
+        </div>
       </form>
 
       {/* Fortschrittsanzeige */}
