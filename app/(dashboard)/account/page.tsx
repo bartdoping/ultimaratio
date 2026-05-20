@@ -4,6 +4,7 @@ import { authOptions } from "@/auth"
 import { notFound, redirect } from "next/navigation"
 import prisma from "@/lib/db"
 import AccountClient from "./account-client"
+import { SettingsShell } from "@/components/settings/settings-shell"
 
 export const dynamic = "force-dynamic"
 
@@ -30,16 +31,10 @@ export default async function AccountPage() {
   })
 
   return (
-    <div className="container mx-auto max-w-5xl py-8 space-y-6">
-      <div className="rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="space-y-1">
-          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Account</div>
-          <h1 className="text-3xl font-semibold tracking-tight">Profil und Sicherheit</h1>
-          <p className="text-sm text-muted-foreground">
-            Verwalte deine persönlichen Daten, Login-Informationen und Käufe.
-          </p>
-        </div>
-      </div>
+    <SettingsShell
+      title="Profil & Sicherheit"
+      description="Persönliche Daten, Login und freigeschaltete Prüfungen verwalten."
+    >
       <AccountClient
         user={{
           id: me.id,
@@ -48,13 +43,13 @@ export default async function AccountPage() {
           email: me.email,
           createdAt: me.createdAt.toISOString(),
         }}
-        purchases={purchases.map(p => ({
+        purchases={purchases.map((p) => ({
           id: p.id,
           createdAt: p.createdAt.toISOString(),
           examTitle: p.exam.title,
           priceCents: p.exam.priceCents || 0,
         }))}
       />
-    </div>
+    </SettingsShell>
   )
 }

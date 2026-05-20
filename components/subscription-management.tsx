@@ -1,10 +1,7 @@
-// components/subscription-management.tsx
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useSession } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
@@ -18,7 +15,6 @@ interface SubscriptionData {
     currentPeriodEnd?: string
     cancelAtPeriodEnd: boolean
   }
-  // Neue Abonnement-Daten
   nextPaymentDate?: string
   cancelAtPeriodEnd?: boolean
   periodStart?: string
@@ -27,8 +23,26 @@ interface SubscriptionData {
   isSimulated?: boolean
 }
 
+const PRO_FEATURES = [
+  "Unbegrenztes Üben pro Tag",
+  "Alle Prüfungsfragen",
+  "Eigene Decks & Spaced Repetition",
+  "Detaillierte Statistiken",
+  "KI-Tutor-Unterstützung",
+] as const
+
+function formatDate(value?: string) {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString("de-DE", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  })
+}
+
 export function SubscriptionManagement() {
-  const { data: session } = useSession()
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -72,20 +86,18 @@ export function SubscriptionManagement() {
       const response = await fetch("/api/stripe/subscription/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include"
+        credentials: "include",
       })
       const data = await response.json()
-      
+
       if (data.ok && data.url) {
         window.location.href = data.url
       } else {
-        console.error("Upgrade failed:", data)
         toast.error("Abo konnte nicht gestartet werden", {
           description: data.details || data.error || "Unbekannter Fehler",
         })
       }
     } catch (error) {
-      console.error("Upgrade failed:", error)
       toast.error("Fehler beim Upgrade", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
       })
@@ -98,8 +110,7 @@ export function SubscriptionManagement() {
     if (
       !confirm(
         "Abonnement zum Ende der aktuellen Abrechnungsperiode kündigen?\n\n" +
-          "Du behältst Pro bis zum letzten Tag der laufenden Periode (wie bei Stripe üblich). " +
-          "Erst danach wechselst du zum kostenlosen Tarif."
+          "Pro bleibt bis zum letzten Tag der laufenden Periode aktiv."
       )
     ) {
       return
@@ -116,28 +127,17 @@ export function SubscriptionManagement() {
 
       if (data.ok) {
         let msg =
-          "Kündigung ist eingetragen. Dein Pro-Zugang bleibt bis zum Ende der bezahlten Laufzeit aktiv."
-        if (typeof data.currentPeriodEnd === "string") {
-          const d = new Date(data.currentPeriodEnd)
-          if (!Number.isNaN(d.getTime())) {
-            msg += ` Pro ist nutzbar bis einschließlich ${d.toLocaleDateString("de-DE", {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}.`
-          }
-        }
+          "Kündigung eingetragen. Pro bleibt bis zum Ende der bezahlten Laufzeit aktiv."
+        const end = formatDate(data.currentPeriodEnd)
+        if (end) msg += ` Nutzbar bis einschließlich ${end}.`
         toast.success("Kündigung eingetragen", { description: msg })
         fetchSubscriptionStatus()
       } else {
-        console.error("Cancel failed:", data)
-        const detail =
-          typeof data.details === "string" ? data.details : data.error
+        const detail = typeof data.details === "string" ? data.details : data.error
         toast.error("Kündigung fehlgeschlagen", { description: detail || "Unbekannter Fehler" })
       }
     } catch (error) {
-      console.error("Cancel failed:", error)
-      toast.error("Fehler beim Kündigen des Abonnements", {
+      toast.error("Fehler beim Kündigen", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
       })
     } finally {
@@ -146,7 +146,7 @@ export function SubscriptionManagement() {
   }
 
   const handleReactivate = async () => {
-    if (!confirm("Möchtest du dein Abonnement reaktivieren? Die automatische Verlängerung wird wieder aktiviert.")) {
+    if (!confirm("Abonnement reaktivieren? Die automatische Verlängerung wird wieder aktiv.")) {
       return
     }
 
@@ -165,13 +165,11 @@ export function SubscriptionManagement() {
         })
         fetchSubscriptionStatus()
       } else {
-        console.error("Reactivation failed:", data)
         toast.error("Reaktivierung fehlgeschlagen", {
           description: data.error || "Unbekannter Fehler",
         })
       }
     } catch (error) {
-      console.error("Reactivation failed:", error)
       toast.error("Fehler beim Reaktivieren", {
         description: error instanceof Error ? error.message : "Unbekannter Fehler",
       })
@@ -182,8 +180,8 @@ export function SubscriptionManagement() {
 
   if (loading) {
     return (
-      <div className="rounded-xl border bg-card p-6 text-center text-sm text-muted-foreground shadow-sm">
-        Abo-Status wird geladen...
+      <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground shadow-sm">
+        Abo-Status wird geladen…
       </div>
     )
   }
@@ -191,255 +189,159 @@ export function SubscriptionManagement() {
   if (!subscription) {
     return (
       <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-sm text-red-700 shadow-sm dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
-        Abo-Daten konnten nicht geladen werden.
+        Abo-Daten konnten nicht geladen werden. Bitte Seite neu laden.
       </div>
     )
   }
 
+  const periodEnd =
+    formatDate(subscription.nextPaymentDate) ||
+    formatDate(subscription.subscriptionDetails?.currentPeriodEnd)
+  const periodStart = formatDate(subscription.periodStart)
+  const isCancelling =
+    subscription.cancelAtPeriodEnd || subscription.subscriptionDetails?.cancelAtPeriodEnd
+
   return (
     <div className="space-y-6">
-      {/* Current Status */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            Dein Tarif
-            {subscription.isPro ? (
-              <Badge variant="default" className="bg-green-600">
-                Pro
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Aktueller Tarif
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-semibold tracking-tight">
+                {subscription.isPro ? "Pro" : "Kostenlos"}
+              </h2>
+              <Badge variant={subscription.isPro ? "default" : "outline"}>
+                {subscription.isPro ? "Aktiv" : "Free"}
               </Badge>
-            ) : (
-              <Badge variant="outline">Kostenlos</Badge>
-            )}
-          </CardTitle>
-          <CardDescription>
-            {subscription.isPro
-              ? "Du hast Zugriff auf Pro-Funktionen und alle freigeschalteten Lernbereiche."
-              : "Du nutzt aktuell den kostenlosen Tarif. Pro erweitert Training, Decks und Wiederholung."}
-          </CardDescription>
-        </CardHeader>
-      </Card>
+              {subscription.isPro && isCancelling && (
+                <Badge variant="secondary">Endet bald</Badge>
+              )}
+            </div>
+            <p className="max-w-xl text-sm text-muted-foreground">
+              {subscription.isPro
+                ? "Voller Zugriff auf Training, Decks, Spaced Repetition und alle Prüfungsinhalte."
+                : "Upgrade auf Pro für unbegrenztes Üben, eigene Decks und erweiterte Lernfunktionen."}
+            </p>
+          </div>
 
-      {/* Subscription Details */}
-      {subscription.isPro && subscription.subscriptionDetails && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle>Abonnement</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border bg-muted/30 p-3">
+          {!subscription.isPro && (
+            <div className="shrink-0 text-left sm:text-right">
+              <div className="text-3xl font-bold text-primary">9,99 €</div>
+              <div className="text-xs text-muted-foreground">pro Monat · monatlich kündbar</div>
+            </div>
+          )}
+        </div>
+
+        {subscription.isPro && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
               <div className="text-xs text-muted-foreground">Status</div>
-              <span className="font-medium">
-                {subscription.subscriptionDetails.cancelAtPeriodEnd ? "Wird gekündigt" : "Aktiv"}
-              </span>
+              <div className="mt-0.5 text-sm font-medium">
+                {isCancelling ? "Kündigung aktiv" : "Aktiv"}
+              </div>
             </div>
-            {subscription.subscriptionDetails.currentPeriodEnd && (
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <div className="text-xs text-muted-foreground">Läuft bis</div>
-                <span className="font-medium">
-                  {new Date(subscription.subscriptionDetails.currentPeriodEnd).toLocaleDateString("de-DE")}
-                </span>
+            {periodEnd && (
+              <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
+                <div className="text-xs text-muted-foreground">
+                  {isCancelling ? "Pro endet am" : "Nächste Abrechnung"}
+                </div>
+                <div className="mt-0.5 text-sm font-medium">{periodEnd}</div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Pro Features */}
-      <Card className="shadow-sm">
-        <CardHeader>
-          <CardTitle>Pro-Features</CardTitle>
-          <CardDescription>
-            Was mit Pro freigeschaltet wird.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>Unbegrenzte Fragen pro Tag</span>
+            {periodStart && (
+              <div className="rounded-lg border bg-muted/25 px-3 py-2.5">
+                <div className="text-xs text-muted-foreground">Laufzeit seit</div>
+                <div className="mt-0.5 text-sm font-medium">{periodStart}</div>
               </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>Zugang zu allen Prüfungsfragen</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>Detaillierte Statistiken</span>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>Spaced Repetition System</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>Eigene Prüfungsdecks</span>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2">
-                <span className="text-green-600">✓</span>
-                <span>KI-Tutor-Unterstützung</span>
-              </div>
-            </div>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        )}
 
-      {/* Pricing */}
-      <Card className="border-primary/30 bg-primary/5 shadow-sm">
-        <CardHeader>
-          <CardTitle>Pro</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4 sm:flex sm:items-end sm:justify-between sm:gap-6 sm:space-y-0">
-            <div>
-              <div className="text-4xl font-bold text-primary">9,99 €</div>
-              <div className="text-sm text-muted-foreground">pro Monat</div>
-            </div>
-            <div className="text-sm text-muted-foreground">
-              Monatlich kündbar. Keine versteckten Kosten.
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+        {subscription.isPro && isCancelling && (
+          <Alert className="mt-4">
+            <AlertDescription>
+              Dein Abo ist gekündigt und läuft{periodEnd ? ` bis ${periodEnd}` : " zum Periodenende"}.
+              {subscription.daysRemaining != null && subscription.daysRemaining > 0 && (
+                <> Noch {subscription.daysRemaining} Tage Pro-Zugang.</>
+              )}{" "}
+              Du kannst die Kündigung jederzeit zurücknehmen.
+            </AlertDescription>
+          </Alert>
+        )}
 
-      {/* Abonnement-Status - nur für Pro-User anzeigen */}
-      {subscription.isPro && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Laufzeit
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {subscription.nextPaymentDate ? (
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
-                    <span className="text-sm text-muted-foreground">
-                      {subscription.cancelAtPeriodEnd ? "Läuft bis:" : "Nächste Zahlung:"}
-                    </span>
-                    <span className="font-medium">
-                      {new Date(subscription.nextPaymentDate).toLocaleDateString('de-DE', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                  {subscription.periodStart && (
-                    <div className="flex justify-between items-center rounded-lg border bg-muted/30 px-3 py-2">
-                      <span className="text-sm text-muted-foreground">
-                        Laufzeit seit:
-                      </span>
-                      <span className="font-medium">
-                        {new Date(subscription.periodStart).toLocaleDateString('de-DE', {
-                          year: 'numeric',
-                          month: 'long',
-                          day: 'numeric'
-                        })}
-                      </span>
-                    </div>
-                  )}
-                  {subscription.isSimulated && (
-                    <div className="text-xs text-muted-foreground border rounded px-2 py-1">
-                      Nur-Entwicklung: simuliertes Abo (kein Stripe-Checkout).
-                    </div>
-                  )}
-                </div>
+        {subscription.isSimulated && (
+          <p className="mt-3 text-xs text-muted-foreground rounded-lg border bg-muted/20 px-3 py-2">
+            Entwicklungsmodus: simuliertes Abo ohne echten Stripe-Checkout.
+          </p>
+        )}
+
+        <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground max-w-md">
+            {subscription.isPro
+              ? isCancelling
+                ? "Mit „Wiederherstellen“ läuft die Verlängerung normal weiter."
+                : "Kündigung stoppt nur die Verlängerung – Pro bleibt bis Periodenende aktiv."
+              : "Alle bisherigen Daten und Statistiken bleiben beim Wechsel erhalten."}
+          </p>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {subscription.isPro ? (
+              isCancelling ? (
+                <Button
+                  onClick={handleReactivate}
+                  disabled={actionLoading}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  {actionLoading ? "Wird reaktiviert…" : "Abo wiederherstellen"}
+                </Button>
               ) : (
-                <div className="text-sm text-muted-foreground">
-                  <span className="text-green-600">✓</span>{" "}
-                  {subscription.isSimulated
-                    ? "Pro aktiv (lokaler Testeintrag)."
-                    : "Pro aktiv. Abrechnungsdaten erscheinen, sobald Stripe synchronisiert ist."}
-                </div>
-              )}
-              
-              {subscription.cancelAtPeriodEnd && (
-                <Alert>
-                  <AlertDescription>
-                    <strong>Abonnement gekündigt</strong><br />
-                    Dein Pro-Status läuft bis zum {new Date(subscription.nextPaymentDate || '').toLocaleDateString('de-DE', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric'
-                    })}. 
-                    {subscription.daysRemaining !== null && subscription.daysRemaining !== undefined && subscription.daysRemaining > 0 && (
-                      <><br /><strong>Noch {subscription.daysRemaining} Tage übrig</strong></>
-                    )}
-                    <br />Du kannst die Kündigung jederzeit rückgängig machen.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Kostenloser User Status */}
-      {!subscription.isPro && (
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Kostenloser Account
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                Im kostenlosen Tarif sind Pro-Funktionen wie unbegrenztes Üben, eigene Decks und Spaced Repetition eingeschränkt.
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Actions: Kündigen immer anbieten, solange Pro aktiv und keine Kündigung zum Periodenende geplant */}
-      <div className="rounded-xl border bg-card p-5 shadow-sm">
-        {subscription.isPro ? (
-          <div className="flex flex-col gap-3">
-            {subscription.cancelAtPeriodEnd ? (
-              <Button
-                onClick={handleReactivate}
-                disabled={actionLoading}
-                className="bg-green-600 hover:bg-green-700"
-              >
-                {actionLoading ? "Wird reaktiviert..." : "Abonnement wiederherstellen"}
-              </Button>
-            ) : (
-              <>
                 <Button
                   variant="destructive"
                   onClick={handleCancel}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? "Wird gekündigt..." : "Abonnement kündigen"}
+                  {actionLoading ? "Wird gekündigt…" : "Abo kündigen"}
                 </Button>
-                <p className="text-sm text-muted-foreground max-w-md">
-                  Stoppt nur die automatische Verlängerung. Pro bleibt bis zum Ende der bereits bezahlten Laufzeit aktiv.
-                </p>
-              </>
+              )
+            ) : (
+              <Button
+                onClick={handleUpgrade}
+                disabled={actionLoading}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {actionLoading ? "Wird verarbeitet…" : "Jetzt Pro aktivieren"}
+              </Button>
             )}
           </div>
-        ) : (
-          // Nur "Upgraden" anzeigen für kostenlose User
-          <Button 
-            onClick={handleUpgrade}
-            disabled={actionLoading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {actionLoading ? "Wird verarbeitet..." : "Jetzt auf Pro upgraden"}
-          </Button>
-        )}
-      </div>
+        </div>
+      </section>
 
-      {/* Info */}
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
+        <h2 className="text-lg font-semibold">Was Pro enthält</h2>
+        <p className="mt-1 text-sm text-muted-foreground mb-4">
+          Alle Leistungen im Überblick.
+        </p>
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {PRO_FEATURES.map((feature) => (
+            <li
+              key={feature}
+              className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-sm"
+            >
+              <span className="text-green-600 dark:text-green-400" aria-hidden>
+                ✓
+              </span>
+              {feature}
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <Alert>
         <AlertDescription>
-          <strong>Hinweis:</strong> Alle deine Daten und Statistiken bleiben erhalten, 
-          egal ob du zwischen kostenlosem und Pro-Plan wechselst.
+          Fragen oder Probleme mit der Abrechnung? Schreib uns – dein Lernfortschritt bleibt
+          unabhängig vom Tarif erhalten.
         </AlertDescription>
       </Alert>
     </div>

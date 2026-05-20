@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -36,7 +35,7 @@ export function DeleteAccountButton() {
       const response = await fetch("/api/account/delete", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        credentials: "include"
+        credentials: "include",
       })
 
       const data = await response.json()
@@ -45,13 +44,12 @@ export function DeleteAccountButton() {
         toast.success("Account wurde gelöscht", {
           description: "Du wirst jetzt abgemeldet.",
         })
-        // Abmelden und zur Startseite weiterleiten
         await signOut({ callbackUrl: "/" })
       } else {
         setError(data.error || "Account konnte nicht gelöscht werden.")
       }
-    } catch (error) {
-      console.error("Delete account error:", error)
+    } catch (err) {
+      console.error("Delete account error:", err)
       setError("Account konnte nicht gelöscht werden.")
     } finally {
       setIsDeleting(false)
@@ -63,81 +61,70 @@ export function DeleteAccountButton() {
   }
 
   return (
-    <Card className="border-red-200 bg-red-50/40 shadow-sm dark:border-red-900 dark:bg-red-950/10">
-      <CardHeader>
-        <CardTitle className="text-red-700 dark:text-red-300">Gefahrenbereich</CardTitle>
-        <CardDescription>
-          Lösche deinen Account nur, wenn du sicher bist. Diese Aktion kann nicht rückgängig gemacht werden.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Alert className="border-red-200 bg-white/70 dark:border-red-900 dark:bg-red-950/20">
-          <AlertDescription className="text-red-800 dark:text-red-200">
-            <strong>Beim Löschen werden entfernt:</strong>
-            <ul className="mt-2 ml-4 list-disc space-y-1">
-              <li>Prüfungsergebnisse und Statistiken</li>
-              <li>Käufe, Abo-Daten und Zahlungshistorie</li>
-              <li>Persönliche Einstellungen und Accountdaten</li>
-            </ul>
-          </AlertDescription>
-        </Alert>
+    <section className="rounded-xl border border-red-200/80 bg-red-50/50 p-5 shadow-sm dark:border-red-900/60 dark:bg-red-950/15">
+      <div className="space-y-1">
+        <h2 className="text-lg font-semibold text-red-800 dark:text-red-300">Account löschen</h2>
+        <p className="text-sm text-red-700/90 dark:text-red-300/90">
+          Unwiderruflich. Alle Daten, Käufe und Statistiken werden entfernt.
+        </p>
+      </div>
 
-        {!isOpen ? (
-          <Button 
-            variant="destructive" 
-            onClick={() => setIsOpen(true)}
-            className="w-full"
-          >
-            Account löschen
-          </Button>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="confirmation">
-                Gib zur Bestätigung exakt ein: <strong>LÖSCHEN {userEmail.toUpperCase()}</strong>
-              </Label>
-              <Input
-                id="confirmation"
-                type="text"
-                value={confirmationText}
-                onChange={(e) => setConfirmationText(e.target.value)}
-                placeholder={`LÖSCHEN ${userEmail.toUpperCase()}`}
-                className="font-mono"
-              />
-            </div>
+      <Alert className="mt-4 border-red-200/80 bg-background/80 dark:border-red-900/60">
+        <AlertDescription className="text-sm text-red-900 dark:text-red-200">
+          Betroffen sind Prüfungsergebnisse, Käufe, Abo-Daten und persönliche Einstellungen.
+        </AlertDescription>
+      </Alert>
 
-            {error && (
-              <Alert className="border-red-200 bg-white/70 dark:border-red-900 dark:bg-red-950/20">
-                <AlertDescription className="text-red-800 dark:text-red-200">
-                  {error}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={() => {
-                  setIsOpen(false)
-                  setConfirmationText("")
-                  setError(null)
-                }}
-                className="flex-1"
-              >
-                Abbrechen
-              </Button>
-              <Button 
-                variant="destructive" 
-                onClick={handleDelete}
-                disabled={isDeleting || confirmationText !== expectedConfirmation}
-                className="flex-1"
-              >
-                {isDeleting ? "Wird gelöscht..." : "Endgültig löschen"}
-              </Button>
-            </div>
+      {!isOpen ? (
+        <Button variant="destructive" onClick={() => setIsOpen(true)} className="mt-4">
+          Löschung starten
+        </Button>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="confirmation" className="text-red-900 dark:text-red-200">
+              Zur Bestätigung exakt eingeben:{" "}
+              <span className="font-mono font-semibold">{expectedConfirmation}</span>
+            </Label>
+            <Input
+              id="confirmation"
+              type="text"
+              value={confirmationText}
+              onChange={(e) => setConfirmationText(e.target.value)}
+              placeholder={expectedConfirmation}
+              className="font-mono"
+            />
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          {error && (
+            <p className="rounded-lg border border-red-300 bg-red-100 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/40 dark:text-red-200">
+              {error}
+            </p>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsOpen(false)
+                setConfirmationText("")
+                setError(null)
+              }}
+              className="flex-1"
+            >
+              Abbrechen
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting || confirmationText !== expectedConfirmation}
+              className="flex-1"
+            >
+              {isDeleting ? "Wird gelöscht…" : "Endgültig löschen"}
+            </Button>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
