@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
+import { buildLoginHref, getSafeCallbackUrl } from "@/lib/auth-redirect"
 
 export function VerifyClient() {
   const router = useRouter()
@@ -29,8 +30,12 @@ export function VerifyClient() {
       setErr(j?.error || "Code ungültig.")
       return
     }
+    const callbackUrl = getSafeCallbackUrl(
+      params.get("callbackUrl") || params.get("next"),
+      "/dashboard"
+    )
     setMsg("E-Mail verifiziert! Du kannst dich jetzt einloggen.")
-    setTimeout(() => router.push("/login"), 800)
+    setTimeout(() => router.push(buildLoginHref(callbackUrl)), 800)
   }
 
   return (

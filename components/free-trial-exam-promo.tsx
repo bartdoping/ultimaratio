@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { buildLoginHref, buildRegisterHref } from "@/lib/auth-redirect"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -56,10 +57,10 @@ export function FreeTrialExamPromo({ exam, loggedIn, className }: Props) {
         ) : (
           <>
             <Button asChild>
-              <Link href={`/register?next=${encodeURIComponent(nextPath)}`}>Kostenlos testen</Link>
+              <Link href={buildRegisterHref(nextPath)}>Kostenlos testen</Link>
             </Button>
             <Button asChild variant="outline">
-              <Link href={`/login?next=${encodeURIComponent(nextPath)}`}>Einloggen</Link>
+              <Link href={buildLoginHref(nextPath)}>Einloggen</Link>
             </Button>
             <Button asChild variant="ghost">
               <Link href={nextPath}>Details ansehen</Link>

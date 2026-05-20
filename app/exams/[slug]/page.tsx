@@ -9,6 +9,8 @@ import { CheckoutButton } from "@/components/checkout-button";
 import { Button } from "@/components/ui/button";
 import { hasExamLearningAccess, isProOrAdmin } from "@/lib/exam-access";
 import { examDisableStartPopupColumnExists } from "@/lib/exam-disable-start-popup-column";
+import { GuestTrialCta } from "@/components/marketing/guest-trial-cta";
+import { buildLoginHref, buildRegisterHref } from "@/lib/auth-redirect";
 
 export const dynamic = "force-dynamic";
 
@@ -190,6 +192,12 @@ export default async function ExamPage({ params }: PageProps) {
                 </Button>
               </div>
             </div>
+          ) : exam.isFreeTrialDemo ? (
+            <GuestTrialCta
+              examTitle={exam.title}
+              examSlug={exam.slug}
+              questionCount={exam.questions.length}
+            />
           ) : (
             <div className="rounded-xl border bg-card p-5 shadow-sm space-y-3">
               <h3 className="text-lg font-semibold">Einloggen und loslegen</h3>
@@ -198,10 +206,10 @@ export default async function ExamPage({ params }: PageProps) {
               </p>
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" asChild>
-                  <Link href={`/login?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}>Einloggen</Link>
+                  <Link href={buildLoginHref(`/exams/${exam.slug}`)}>Einloggen</Link>
                 </Button>
                 <Button asChild>
-                  <Link href={`/register?next=${encodeURIComponent(`/exams/${exam.slug}`)}`}>Registrieren</Link>
+                  <Link href={buildRegisterHref(`/exams/${exam.slug}`)}>Registrieren</Link>
                 </Button>
               </div>
             </div>

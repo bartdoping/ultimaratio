@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
-import { examVisibleOnExamsPageColumnExists } from "@/lib/exam-visible-on-exams-page-column"
 import { showFreeTrialExamPromo } from "@/lib/exam-access"
+import { loadFreeTrialExam } from "@/lib/free-trial-exam"
+import { buildLoginHref } from "@/lib/auth-redirect"
 import { FreeTrialExamPromo } from "@/components/free-trial-exam-promo"
 import { TutorialShowcase } from "@/components/home/tutorial-showcase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,10 +16,6 @@ export const dynamic = "force-dynamic"
 export default async function Home() {
   const session = await getServerSession(authOptions)
   const loggedIn = !!session?.user
-
-  const examListWhere = (await examVisibleOnExamsPageColumnExists())
-    ? ({ isPublished: true, visibleOnExamsPage: true } as const)
-    : ({ isPublished: true } as const)
 
   let showTrialOnHome = true
   let showPricingOnHome = !loggedIn
@@ -33,19 +30,8 @@ export default async function Home() {
     }
   }
 
-  const freeTrialExam = showTrialOnHome
-    ? await prisma.exam.findFirst({
-        where: { ...examListWhere, isFreeTrialDemo: true },
-        orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          description: true,
-          _count: { select: { questions: true } },
-        },
-      })
-    : null
+  const freeTrialExam = showTrialOnHome ? await loadFreeTrialExam() : null
+  const trialHref = freeTrialExam ? "/probieren" : "/exams"
 
   return (
     <main className="relative">
@@ -56,34 +42,61 @@ export default async function Home() {
 
         <div className="relative mx-auto max-w-5xl px-6 py-14 text-center">
           <div className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs text-muted-foreground">
-            Neu: Spaced Repetition für eigene & automatische Decks
+            {freeTrialExam
+              ? "Kostenloses Probedeck – ohne Kreditkarte"
+              : "Neu: Spaced Repetition für eigene & automatische Decks"}
           </div>
 
           <h1 className="mt-4 text-4xl/tight font-bold tracking-tight md:text-5xl">
-            Die Fragenbank für dein Medizinstudium
+            {freeTrialExam && !loggedIn
+              ? "Fragen testen – ohne Risiko"
+              : "Die Fragenbank für dein Medizinstudium"}
           </h1>
 
           <p className="mx-auto mt-4 max-w-2xl text-base md:text-lg text-muted-foreground">
-            Trainiere Einzelfragen &amp; Fallvignetten im Prüfungs- oder Übungsmodus, mit
-            Bildern, Laborwert-Suche, Timer und optionalem Sofort-Feedback. Erhalte eine
-            klare Auswertung – und vertiefe mit <span className="font-medium">Spaced Repetition</span>.
+            {freeTrialExam && !loggedIn ? (
+              <>
+                Starte mit dem kostenlosen Probedeck im echten Prüfungsmodus – Timer, Bilder und Auswertung
+                inklusive. Danach entscheidest du: Einzelkauf oder Pro.
+              </>
+            ) : (
+              <>
+                Trainiere Einzelfragen &amp; Fallvignetten im Prüfungs- oder Übungsmodus, mit Bildern,
+                Laborwert-Suche, Timer und optionalem Sofort-Feedback. Erhalte eine klare Auswertung – und
+                vertiefe mit <span className="font-medium">Spaced Repetition</span>.
+              </>
+            )}
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            <Button asChild size="lg">
-              <Link href="/exams">Prüfungen</Link>
-            </Button>
-
-            {!loggedIn ? (
+            {!loggedIn && freeTrialExam ? (
               <>
+                <Button asChild size="lg">
+                  <Link href={trialHref}>Kostenlos testen</Link>
+                </Button>
                 <Button asChild size="lg" variant="secondary">
-                  <Link href="/register">Registrieren</Link>
+                  <Link href="/exams">Alle Prüfungen</Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/register">Konto erstellen</Link>
+                </Button>
+              </>
+            ) : loggedIn ? (
+              <>
+                <Button asChild size="lg">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+                <Button asChild size="lg" variant="secondary">
+                  <Link href="/exams">Prüfungen</Link>
                 </Button>
               </>
             ) : (
               <>
+                <Button asChild size="lg">
+                  <Link href="/exams">Prüfungen</Link>
+                </Button>
                 <Button asChild size="lg" variant="secondary">
-                  <Link href="/dashboard">Dashboard</Link>
+                  <Link href="/register">Registrieren</Link>
                 </Button>
               </>
             )}
@@ -91,19 +104,17 @@ export default async function Home() {
         </div>
       </section>
 
-      {freeTrialExam && freeTrialExam._count.questions > 0 && (
+      {freeTrialExam && (
         <section className="mx-auto mt-10 max-w-5xl px-2 md:px-0">
           <h2 className="mb-3 text-center text-lg font-semibold">Erst einmal ausprobieren?</h2>
-          <FreeTrialExamPromo
-            exam={{
-              id: freeTrialExam.id,
-              slug: freeTrialExam.slug,
-              title: freeTrialExam.title,
-              description: freeTrialExam.description,
-              questionCount: freeTrialExam._count.questions,
-            }}
-            loggedIn={loggedIn}
-          />
+          <FreeTrialExamPromo exam={freeTrialExam} loggedIn={loggedIn} />
+          {!loggedIn && (
+            <p className="mt-3 text-center text-sm text-muted-foreground">
+              <Link href="/probieren" className="underline hover:text-foreground">
+                Mehr zum Ablauf beim kostenlosen Testen
+              </Link>
+            </p>
+          )}
         </section>
       )}
 
@@ -156,9 +167,15 @@ export default async function Home() {
         <TutorialShowcase />
 
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Button asChild>
-            <Link href="/exams">Prüfungen ansehen</Link>
-          </Button>
+          {!loggedIn && freeTrialExam ? (
+            <Button asChild>
+              <Link href="/probieren">Kostenlos testen</Link>
+            </Button>
+          ) : (
+            <Button asChild>
+              <Link href="/exams">Prüfungen ansehen</Link>
+            </Button>
+          )}
           {loggedIn ? (
             <Button asChild variant="outline">
               <Link href="/dashboard">Zum Dashboard</Link>
@@ -196,12 +213,14 @@ export default async function Home() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-3">
                 <ul className="space-y-1">
-                  <li>– Ein kostenloses Probedeck, vom Admin gepflegt</li>
-                  <li>– Ideal zum Kennenlernen der Oberfläche</li>
-                  <li>– Keine Pro-Features (Decks, SR, …)</li>
+                  <li>– Ein kostenloses Probedeck</li>
+                  <li>– Prüfungsmodus mit Auswertung</li>
+                  <li>– Keine Kreditkarte nötig</li>
                 </ul>
                 <Button asChild className="w-full">
-                  <Link href="/exams">Prüfungen ansehen</Link>
+                  <Link href={freeTrialExam ? "/probieren" : "/exams"}>
+                    {freeTrialExam ? "Kostenlos testen" : "Prüfungen ansehen"}
+                  </Link>
                 </Button>
               </CardContent>
             </Card>
@@ -216,9 +235,9 @@ export default async function Home() {
               </CardHeader>
               <CardContent className="text-sm text-muted-foreground space-y-3">
                 <ul className="space-y-1">
-                  <li>– Einzelne Prüfungen per Stripe kaufen</li>
-                  <li>– Zugriff bleibt dauerhaft erhalten</li>
-                  <li>– Auch nach Pro-Kündigung weiterhin verfügbar</li>
+                  <li>– Einzelne Prüfungen per Stripe</li>
+                  <li>– Zugriff bleibt dauerhaft</li>
+                  <li>– Auch nach Pro-Kündigung verfügbar</li>
                 </ul>
                 <Button asChild variant="outline" className="w-full">
                   <Link href="/exams">Preise in den Prüfungsdetails</Link>
@@ -238,10 +257,10 @@ export default async function Home() {
                 <ul className="space-y-1">
                   <li>– Zugriff auf alle Prüfungen</li>
                   <li>– Eigene Decks + Spaced Repetition</li>
-                  <li>– Voller Lernworkflow (Üben, Listen, …)</li>
+                  <li>– Voller Lernworkflow</li>
                 </ul>
                 <Button asChild className="w-full">
-                  <Link href={loggedIn ? "/subscription" : "/login?next=/subscription"}>
+                  <Link href={loggedIn ? "/subscription" : buildLoginHref("/subscription")}>
                     {loggedIn ? "Pro freischalten" : "Einloggen & Pro freischalten"}
                   </Link>
                 </Button>

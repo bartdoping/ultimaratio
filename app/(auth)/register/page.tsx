@@ -2,8 +2,9 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import { buildLoginHref, buildVerifyHref, getSafeCallbackUrl } from "@/lib/auth-redirect"
 
 type FormState = {
   name: string
@@ -15,6 +16,13 @@ type FormState = {
 
 export default function RegisterPage() {
   const router = useRouter()
+  const params = useSearchParams()
+  const callbackUrl = getSafeCallbackUrl(
+    params.get("callbackUrl") || params.get("next"),
+    "/dashboard"
+  )
+  const trialFlow =
+    callbackUrl.startsWith("/exams/") || callbackUrl === "/probieren" || callbackUrl.startsWith("/probieren")
   const [form, setForm] = useState<FormState>({
     name: "",
     surname: "",
@@ -64,7 +72,7 @@ export default function RegisterPage() {
       if ((data as any)?.devHint) setMsg(`${(data as any).devHint} (nur DEV)`)
 
       setTimeout(() => {
-        router.push(`/verify?email=${encodeURIComponent(form.email)}`)
+        router.push(buildVerifyHref(form.email, callbackUrl))
       }, 800)
     } catch {
       setErr("Netzwerkfehler. Bitte später erneut versuchen.")
@@ -76,6 +84,12 @@ export default function RegisterPage() {
   return (
     <div className="max-w-sm mx-auto space-y-4 p-6">
       <h1 className="text-2xl font-semibold">Registrieren</h1>
+
+      {trialFlow && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+          Nach der Verifizierung startest du direkt mit dem <strong className="text-foreground">kostenlosen Probedeck</strong>.
+        </div>
+      )}
 
       {msg && <p className="text-green-600 text-sm">{msg}</p>}
       {err && <p className="text-red-600 text-sm">{err}</p>}
@@ -165,7 +179,7 @@ export default function RegisterPage() {
       <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
         <span>Bereits ein Konto vorhanden?</span>
         <Link
-          href="/login"
+          href={buildLoginHref(callbackUrl)}
           className="inline-flex items-center h-9 rounded-md border px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
         >
           Jetzt anmelden

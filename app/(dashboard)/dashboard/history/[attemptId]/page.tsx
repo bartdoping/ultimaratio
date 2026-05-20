@@ -5,6 +5,8 @@ import prisma from "@/lib/db"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { computeScore } from "@/lib/scoring"
+import { isProOrAdmin } from "@/lib/exam-access"
+import { PostTrialUpsell } from "@/components/marketing/post-trial-upsell"
 
 type Props = {
   params: Promise<{ attemptId: string }>
@@ -83,6 +85,13 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
   })
 
   if (!attempt) notFound()
+
+  const me = await prisma.user.findUnique({
+    where: { id: session.user.id as string },
+    select: { role: true, subscriptionStatus: true },
+  })
+  const showProUpsell = !!me && !isProOrAdmin(me.role, me.subscriptionStatus)
+  const isFinished = !!attempt.finishedAt
 
   const correctCount = attempt.answers.filter((a) => a.isCorrect).length
   const answeredByQuestionId = new Map(attempt.answers.map(a => [a.questionId, a]))
@@ -170,6 +179,16 @@ export default async function HistoryDetailPage({ params, searchParams }: Props)
           </div>
         )}
       </div>
+
+      {isFinished && showProUpsell && (
+        <PostTrialUpsell
+          examId={attempt.exam.id}
+          examTitle={attempt.exam.title}
+          examSlug={attempt.exam.slug}
+          isFreeTrialExam={!!attempt.exam.isFreeTrialDemo}
+          showProUpsell
+        />
+      )}
 
       <div className="rounded-2xl border bg-card p-5 shadow-sm">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

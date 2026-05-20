@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { signIn } from "next-auth/react"
 import { useRouter, useSearchParams } from "next/navigation"
+import { getSafeCallbackUrl } from "@/lib/auth-redirect"
 
 export function LoginClient() {
   const router = useRouter()
@@ -17,7 +18,10 @@ export function LoginClient() {
     setErr(null)
     setBusy(true)
 
-    const callbackUrl = params.get("callbackUrl") || "/dashboard"
+    const callbackUrl = getSafeCallbackUrl(
+      params.get("callbackUrl") || params.get("next"),
+      "/dashboard"
+    )
     const res = await signIn("credentials", {
       email,
       password,
