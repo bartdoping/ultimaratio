@@ -274,7 +274,7 @@ export function GeneratorPageClient({
       <div className="space-y-1 text-center">
         <h1 className="text-2xl font-semibold tracking-tight">Generator</h1>
         <p className="text-sm text-muted-foreground">
-          KI-Prüfungsfragen generieren, direkt kreuzen – ohne Speicherung.
+          Single-Choice-Fragen in Sekundenschnelle generieren
         </p>
       </div>
 
