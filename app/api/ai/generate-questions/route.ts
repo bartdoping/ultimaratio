@@ -1,40 +1,35 @@
 import { NextResponse } from "next/server"
-import OpenAI from "openai"
-import { getServerSession } from "next-auth"
-import { authOptions } from "@/auth"
-import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
-import { isUserPro } from "@/lib/subscription"
-import { buildQuestionGeneratorPrompt } from "@/lib/ai-question-generator-prompt"
-import { extractJsonFromModelText, validateBulkJson } from "@/lib/question-bulk-json"
+import { requireGeneratorUser } from "@/lib/generator-access"
+import {
+  generatorMaxOutputTokens,
+  GENERATOR_TOPIC_MAX,
+} from "@/lib/generator-ai-config"
+import { buildPlayableQuestionPrompt } from "@/lib/ai-question-generator-prompt"
+import { callGeneratorModel, callGeneratorModelWithRetry } from "@/lib/generator-openai"
+import { extractJsonFromModelText } from "@/lib/question-bulk-json"
+import { validateGeneratedQuestions } from "@/lib/generator-validate"
 
 export const runtime = "nodejs"
 
-const MODEL = process.env.OPENAI_MODEL_PRIMARY || "gpt-5"
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+function parseGenerateBody(body: unknown) {
+  const b = body as Record<string, unknown>
+  const topic = String(b?.topic ?? "").trim().slice(0, GENERATOR_TOPIC_MAX)
+  const difficulty = Number(b?.difficulty)
+  const mode = b?.mode === "case" ? ("case" as const) : ("single" as const)
+  const caseQuestionCount = Number(b?.caseQuestionCount)
+  return { topic, difficulty, mode, caseQuestionCount }
+}
 
 export async function POST(req: Request) {
   try {
     assertSameOrigin(req)
 
-    const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { email: session.user.email.toLowerCase().trim() },
-      select: { id: true, role: true },
-    })
-    if (!user) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
-    }
-
-    const canGenerate = user.role === "admin" || (await isUserPro(user.id))
-    if (!canGenerate) {
+    const access = await requireGeneratorUser()
+    if (!access.ok) {
       return NextResponse.json(
-        { ok: false, error: "upgrade_required", upgradeRequired: true },
-        { status: 403 }
+        { ok: false, error: access.error, upgradeRequired: access.upgradeRequired },
+        { status: access.status }
       )
     }
 
@@ -43,10 +38,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const topic = String(body?.topic ?? "").trim().slice(0, 150)
-    const difficulty = Number(body?.difficulty)
-    const mode = body?.mode === "case" ? "case" : "single"
-    const caseQuestionCount = Number(body?.caseQuestionCount)
+    const { topic, difficulty, mode, caseQuestionCount } = parseGenerateBody(body)
 
     if (!topic) {
       return NextResponse.json({ ok: false, error: "Bitte ein Thema angeben." }, { status: 400 })
@@ -55,6 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Schwierigkeitsgrad muss zwischen 1 und 5 liegen." }, { status: 400 })
     }
 
+    const expectedCount = mode === "case" ? caseQuestionCount : 1
     if (mode === "case") {
       if (!Number.isInteger(caseQuestionCount) || caseQuestionCount < 2 || caseQuestionCount > 5) {
         return NextResponse.json(
@@ -64,82 +57,46 @@ export async function POST(req: Request) {
       }
     }
 
-    const prompt = buildQuestionGeneratorPrompt({
+    const promptParams = {
       topic,
       difficulty: Math.round(difficulty),
       mode,
       caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
-    })
-
-    const resp = await client.responses.create({
-      model: MODEL,
-      input: prompt,
-    })
-
-    const rawText = resp.output_text ?? ""
-    if (!rawText.trim()) {
-      return NextResponse.json({ ok: false, error: "Leere Modell-Antwort." }, { status: 502 })
     }
 
-    const jsonText = extractJsonFromModelText(rawText)
-    const validated = validateBulkJson(jsonText)
-    if (!validated.ok) {
-      return NextResponse.json(
-        { ok: false, error: `KI-Antwort ungültig: ${validated.error}` },
-        { status: 502 }
+    const prompt = buildPlayableQuestionPrompt(promptParams)
+    const maxTokens = generatorMaxOutputTokens(mode, expectedCount)
+
+    let rawText = await callGeneratorModelWithRetry(prompt, maxTokens)
+    let jsonText = extractJsonFromModelText(rawText)
+    let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+
+    if (!check.ok) {
+      rawText = await callGeneratorModel(
+        prompt,
+        maxTokens,
+        `VALIDIERUNGSFEHLER: ${check.error} Korrigiere und antworte nur mit gültigem JSON.`
       )
+      jsonText = extractJsonFromModelText(rawText)
+      check = validateGeneratedQuestions(jsonText, mode, expectedCount)
     }
 
-    const expectedCount = mode === "case" ? caseQuestionCount : 1
-    if (validated.payload.questions.length !== expectedCount) {
+    if (!check.ok) {
       return NextResponse.json(
-        {
-          ok: false,
-          error: `Erwartet ${expectedCount} Frage(n), erhalten ${validated.payload.questions.length}. Bitte erneut generieren.`,
-        },
-        { status: 502 }
-      )
-    }
-
-    for (const q of validated.payload.questions) {
-      if (q.options.length !== 5) {
-        return NextResponse.json(
-          { ok: false, error: "Jede Frage muss genau 5 Antwortoptionen haben." },
-          { status: 502 }
-        )
-      }
-    }
-
-    if (mode === "case") {
-      const vignette = validated.payload.questions[0]?.caseVignette?.trim()
-      if (!vignette) {
-        return NextResponse.json(
-          { ok: false, error: "Fallfrage ohne Falltext – bitte erneut generieren." },
-          { status: 502 }
-        )
-      }
-      const allSame = validated.payload.questions.every((q) => (q.caseVignette ?? "").trim() === vignette)
-      if (!allSame) {
-        return NextResponse.json(
-          { ok: false, error: "Falltext der Teilfragen ist nicht einheitlich – bitte erneut generieren." },
-          { status: 502 }
-        )
-      }
-    } else if (validated.payload.questions.some((q) => q.caseVignette?.trim())) {
-      return NextResponse.json(
-        { ok: false, error: "Einzelfrage enthält unerwarteten Falltext – bitte erneut generieren." },
+        { ok: false, error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.` },
         { status: 502 }
       )
     }
 
     return NextResponse.json({
       ok: true,
-      questions: validated.payload.questions,
+      questions: check.questions,
+      explanationsPending: true,
       meta: {
         topic,
         difficulty: Math.round(difficulty),
         mode,
-        caseQuestionCount: mode === "case" ? caseQuestionCount : 1,
+        caseQuestionCount: expectedCount,
       },
     })
   } catch (e: unknown) {

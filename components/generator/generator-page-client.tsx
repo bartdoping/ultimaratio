@@ -10,7 +10,7 @@ import { GeneratorRunner } from "@/components/generator/generator-runner"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 
-const TOPIC_MAX = 150
+import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
 
 type Props = {
   canGenerate: boolean
@@ -19,6 +19,7 @@ type Props = {
 type SessionState = {
   questions: BulkQuestion[]
   meta: { topic: string; difficulty: number; mode: "single" | "case" }
+  explanationsPending?: boolean
 }
 
 export function GeneratorPageClient({ canGenerate }: Props) {
@@ -96,7 +97,6 @@ export function GeneratorPageClient({ canGenerate }: Props) {
         return
       }
       setLoadProgress(100)
-      await new Promise((r) => setTimeout(r, 250))
       setSession({
         questions: data.questions,
         meta: {
@@ -104,6 +104,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
           difficulty: data.meta?.difficulty ?? difficulty,
           mode: data.meta?.mode === "case" ? "case" : "single",
         },
+        explanationsPending: !!data.explanationsPending,
       })
     } catch {
       setError("Netzwerkfehler. Bitte später erneut versuchen.")
@@ -118,6 +119,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
       <GeneratorRunner
         questions={session.questions}
         meta={session.meta}
+        explanationsPending={session.explanationsPending}
         onNewGeneration={() => setSession(null)}
       />
     )
@@ -217,15 +219,15 @@ export function GeneratorPageClient({ canGenerate }: Props) {
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="topic">Thema</Label>
             <span className="text-xs text-muted-foreground tabular-nums">
-              {topic.length}/{TOPIC_MAX}
+              {topic.length}/{GENERATOR_TOPIC_MAX}
             </span>
           </div>
           <Input
             id="topic"
             value={topic}
-            maxLength={TOPIC_MAX}
+            maxLength={GENERATOR_TOPIC_MAX}
             placeholder="z. B. Akutes Koronarsyndrom"
-            onChange={(e) => setTopic(e.target.value.slice(0, TOPIC_MAX))}
+            onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
             disabled={!canGenerate || loading}
           />
         </div>
@@ -240,7 +242,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
             </div>
             <Progress value={loadProgress} className="h-2" />
             <p className="text-xs text-muted-foreground">
-              Die KI erstellt Prüfungsfragen im Plattform-Format – das kann einige Sekunden dauern.
+              Zuerst die spielbare Frage – Erklärungen folgen im Hintergrund.
             </p>
           </div>
         )}
