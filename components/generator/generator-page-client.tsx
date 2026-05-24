@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,11 +10,20 @@ import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
-
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
+import { toast } from "sonner"
+
+type QuotaState = {
+  used: number
+  remaining: number
+  dailyLimit: number
+  unlimited: boolean
+}
 
 type Props = {
-  canGenerate: boolean
+  initialIsLoggedIn: boolean
+  initialIsPro: boolean
+  initialQuota: QuotaState
 }
 
 type SessionState = {
@@ -21,16 +31,88 @@ type SessionState = {
   meta: { topic: string; difficulty: number; mode: "single" | "case" }
 }
 
-export function GeneratorPageClient({ canGenerate }: Props) {
+type LimitState = {
+  loginRequired: boolean
+  upgradeRequired: boolean
+  dailyLimit: number
+}
+
+export function GeneratorPageClient({
+  initialIsLoggedIn,
+  initialIsPro,
+  initialQuota,
+}: Props) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const checkoutHandled = useRef(false)
+
   const [mode, setMode] = useState<"single" | "case">("single")
   const [caseCount, setCaseCount] = useState(3)
   const [difficulty, setDifficulty] = useState(3)
   const [topic, setTopic] = useState("")
   const [loading, setLoading] = useState(false)
+  const [upgrading, setUpgrading] = useState(false)
   const [loadProgress, setLoadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionState | null>(null)
+  const [limitState, setLimitState] = useState<LimitState | null>(null)
+  const [isLoggedIn, setIsLoggedIn] = useState(initialIsLoggedIn)
+  const [isPro, setIsPro] = useState(initialIsPro)
+  const [quota, setQuota] = useState<QuotaState>(initialQuota)
   const progressTimerRef = useRef<number | null>(null)
+
+  const refreshQuota = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ai/generate-questions/quota", { credentials: "include" })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.ok) return
+      setQuota(data.quota)
+      setIsLoggedIn(!!data.isLoggedIn)
+      setIsPro(!!data.isPro)
+    } catch {
+      // ignore
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshQuota()
+  }, [refreshQuota])
+
+  useEffect(() => {
+    function onSubscriptionUpdated() {
+      void refreshQuota()
+    }
+    window.addEventListener("fragenkreuzen:subscription-updated", onSubscriptionUpdated)
+    return () => window.removeEventListener("fragenkreuzen:subscription-updated", onSubscriptionUpdated)
+  }, [refreshQuota])
+
+  useEffect(() => {
+    const subscription = searchParams.get("subscription")
+    const stripeSessionId = searchParams.get("session_id")
+    if (subscription !== "success" || checkoutHandled.current) return
+    checkoutHandled.current = true
+
+    ;(async () => {
+      if (stripeSessionId) {
+        try {
+          await fetch("/api/stripe/subscription/complete-checkout", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({ sessionId: stripeSessionId }),
+          })
+        } catch {
+          // ignore
+        }
+      }
+      window.dispatchEvent(new CustomEvent("fragenkreuzen:subscription-updated"))
+      toast.success("Pro aktiviert – du kannst weiter generieren.")
+      setLimitState(null)
+      setIsPro(true)
+      await refreshQuota()
+      router.replace("/generator", { scroll: false })
+    })()
+  }, [searchParams, router, refreshQuota])
 
   useEffect(() => {
     if (!loading) {
@@ -59,9 +141,42 @@ export function GeneratorPageClient({ canGenerate }: Props) {
     }
   }, [loading])
 
+  async function handleUpgrade() {
+    if (!isLoggedIn) {
+      router.push("/login?callbackUrl=/generator")
+      return
+    }
+    setUpgrading(true)
+    try {
+      const res = await fetch("/api/stripe/subscription/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ returnTo: "/generator" }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok || !data.url) {
+        toast.error(data.error === "already_pro" ? "Du bist bereits Pro." : "Checkout konnte nicht gestartet werden.")
+        return
+      }
+      window.location.href = data.url
+    } catch {
+      toast.error("Netzwerkfehler beim Checkout.")
+    } finally {
+      setUpgrading(false)
+    }
+  }
+
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault()
-    if (!canGenerate) return
+    if (quota.remaining <= 0 && !quota.unlimited) {
+      setLimitState({
+        loginRequired: !isLoggedIn,
+        upgradeRequired: !isPro,
+        dailyLimit: quota.dailyLimit,
+      })
+      return
+    }
 
     const trimmed = topic.trim()
     if (!trimmed) {
@@ -71,10 +186,12 @@ export function GeneratorPageClient({ canGenerate }: Props) {
 
     setLoading(true)
     setError(null)
+    setLimitState(null)
     try {
       const res = await fetch("/api/ai/generate-questions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           topic: trimmed,
           difficulty,
@@ -83,18 +200,34 @@ export function GeneratorPageClient({ canGenerate }: Props) {
         }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) {
-        if (data.upgradeRequired) {
-          setError("Pro-Abo erforderlich für den Fragen-Generator.")
-          return
+
+      if (res.status === 429 && data.limitReached) {
+        setLimitState({
+          loginRequired: !!data.loginRequired,
+          upgradeRequired: !!data.upgradeRequired,
+          dailyLimit: data.dailyLimit ?? quota.dailyLimit,
+        })
+        if (data.dailyLimit != null) {
+          setQuota((q) => ({
+            ...q,
+            used: data.used ?? q.dailyLimit,
+            remaining: 0,
+            dailyLimit: data.dailyLimit,
+          }))
         }
-        setError(data.error || "Generierung fehlgeschlagen.")
+        return
+      }
+
+      if (!res.ok) {
+        setError(typeof data.error === "string" ? humanizeError(data.error) : "Generierung fehlgeschlagen.")
         return
       }
       if (!data.ok || !Array.isArray(data.questions)) {
         setError("Unerwartete Server-Antwort.")
         return
       }
+
+      if (data.quota) setQuota(data.quota)
       setLoadProgress(100)
       setSession({
         questions: data.questions,
@@ -117,10 +250,24 @@ export function GeneratorPageClient({ canGenerate }: Props) {
       <GeneratorRunner
         questions={session.questions}
         meta={session.meta}
-        onNewGeneration={() => setSession(null)}
+        onNewGeneration={() => {
+          setSession(null)
+          void refreshQuota()
+        }}
       />
     )
   }
+
+  const atLimit = !quota.unlimited && quota.remaining <= 0
+  const effectiveLimitState =
+    limitState ??
+    (atLimit
+      ? {
+          loginRequired: !isLoggedIn,
+          upgradeRequired: !isPro,
+          dailyLimit: quota.dailyLimit,
+        }
+      : null)
 
   return (
     <div className="mx-auto max-w-lg space-y-8">
@@ -131,13 +278,14 @@ export function GeneratorPageClient({ canGenerate }: Props) {
         </p>
       </div>
 
-      {!canGenerate && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          Der Generator ist mit Pro verfügbar.{" "}
-          <Link href="/subscription" className="font-medium underline">
-            Pro freischalten
-          </Link>
-        </div>
+      <QuotaBadge quota={quota} isPro={isPro} />
+
+      {effectiveLimitState && (
+        <GeneratorLimitPanel
+          limitState={effectiveLimitState}
+          upgrading={upgrading}
+          onUpgrade={handleUpgrade}
+        />
       )}
 
       <form onSubmit={handleGenerate} className="space-y-6 rounded-xl border bg-card p-6 shadow-sm">
@@ -225,7 +373,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
             maxLength={GENERATOR_TOPIC_MAX}
             placeholder="z. B. Akutes Koronarsyndrom"
             onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
-            disabled={!canGenerate || loading}
+            disabled={loading}
           />
         </div>
 
@@ -238,16 +386,97 @@ export function GeneratorPageClient({ canGenerate }: Props) {
               <span className="tabular-nums text-muted-foreground">{Math.round(loadProgress)}%</span>
             </div>
             <Progress value={loadProgress} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              Frage und Erklärungen werden generiert…
-            </p>
+            <p className="text-xs text-muted-foreground">Frage und Erklärungen werden generiert…</p>
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={!canGenerate || loading}>
-          {loading ? "Generiere…" : "Generieren"}
+        <Button type="submit" className="w-full" disabled={loading || atLimit}>
+          {loading ? "Generiere…" : atLimit ? "Tageslimit erreicht" : "Generieren"}
         </Button>
+
+        {!isPro && !atLimit && (
+          <p className="text-center text-xs text-muted-foreground">
+            Mit{" "}
+            <button type="button" onClick={handleUpgrade} className="underline hover:text-foreground">
+              Pro
+            </button>{" "}
+            bis zu 100 Generierungen pro Tag.
+          </p>
+        )}
       </form>
+    </div>
+  )
+}
+
+function humanizeError(code: string): string {
+  if (code === "daily_limit_reached") return "Tageslimit erreicht."
+  return code
+}
+
+function QuotaBadge({ quota, isPro }: { quota: QuotaState; isPro: boolean }) {
+  if (quota.unlimited) {
+    return <p className="text-center text-sm text-muted-foreground">Unbegrenzte Generierungen</p>
+  }
+
+  const label = isPro ? "Pro" : "Kostenlos"
+  return (
+    <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center text-sm">
+      <span className="text-muted-foreground">{label}: </span>
+      <span className="font-medium tabular-nums">
+        {quota.remaining} von {quota.dailyLimit}
+      </span>
+      <span className="text-muted-foreground"> Generierungen heute übrig</span>
+    </div>
+  )
+}
+
+function GeneratorLimitPanel({
+  limitState,
+  upgrading,
+  onUpgrade,
+}: {
+  limitState: LimitState
+  upgrading: boolean
+  onUpgrade: () => void
+}) {
+  const { loginRequired, upgradeRequired, dailyLimit } = limitState
+
+  return (
+    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 space-y-4">
+      <div className="space-y-1 text-center">
+        <p className="font-medium">Tageslimit erreicht</p>
+        <p className="text-sm text-muted-foreground">
+          {loginRequired
+            ? `Du hast heute ${dailyLimit} kostenlose Generierungen genutzt. Melde dich an und upgrade auf Pro für mehr.`
+            : upgradeRequired
+              ? `Du hast heute alle ${dailyLimit} kostenlosen Generierungen verbraucht. Mit Pro kannst du bis zu 100 Fragen pro Tag generieren.`
+              : `Du hast heute alle ${dailyLimit} Generierungen verbraucht. Ab Mitternacht (MEZ) geht es weiter.`}
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-2 justify-center">
+        {loginRequired && (
+          <>
+            <Button asChild variant="default" className="sm:flex-1">
+              <Link href="/login?callbackUrl=/generator">Anmelden</Link>
+            </Button>
+            <Button asChild variant="outline" className="sm:flex-1">
+              <Link href="/register?callbackUrl=/generator">Registrieren</Link>
+            </Button>
+          </>
+        )}
+        {upgradeRequired && (
+          <Button onClick={onUpgrade} disabled={upgrading} className="sm:flex-1">
+            {upgrading ? "Weiterleitung…" : loginRequired ? "Pro freischalten" : "Jetzt auf Pro upgraden"}
+          </Button>
+        )}
+      </div>
+
+      {loginRequired && upgradeRequired && (
+        <p className="text-xs text-center text-muted-foreground">
+          Nach der Anmeldung kannst du direkt Pro abschließen und weiter generieren.
+        </p>
+      )}
     </div>
   )
 }

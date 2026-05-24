@@ -65,6 +65,7 @@ model User {
   reviews       ReviewItem[]
   srSetting     SRUserSetting?
   subscription  Subscription?
+  generatorDailyUsages GeneratorDailyUsage[]
 }
 
 model Exam {
@@ -488,4 +489,22 @@ model Subscription {
   @@index([userId])
   @@index([stripeCustomerId])
   @@index([stripeSubscriptionId])
+}
+
+model GeneratorDailyUsage {
+  id        String   @id @default(cuid())
+  userId    String?
+  anonKey   String?
+  ipHash    String?
+  dayKey    String
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayKey])
+  @@unique([anonKey, dayKey])
+  @@unique([ipHash, dayKey])
+  @@index([dayKey])
 }

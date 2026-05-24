@@ -91,7 +91,7 @@ export function SiteHeader() {
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1 text-sm">
             {navLink("/exams", "Prüfungen")}
-            {session && navLink("/generator", "Generator")}
+            {navLink("/generator", "Generator")}
             {navLink("/dashboard", "Mein Bereich")}
             {showPricingLink && (
               <Link
@@ -235,15 +235,13 @@ export function SiteHeader() {
             >
               Prüfungen
             </Link>
-            {session && (
-              <Link
-                href="/generator"
-                className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Generator
-              </Link>
-            )}
+            <Link
+              href="/generator"
+              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              Generator
+            </Link>
             <Link
               href="/dashboard"
               className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"

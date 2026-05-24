@@ -47,6 +47,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "already_pro" }, { status: 400 });
     }
 
+    const body = await req.json().catch(() => ({}));
+    const returnTo = body?.returnTo === "/generator" ? "/generator" : "/dashboard";
+
     // 4) Stripe Customer erstellen oder finden
     let customerId = user.subscription?.stripeCustomerId;
     if (!customerId) {
@@ -105,8 +108,8 @@ export async function POST(req: Request) {
       mode: "subscription",
       customer: customerId,
       line_items: lineItems,
-      success_url: `${base}/dashboard?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${base}/dashboard?subscription=cancelled`,
+      success_url: `${base}${returnTo}?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${base}${returnTo}?subscription=cancelled`,
       allow_promotion_codes: true,
       metadata: {
         userId: user.id,

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { assertSameOrigin } from "@/lib/security"
-import { requireGeneratorUser } from "@/lib/generator-access"
+import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
 import {
   generatorMaxOutputTokens,
   GENERATOR_TOPIC_MAX,
@@ -9,6 +9,12 @@ import { buildQuestionGeneratorPrompt } from "@/lib/ai-question-generator-prompt
 import { callGeneratorModel, callGeneratorModelWithRetry } from "@/lib/generator-openai"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
+import {
+  consumeGeneratorQuota,
+  signVisitorId,
+  GENERATOR_VISITOR_COOKIE,
+  visitorCookieOptions,
+} from "@/lib/generator-limits"
 
 export const runtime = "nodejs"
 
@@ -21,16 +27,33 @@ function parseGenerateBody(body: unknown) {
   return { topic, difficulty, mode, caseQuestionCount }
 }
 
+function limitJson(
+  access: Awaited<ReturnType<typeof resolveGeneratorAccess>>,
+  quota: Extract<Awaited<ReturnType<typeof consumeGeneratorQuota>>, { ok: false }>
+) {
+  return {
+    ok: false as const,
+    error: "daily_limit_reached",
+    limitReached: true,
+    upgradeRequired: !access.isPro,
+    loginRequired: !access.isLoggedIn,
+    isLoggedIn: access.isLoggedIn,
+    isPro: access.isPro,
+    used: quota.used,
+    remaining: 0,
+    dailyLimit: quota.dailyLimit,
+  }
+}
+
 export async function POST(req: Request) {
   try {
     assertSameOrigin(req)
 
-    const access = await requireGeneratorUser()
-    if (!access.ok) {
-      return NextResponse.json(
-        { ok: false, error: access.error, upgradeRequired: access.upgradeRequired },
-        { status: access.status }
-      )
+    const access = await resolveGeneratorAccess(req)
+    const quotaResult = await consumeGeneratorQuota(quotaSubjectFromAccess(access))
+
+    if (!quotaResult.ok) {
+      return NextResponse.json(limitJson(access, quotaResult), { status: 429 })
     }
 
     if (!process.env.OPENAI_API_KEY) {
@@ -98,9 +121,15 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       ok: true,
       questions: check.questions,
+      quota: {
+        used: quotaResult.used,
+        remaining: quotaResult.remaining,
+        dailyLimit: quotaResult.dailyLimit,
+        unlimited: quotaResult.unlimited,
+      },
       meta: {
         topic,
         difficulty: Math.round(difficulty),
@@ -108,6 +137,16 @@ export async function POST(req: Request) {
         caseQuestionCount: expectedCount,
       },
     })
+
+    if (access.newVisitorId) {
+      res.cookies.set(
+        GENERATOR_VISITOR_COOKIE,
+        signVisitorId(access.newVisitorId),
+        visitorCookieOptions()
+      )
+    }
+
+    return res
   } catch (e: unknown) {
     const err = e as { status?: number; message?: string }
     if (err?.status) {
