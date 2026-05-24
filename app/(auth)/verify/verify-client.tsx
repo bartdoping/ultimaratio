@@ -32,7 +32,7 @@ export function VerifyClient() {
     }
     const callbackUrl = getSafeCallbackUrl(
       params.get("callbackUrl") || params.get("next"),
-      "/dashboard"
+      "/generator"
     )
     setMsg("E-Mail verifiziert! Du kannst dich jetzt einloggen.")
     setTimeout(() => router.push(buildLoginHref(callbackUrl)), 800)

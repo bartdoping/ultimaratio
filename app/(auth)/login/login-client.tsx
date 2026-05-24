@@ -20,7 +20,7 @@ export function LoginClient() {
 
     const callbackUrl = getSafeCallbackUrl(
       params.get("callbackUrl") || params.get("next"),
-      "/dashboard"
+      "/generator"
     )
     const res = await signIn("credentials", {
       email,

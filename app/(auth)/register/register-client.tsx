@@ -18,7 +18,7 @@ export function RegisterClient() {
   const params = useSearchParams()
   const callbackUrl = getSafeCallbackUrl(
     params.get("callbackUrl") || params.get("next"),
-    "/dashboard"
+    "/generator"
   )
   const trialFlow =
     callbackUrl.startsWith("/exams/") || callbackUrl === "/probieren" || callbackUrl.startsWith("/probieren")

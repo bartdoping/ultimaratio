@@ -13,7 +13,9 @@ export function SiteHeader() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.role === "admin"
+  const generatorMode = !isAdmin
   const email = session?.user?.email ?? ""
+  const signOutUrl = generatorMode ? "/generator" : "/"
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -79,7 +81,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:px-6 lg:px-8">
         <div className="flex items-center gap-4">
-          <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Link href={generatorMode ? "/generator" : "/"} className="flex items-center gap-2 font-semibold">
             <Logo />
             <div className="flex flex-col">
               <span className="hidden sm:inline">fragenkreuzen.de</span>
@@ -90,26 +92,43 @@ export function SiteHeader() {
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1 text-sm">
-            {navLink("/exams", "Prüfungen")}
-            {navLink("/generator", "Generator")}
-            {navLink("/dashboard", "Mein Bereich")}
-            {showPricingLink && (
-              <Link
-                href="/#preise"
-                className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Preise
-              </Link>
+            {generatorMode ? (
+              <>
+                {navLink("/generator", "Generator")}
+                <Link
+                  href="/coming-soon"
+                  className={[
+                    "px-2 py-1 rounded hover:bg-muted",
+                    pathname === "/coming-soon" ? "font-medium" : "text-muted-foreground",
+                  ].join(" ")}
+                >
+                  Bald verfügbar
+                </Link>
+              </>
+            ) : (
+              <>
+                {navLink("/exams", "Prüfungen")}
+                {navLink("/generator", "Generator")}
+                {navLink("/dashboard", "Mein Bereich")}
+                {showPricingLink && (
+                  <Link
+                    href="/#preise"
+                    className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    Preise
+                  </Link>
+                )}
+                {isAdmin && navLink("/admin", "Admin")}
+                <a
+                  href="https://www.ultima-rat.io/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Tutor finden
+                </a>
+              </>
             )}
-            {isAdmin && navLink("/admin", "Admin")}
-            <a
-              href="https://www.ultima-rat.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Tutor finden
-            </a>
           </nav>
         </div>
 
@@ -180,33 +199,37 @@ export function SiteHeader() {
                 ].join(" ")}
               >
                 <div className="p-1 text-sm">
-                  <Link
-                    href="/account"
-                    role="menuitem"
-                    className="block rounded px-3 py-2 hover:bg-muted"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Account
-                  </Link>
-                  <Link
-                    href="/subscription"
-                    role="menuitem"
-                    className="block rounded px-3 py-2 hover:bg-muted"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Abonnement
-                  </Link>
-                  <Link
-                    href="/dashboard/history"
-                    role="menuitem"
-                    className="block rounded px-3 py-2 hover:bg-muted"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Historie
-                  </Link>
+                  {!generatorMode && (
+                    <>
+                      <Link
+                        href="/account"
+                        role="menuitem"
+                        className="block rounded px-3 py-2 hover:bg-muted"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Account
+                      </Link>
+                      <Link
+                        href="/subscription"
+                        role="menuitem"
+                        className="block rounded px-3 py-2 hover:bg-muted"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Abonnement
+                      </Link>
+                      <Link
+                        href="/dashboard/history"
+                        role="menuitem"
+                        className="block rounded px-3 py-2 hover:bg-muted"
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        Historie
+                      </Link>
+                    </>
+                  )}
                   <button
                     role="menuitem"
-                    onClick={() => signOut({ callbackUrl: "/" })}
+                    onClick={() => signOut({ callbackUrl: signOutUrl })}
                     className="block w-full rounded px-3 py-2 text-left hover:bg-muted"
                   >
                     Abmelden
@@ -216,8 +239,12 @@ export function SiteHeader() {
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-2">
-              <Link href="/login" className="btn">Login</Link>
-              <Link href="/register" className="btn">Registrieren</Link>
+              <Link href={generatorMode ? "/login?callbackUrl=%2Fgenerator" : "/login"} className="btn">
+                Login
+              </Link>
+              <Link href={generatorMode ? "/register?callbackUrl=%2Fgenerator" : "/register"} className="btn">
+                Registrieren
+              </Link>
             </div>
           )}
         </div>
@@ -228,54 +255,75 @@ export function SiteHeader() {
         <div className="md:hidden border-t bg-background">
           <div className="px-2 pt-2 pb-3 space-y-1">
             {/* Navigation Links */}
-            <Link
-              href="/exams"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Prüfungen
-            </Link>
-            <Link
-              href="/generator"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Generator
-            </Link>
-            <Link
-              href="/dashboard"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Mein Bereich
-            </Link>
-            {showPricingLink && (
-              <Link
-                href="/#preise"
-                className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Preise
-              </Link>
+            {generatorMode ? (
+              <>
+                <Link
+                  href="/generator"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Generator
+                </Link>
+                <Link
+                  href="/coming-soon"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Bald verfügbar
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/exams"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Prüfungen
+                </Link>
+                <Link
+                  href="/generator"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Generator
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Mein Bereich
+                </Link>
+                {showPricingLink && (
+                  <Link
+                    href="/#preise"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Preise
+                  </Link>
+                )}
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Admin
+                  </Link>
+                )}
+                <a
+                  href="https://www.ultima-rat.io/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Tutor finden
+                </a>
+              </>
             )}
-            {isAdmin && (
-              <Link
-                href="/admin"
-                className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Admin
-              </Link>
-            )}
-            <a
-              href="https://www.ultima-rat.io/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              Tutor finden
-            </a>
 
             {/* User Section */}
             {session ? (
@@ -283,31 +331,35 @@ export function SiteHeader() {
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   Angemeldet als: {email}
                 </div>
-                <Link
-                  href="/account"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Account
-                </Link>
-                <Link
-                  href="/subscription"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Abonnement
-                </Link>
-                <Link
-                  href="/dashboard/history"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Historie
-                </Link>
+                {!generatorMode && (
+                  <>
+                    <Link
+                      href="/account"
+                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Account
+                    </Link>
+                    <Link
+                      href="/subscription"
+                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Abonnement
+                    </Link>
+                    <Link
+                      href="/dashboard/history"
+                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Historie
+                    </Link>
+                  </>
+                )}
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false)
-                    signOut({ callbackUrl: "/" })
+                    signOut({ callbackUrl: signOutUrl })
                   }}
                   className="block w-full text-left px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                 >
@@ -317,14 +369,14 @@ export function SiteHeader() {
             ) : (
               <div className="border-t pt-4 mt-4 space-y-1">
                 <Link
-                  href="/login"
+                  href={generatorMode ? "/login?callbackUrl=%2Fgenerator" : "/login"}
                   className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
-                  href="/register"
+                  href={generatorMode ? "/register?callbackUrl=%2Fgenerator" : "/register"}
                   className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >
