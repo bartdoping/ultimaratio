@@ -5,10 +5,10 @@ import {
   generatorMaxOutputTokens,
   GENERATOR_TOPIC_MAX,
 } from "@/lib/generator-ai-config"
-import { buildPlayableQuestionPrompt } from "@/lib/ai-question-generator-prompt"
+import { buildQuestionGeneratorPrompt } from "@/lib/ai-question-generator-prompt"
 import { callGeneratorModel, callGeneratorModelWithRetry } from "@/lib/generator-openai"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
-import { validateGeneratedQuestions } from "@/lib/generator-validate"
+import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
 
 export const runtime = "nodejs"
 
@@ -64,18 +64,21 @@ export async function POST(req: Request) {
       caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
     }
 
-    const prompt = buildPlayableQuestionPrompt(promptParams)
+    const prompt = buildQuestionGeneratorPrompt(promptParams)
     const maxTokens = generatorMaxOutputTokens(mode, expectedCount)
 
     let rawText = await callGeneratorModelWithRetry(prompt, maxTokens)
     let jsonText = extractJsonFromModelText(rawText)
     let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
 
-    if (!check.ok) {
+    if (!check.ok || !questionsHaveExplanations(check.ok ? check.questions : [])) {
+      const hint = !check.ok
+        ? `VALIDIERUNGSFEHLER: ${check.error}`
+        : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
       rawText = await callGeneratorModel(
         prompt,
         maxTokens,
-        `VALIDIERUNGSFEHLER: ${check.error} Korrigiere und antworte nur mit gültigem JSON.`
+        `${hint} Korrigiere und antworte nur mit gültigem JSON.`
       )
       jsonText = extractJsonFromModelText(rawText)
       check = validateGeneratedQuestions(jsonText, mode, expectedCount)
@@ -88,10 +91,16 @@ export async function POST(req: Request) {
       )
     }
 
+    if (!questionsHaveExplanations(check.questions)) {
+      return NextResponse.json(
+        { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
+        { status: 502 }
+      )
+    }
+
     return NextResponse.json({
       ok: true,
       questions: check.questions,
-      explanationsPending: true,
       meta: {
         topic,
         difficulty: Math.round(difficulty),

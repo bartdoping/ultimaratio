@@ -42,47 +42,12 @@ export function validateGeneratedQuestions(
   return { ok: true, questions }
 }
 
-export function mergeQuestionExplanations(
-  base: BulkQuestion[],
-  explanationPayload: BulkQuestion[]
-): BulkQuestion[] {
-  if (base.length !== explanationPayload.length) return base
-
-  return base.map((q, i) => {
-    const patch = explanationPayload[i]
-    if (!patch) return q
-    return {
-      ...q,
-      explanation: patch.explanation ?? q.explanation ?? null,
-      options: q.options.map((opt, j) => ({
-        ...opt,
-        explanation: patch.options[j]?.explanation ?? opt.explanation ?? null,
-      })),
-    }
-  })
-}
-
-export function validateExplanationPatch(
-  rawText: string,
-  expectedCount: number
-): { ok: true; questions: BulkQuestion[] } | { ok: false; error: string } {
-  const validated = validateBulkJson(rawText)
-  if (!validated.ok) {
-    return { ok: false, error: validated.error }
-  }
-
-  if (validated.payload.questions.length !== expectedCount) {
-    return {
-      ok: false,
-      error: `Erwartet ${expectedCount} Erklärungsblock/-blöcke, erhalten ${validated.payload.questions.length}.`,
+export function questionsHaveExplanations(questions: BulkQuestion[]): boolean {
+  for (const q of questions) {
+    if (!q.explanation?.trim()) return false
+    for (const opt of q.options) {
+      if (!opt.explanation?.trim()) return false
     }
   }
-
-  for (const q of validated.payload.questions) {
-    if (q.options.length !== 5) {
-      return { ok: false, error: "Erklärungsblock: jede Frage braucht 5 Optionen." }
-    }
-  }
-
-  return { ok: true, questions: validated.payload.questions }
+  return true
 }

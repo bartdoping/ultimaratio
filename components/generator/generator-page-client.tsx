@@ -19,7 +19,6 @@ type Props = {
 type SessionState = {
   questions: BulkQuestion[]
   meta: { topic: string; difficulty: number; mode: "single" | "case" }
-  explanationsPending?: boolean
 }
 
 export function GeneratorPageClient({ canGenerate }: Props) {
@@ -104,7 +103,6 @@ export function GeneratorPageClient({ canGenerate }: Props) {
           difficulty: data.meta?.difficulty ?? difficulty,
           mode: data.meta?.mode === "case" ? "case" : "single",
         },
-        explanationsPending: !!data.explanationsPending,
       })
     } catch {
       setError("Netzwerkfehler. Bitte später erneut versuchen.")
@@ -119,7 +117,6 @@ export function GeneratorPageClient({ canGenerate }: Props) {
       <GeneratorRunner
         questions={session.questions}
         meta={session.meta}
-        explanationsPending={session.explanationsPending}
         onNewGeneration={() => setSession(null)}
       />
     )
@@ -242,7 +239,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
             </div>
             <Progress value={loadProgress} className="h-2" />
             <p className="text-xs text-muted-foreground">
-              Zuerst die spielbare Frage – Erklärungen folgen im Hintergrund.
+              Frage und Erklärungen werden generiert…
             </p>
           </div>
         )}
