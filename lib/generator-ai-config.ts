@@ -1,13 +1,10 @@
 export const GENERATOR_TOPIC_MAX = 150
 
-const MODEL_CONCISE = process.env.OPENAI_MODEL_CONCISE
-
 /**
- * Generator nutzt standardmäßig ein schnelles Modell (nicht gpt-5/PRIMARY).
- * Überschreibbar via OPENAI_MODEL_GENERATOR.
+ * Generator-Modell – überschreibbar via OPENAI_MODEL_GENERATOR.
+ * Standard: gpt-5.4-mini (unabhängig von OPENAI_MODEL_CONCISE/PRIMARY).
  */
-export const GENERATOR_MODEL =
-  process.env.OPENAI_MODEL_GENERATOR || MODEL_CONCISE || "gpt-4.1-mini"
+export const GENERATOR_MODEL = process.env.OPENAI_MODEL_GENERATOR || "gpt-5.4-mini"
 
 /** Token-Limit für vollständige Fragen inkl. Erklärungen. */
 export function generatorMaxOutputTokens(mode: "single" | "case", caseQuestionCount: number): number {
