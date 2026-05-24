@@ -13,7 +13,8 @@ export function FullWidthLayout({ children }: FullWidthLayoutProps) {
   // Prüfungsmodi die volle Breite nutzen sollen
   const isExamMode = pathname.startsWith('/exam-run/') || 
                      pathname.startsWith('/practice/') ||
-                     pathname.startsWith('/practice/deck/')
+                     pathname.startsWith('/practice/deck/') ||
+                     pathname === '/generator'
   
   if (isExamMode) {
     return (

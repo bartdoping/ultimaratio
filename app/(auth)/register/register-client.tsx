@@ -1,68 +1,125 @@
-// app/(auth)/register/register-client.tsx
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { buildLoginHref, buildVerifyHref, getSafeCallbackUrl } from "@/lib/auth-redirect"
 
-type Msg = { type: "ok" | "error"; text: string }
+type FormState = {
+  name: string
+  surname: string
+  email: string
+  password: string
+  confirm: string
+}
 
 export function RegisterClient() {
-  const [email, setEmail] = useState("")
-  const [name, setName] = useState("")
-  const [surname, setSurname] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirm, setConfirm] = useState("")
-  const [pending, setPending] = useState(false)
-  const [msg, setMsg] = useState<Msg | null>(null)
+  const router = useRouter()
+  const params = useSearchParams()
+  const callbackUrl = getSafeCallbackUrl(
+    params.get("callbackUrl") || params.get("next"),
+    "/dashboard"
+  )
+  const trialFlow =
+    callbackUrl.startsWith("/exams/") || callbackUrl === "/probieren" || callbackUrl.startsWith("/probieren")
+  const [form, setForm] = useState<FormState>({
+    name: "",
+    surname: "",
+    email: "",
+    password: "",
+    confirm: "",
+  })
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  const passwordsFilled = form.password.length > 0 && form.confirm.length > 0
+  const passwordsMatch = useMemo(
+    () => form.password === form.confirm,
+    [form.password, form.confirm]
+  )
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setErr(null)
     setMsg(null)
 
-    // Client-Side Check
-    if (password !== confirm) {
-      setMsg({ type: "error", text: "Die Passwörter stimmen nicht überein." })
+    if (!passwordsMatch) {
+      setErr("Die Passwörter stimmen nicht überein.")
+      return
+    }
+    if (form.password.length < 8) {
+      setErr("Das Passwort muss mindestens 8 Zeichen lang sein.")
       return
     }
 
-    setPending(true)
+    setLoading(true)
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, surname, password, confirm }),
+        body: JSON.stringify(form),
       })
-
-      const j = await res.json().catch(() => ({} as any))
+      const data = await res.json().catch(() => ({} as any))
 
       if (!res.ok) {
-        setMsg({ type: "error", text: j?.error ?? "Registrierung fehlgeschlagen." })
+        setErr(data?.error || "Registrierung fehlgeschlagen.")
         return
       }
 
-      setMsg({
-        type: "ok",
-        text: "Registrierung erfolgreich! Prüfe deine E-Mail für den Bestätigungscode.",
-      })
-      // Optional: Felder leeren
-      // setPassword(""); setConfirm("");
-    } catch (err) {
-      setMsg({ type: "error", text: "Netzwerkfehler. Bitte später erneut versuchen." })
+      setMsg("Code verschickt! Bitte E-Mail öffnen.")
+      if ((data as any)?.devHint) setMsg(`${(data as any).devHint} (nur DEV)`)
+
+      setTimeout(() => {
+        router.push(buildVerifyHref(form.email, callbackUrl))
+      }, 800)
+    } catch {
+      setErr("Netzwerkfehler. Bitte später erneut versuchen.")
     } finally {
-      setPending(false)
+      setLoading(false)
     }
   }
 
   return (
-    <div className="max-w-sm mx-auto p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">Konto erstellen</h1>
+    <div className="max-w-sm mx-auto space-y-4 p-6">
+      <h1 className="text-2xl font-semibold">Registrieren</h1>
 
-      {msg && (
-        <p className={msg.type === "ok" ? "text-green-600 text-sm" : "text-red-600 text-sm"}>
-          {msg.text}
-        </p>
+      {trialFlow && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-sm text-muted-foreground">
+          Nach der Verifizierung startest du direkt mit dem <strong className="text-foreground">kostenlosen Probedeck</strong>.
+        </div>
       )}
 
+      {msg && <p className="text-green-600 text-sm">{msg}</p>}
+      {err && <p className="text-red-600 text-sm">{err}</p>}
+
       <form onSubmit={onSubmit} className="space-y-3">
+        <div>
+          <label className="text-sm font-medium">Vorname</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="text"
+            autoComplete="given-name"
+            required
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            disabled={loading}
+          />
+        </div>
+
+        <div>
+          <label className="text-sm font-medium">Nachname</label>
+          <input
+            className="w-full h-10 rounded-md border px-3"
+            type="text"
+            autoComplete="family-name"
+            required
+            value={form.surname}
+            onChange={(e) => setForm({ ...form, surname: e.target.value })}
+            disabled={loading}
+          />
+        </div>
+
         <div>
           <label className="text-sm font-medium">E-Mail</label>
           <input
@@ -70,37 +127,10 @@ export function RegisterClient() {
             type="email"
             autoComplete="email"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            disabled={pending}
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            disabled={loading}
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm font-medium">Vorname</label>
-            <input
-              className="w-full h-10 rounded-md border px-3"
-              type="text"
-              autoComplete="given-name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={pending}
-            />
-          </div>
-          <div>
-            <label className="text-sm font-medium">Nachname</label>
-            <input
-              className="w-full h-10 rounded-md border px-3"
-              type="text"
-              autoComplete="family-name"
-              required
-              value={surname}
-              onChange={(e) => setSurname(e.target.value)}
-              disabled={pending}
-            />
-          </div>
         </div>
 
         <div>
@@ -109,10 +139,11 @@ export function RegisterClient() {
             className="w-full h-10 rounded-md border px-3"
             type="password"
             autoComplete="new-password"
+            minLength={8}
             required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={pending}
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+            disabled={loading}
           />
         </div>
 
@@ -122,22 +153,36 @@ export function RegisterClient() {
             className="w-full h-10 rounded-md border px-3"
             type="password"
             autoComplete="new-password"
+            minLength={8}
             required
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            disabled={pending}
+            value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+            disabled={loading}
           />
-          {/* kleine Inline-Fehlermeldung, wenn gewünscht:
-              {confirm && confirm !== password && (
-                <p className="text-xs text-red-600 mt-1">Passwörter stimmen nicht überein.</p>
-              )}
-          */}
+          {passwordsFilled && !passwordsMatch && (
+            <p className="text-xs text-red-600 mt-1">
+              Passwörter stimmen nicht überein.
+            </p>
+          )}
         </div>
 
-        <button className="btn w-full" disabled={pending}>
-          {pending ? "Sende…" : "Registrieren"}
+        <button
+          className="btn w-full"
+          disabled={loading || (passwordsFilled && !passwordsMatch)}
+        >
+          {loading ? "Bitte warten…" : "Konto erstellen"}
         </button>
       </form>
+
+      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+        <span>Bereits ein Konto vorhanden?</span>
+        <Link
+          href={buildLoginHref(callbackUrl)}
+          className="inline-flex items-center h-9 rounded-md border px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
+        >
+          Jetzt anmelden
+        </Link>
+      </div>
     </div>
   )
 }
