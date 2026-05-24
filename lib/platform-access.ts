@@ -12,6 +12,8 @@ const EXACT_PATHS = new Set([
   "/impressum",
   "/datenschutz",
   "/agb",
+  "/account",
+  "/subscription",
 ])
 
 const PREFIX_PATHS = [
@@ -19,6 +21,7 @@ const PREFIX_PATHS = [
   "/favicon",
   "/media/",
   "/api/auth",
+  "/api/account/",
   "/api/ai/generate-questions",
   "/api/stripe/webhook",
   "/api/stripe/subscription/",

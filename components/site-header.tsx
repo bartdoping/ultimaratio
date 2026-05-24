@@ -199,33 +199,31 @@ export function SiteHeader() {
                 ].join(" ")}
               >
                 <div className="p-1 text-sm">
+                  <Link
+                    href="/account"
+                    role="menuitem"
+                    className="block rounded px-3 py-2 hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Account
+                  </Link>
+                  <Link
+                    href="/subscription"
+                    role="menuitem"
+                    className="block rounded px-3 py-2 hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Abonnement
+                  </Link>
                   {!generatorMode && (
-                    <>
-                      <Link
-                        href="/account"
-                        role="menuitem"
-                        className="block rounded px-3 py-2 hover:bg-muted"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Account
-                      </Link>
-                      <Link
-                        href="/subscription"
-                        role="menuitem"
-                        className="block rounded px-3 py-2 hover:bg-muted"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Abonnement
-                      </Link>
-                      <Link
-                        href="/dashboard/history"
-                        role="menuitem"
-                        className="block rounded px-3 py-2 hover:bg-muted"
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        Historie
-                      </Link>
-                    </>
+                    <Link
+                      href="/dashboard/history"
+                      role="menuitem"
+                      className="block rounded px-3 py-2 hover:bg-muted"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Historie
+                    </Link>
                   )}
                   <button
                     role="menuitem"
@@ -331,30 +329,28 @@ export function SiteHeader() {
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   Angemeldet als: {email}
                 </div>
+                <Link
+                  href="/account"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Account
+                </Link>
+                <Link
+                  href="/subscription"
+                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Abonnement
+                </Link>
                 {!generatorMode && (
-                  <>
-                    <Link
-                      href="/account"
-                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Account
-                    </Link>
-                    <Link
-                      href="/subscription"
-                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Abonnement
-                    </Link>
-                    <Link
-                      href="/dashboard/history"
-                      className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      Historie
-                    </Link>
-                  </>
+                  <Link
+                    href="/dashboard/history"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Historie
+                  </Link>
                 )}
                 <button
                   onClick={() => {
