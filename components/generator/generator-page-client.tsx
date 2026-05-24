@@ -1,15 +1,16 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 
-const TOPIC_MAX = 50
+const TOPIC_MAX = 150
 
 type Props = {
   canGenerate: boolean
@@ -26,8 +27,37 @@ export function GeneratorPageClient({ canGenerate }: Props) {
   const [difficulty, setDifficulty] = useState(3)
   const [topic, setTopic] = useState("")
   const [loading, setLoading] = useState(false)
+  const [loadProgress, setLoadProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionState | null>(null)
+  const progressTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!loading) {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current)
+        progressTimerRef.current = null
+      }
+      return
+    }
+
+    setLoadProgress(6)
+    progressTimerRef.current = window.setInterval(() => {
+      setLoadProgress((prev) => {
+        if (prev >= 92) return prev
+        if (prev < 40) return prev + 5
+        if (prev < 75) return prev + 2
+        return prev + 0.6
+      })
+    }, 350)
+
+    return () => {
+      if (progressTimerRef.current) {
+        window.clearInterval(progressTimerRef.current)
+        progressTimerRef.current = null
+      }
+    }
+  }, [loading])
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault()
@@ -65,6 +95,8 @@ export function GeneratorPageClient({ canGenerate }: Props) {
         setError("Unerwartete Server-Antwort.")
         return
       }
+      setLoadProgress(100)
+      await new Promise((r) => setTimeout(r, 250))
       setSession({
         questions: data.questions,
         meta: {
@@ -77,6 +109,7 @@ export function GeneratorPageClient({ canGenerate }: Props) {
       setError("Netzwerkfehler. Bitte später erneut versuchen.")
     } finally {
       setLoading(false)
+      setLoadProgress(0)
     }
   }
 
@@ -198,6 +231,19 @@ export function GeneratorPageClient({ canGenerate }: Props) {
         </div>
 
         {error && <p className="text-sm text-red-600">{error}</p>}
+
+        {loading && (
+          <div className="space-y-2 rounded-lg border bg-muted/30 px-4 py-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">Generiere Fragen…</span>
+              <span className="tabular-nums text-muted-foreground">{Math.round(loadProgress)}%</span>
+            </div>
+            <Progress value={loadProgress} className="h-2" />
+            <p className="text-xs text-muted-foreground">
+              Die KI erstellt Prüfungsfragen im Plattform-Format – das kann einige Sekunden dauern.
+            </p>
+          </div>
+        )}
 
         <Button type="submit" className="w-full" disabled={!canGenerate || loading}>
           {loading ? "Generiere…" : "Generieren"}

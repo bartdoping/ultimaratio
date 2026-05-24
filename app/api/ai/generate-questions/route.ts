@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const topic = String(body?.topic ?? "").trim().slice(0, 50)
+    const topic = String(body?.topic ?? "").trim().slice(0, 150)
     const difficulty = Number(body?.difficulty)
     const mode = body?.mode === "case" ? "case" : "single"
     const caseQuestionCount = Number(body?.caseQuestionCount)

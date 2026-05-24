@@ -1,9 +1,10 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { AnswerOptions } from "@/components/answer-options"
 import { TextHighlighter } from "@/components/text-highlighter"
+import { LabValuesDialog } from "@/components/lab-values-dialog"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
 
@@ -20,6 +21,7 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   const [qExpOpen, setQExpOpen] = useState(false)
   const [caseOpen, setCaseOpen] = useState(true)
   const [done, setDone] = useState(false)
+  const [labOpen, setLabOpen] = useState(false)
 
   const q = runnerQuestions[idx]
   const given = answers[q.id]
@@ -28,6 +30,22 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   const atEnd = idx >= runnerQuestions.length - 1
   const answeredCount = Object.values(answers).filter(Boolean).length
   const allAnswered = answeredCount === runnerQuestions.length
+
+  useEffect(() => {
+    if (done) return
+    function onKey(e: KeyboardEvent) {
+      if (labOpen) {
+        if (e.key === "Escape") setLabOpen(false)
+        return
+      }
+      if (e.key === "l" || e.key === "L") {
+        e.preventDefault()
+        setLabOpen(true)
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [done, labOpen])
 
   function choose(optionId: string) {
     setAnswers((a) => ({ ...a, [q.id]: optionId }))
@@ -77,13 +95,21 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
 
   return (
     <div className="mx-auto max-w-4xl space-y-4 py-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted-foreground">
-        <span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm text-muted-foreground">
           Generator · {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"} · Schwierigkeit {meta.difficulty}/5
         </span>
-        <span>
-          Frage {idx + 1}/{runnerQuestions.length} · {answeredCount} beantwortet
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm text-muted-foreground">
+            Frage {idx + 1}/{runnerQuestions.length} · {answeredCount} beantwortet
+          </span>
+          <Button variant="outline" size="sm" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
+            </svg>
+            <span className="ml-2">Labor</span>
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card shadow-sm p-6 md:p-8 space-y-6">
@@ -115,12 +141,7 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
 
         <TextHighlighter text={q.stem} questionId={q.id} />
 
-        <AnswerOptions
-          options={q.options}
-          selectedOptionId={given}
-          onSelect={choose}
-          showFeedback={showFeedback}
-        />
+        <AnswerOptions options={q.options} selectedOptionId={given} onSelect={choose} showFeedback={showFeedback} />
 
         <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
           <Button variant="secondary" onClick={goPrev} disabled={atStart}>
@@ -161,6 +182,8 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
       <p className="text-center text-xs text-muted-foreground">
         Keine Speicherung · keine Decks · keine Markierungen
       </p>
+
+      <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />
     </div>
   )
 }
