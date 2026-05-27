@@ -436,19 +436,10 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
     return <>{children}</>
   }
 
-  // Für Non-Admin-User: Schutz aktiviert
+  // Wrapper schützt nur noch Drag-Operationen (Bild-Speichern).
+  // Textauswahl/Markierung bleibt erlaubt.
   return (
-    <div 
-      style={{
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        MozUserSelect: 'none',
-        msUserSelect: 'none',
-        WebkitTouchCallout: 'none'
-      } as React.CSSProperties}
-      onContextMenu={(e) => e.preventDefault()}
-      onDragStart={(e) => e.preventDefault()}
-    >
+    <div onDragStart={(e) => e.preventDefault()}>
       {children}
     </div>
   )

@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { AnswerOptions } from "@/components/answer-options"
-import { TextHighlighter } from "@/components/text-highlighter"
+import { TextHighlighter, type HighlightSet } from "@/components/text-highlighter"
 import { LabValuesDialog } from "@/components/lab-values-dialog"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
@@ -23,6 +23,8 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   const [caseOpen, setCaseOpen] = useState(true)
   const [done, setDone] = useState(false)
   const [labOpen, setLabOpen] = useState(false)
+  const [highlightsByQ, setHighlightsByQ] = useState<Record<string, HighlightSet>>({})
+  const [vignetteHighlights, setVignetteHighlights] = useState<HighlightSet>(() => new Set())
 
   const q = runnerQuestions[idx]
   const given = answers[q.id]
@@ -33,6 +35,13 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   const confirmedCount = Object.values(confirmed).filter(Boolean).length
   const allConfirmed = confirmedCount === runnerQuestions.length
   const expandedExplanation = !!qExpOpen[q.id]
+  const stemHighlights = highlightsByQ[q.id] ?? new Set<number>()
+  const setStemHighlights = useCallback(
+    (next: HighlightSet) => {
+      setHighlightsByQ((m) => ({ ...m, [q.id]: next }))
+    },
+    [q.id]
+  )
 
   useEffect(() => {
     if (done) return
@@ -142,13 +151,26 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
             </button>
             {caseOpen && (
               <div className="px-5 pb-5 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {q.caseVignette}
+                <TextHighlighter
+                  text={q.caseVignette}
+                  questionId={`${q.id}-case`}
+                  value={vignetteHighlights}
+                  onChange={setVignetteHighlights}
+                />
               </div>
             )}
           </div>
         )}
 
-        <TextHighlighter text={q.stem} questionId={q.id} persist={false} />
+        <TextHighlighter
+          text={q.stem}
+          questionId={q.id}
+          value={stemHighlights}
+          onChange={setStemHighlights}
+        />
+        <p className="text-xs text-muted-foreground">
+          Tippe Wörter im Fragentext an, um sie zu markieren · erneut tippen entfernt die Markierung.
+        </p>
 
         <AnswerOptions
           options={q.options}
@@ -210,7 +232,7 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
-        Keine Speicherung · keine Decks · keine Markierungen
+        Keine Speicherung · keine Decks · Markierungen nur in dieser Session
       </p>
 
       <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />

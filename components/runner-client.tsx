@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation"
 import { AnswerOptions } from "@/components/answer-options"
 import { SubscriptionLimitPopup } from "@/components/subscription-limit-popup"
 import AssistantSidebar from "@/components/ai/assistant-sidebar"
-import { TextHighlighter } from "@/components/text-highlighter"
+import { TextHighlighter, type HighlightSet } from "@/components/text-highlighter"
+import { LabValuesDialog } from "@/components/lab-values-dialog"
 
 type Option = { id: string; text: string; isCorrect: boolean; explanation?: string | null }
 type Question = {
@@ -19,14 +20,6 @@ type Question = {
   caseId?: string | null
   caseVignette?: string | null
   examId?: string | null
-}
-
-type LabValue = {
-  id: string
-  name: string
-  unit: string
-  refRange: string
-  category: string
 }
 
 type FilterMode = "all" | "open" | "flagged" | "wrong"
@@ -240,23 +233,15 @@ export function RunnerClient(props: Props) {
   const [lightboxIndex, setLightboxIndex] = useState(0)
   const overlayRef = useRef<HTMLDivElement | null>(null)
 
-  // Laborwerte
+  // Laborwerte (verwendet zentrale LabValuesDialog-Komponente)
   const [labOpen, setLabOpen] = useState(false)
-  const [labLoading, setLabLoading] = useState(false)
-  const [labError, setLabError] = useState<string | null>(null)
-  const [labValues, setLabValues] = useState<LabValue[]>([])
-  const [labQuery, setLabQuery] = useState("")
-  const filteredLabs = useMemo(() => {
-    const t = labQuery.trim().toLowerCase()
-    if (!t) return labValues
-    return labValues.filter(lv =>
-      [lv.name, lv.unit, lv.refRange, lv.category].filter(Boolean).some(s => s.toLowerCase().includes(t))
-    )
-  }, [labValues, labQuery])
+
+  // In-Memory Markierungen je Frage (keine Persistenz)
+  const [stemHighlightsByQ, setStemHighlightsByQ] = useState<Record<string, HighlightSet>>({})
+  const [caseHighlightsByQ, setCaseHighlightsByQ] = useState<Record<string, HighlightSet>>({})
 
   // Erklärungen
   const [qExpOpen, setQExpOpen] = useState(false)
-  const [optOpen, setOptOpen] = useState<Record<string, boolean>>({})
 
   // Question Sidebar State
   const [questionSidebarOpen, setQuestionSidebarOpen] = useState(() => {
@@ -690,31 +675,6 @@ const aiContext = useMemo(() => {
     if (lightboxOpen) overlayRef.current?.requestFullscreen?.().catch(() => {})
   }, [lightboxOpen])
 
-  // Laborwerte lazy laden
-  useEffect(() => {
-    if (!labOpen || labValues.length > 0 || labLoading) return
-    ;(async () => {
-      setLabLoading(true); setLabError(null)
-      try {
-        const res = await fetch("/api/labs")
-        const raw = await res.json().catch(() => null)
-        const arr = (Array.isArray(raw) ? raw : (raw?.items || raw?.labs || raw?.data || [])) as any[]
-        const norm: LabValue[] = (arr || []).map((x) => ({
-          id: String(x.id ?? `${x.name}-${x.unit}`),
-          name: String(x.name ?? ""),
-          unit: String(x.unit ?? ""),
-          refRange: String(x.refRange ?? x.ref_range ?? ""),
-          category: String(x.category ?? ""),
-        }))
-        setLabValues(norm)
-      } catch {
-        setLabError("Laborwerte konnten nicht geladen werden.")
-      } finally {
-        setLabLoading(false)
-      }
-    })()
-  }, [labOpen, labValues.length, labLoading])
-
   // Swipe (mobil)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
   function onTouchStart(e: any) {
@@ -1016,16 +976,27 @@ const aiContext = useMemo(() => {
                   </button>
                   {isCaseTextOpen && (
                     <div className="px-5 pb-5 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                      {q.caseVignette}
+                      <TextHighlighter
+                        text={q.caseVignette}
+                        questionId={`${q.id}-case`}
+                        value={caseHighlightsByQ[q.id] ?? new Set<number>()}
+                        onChange={(next) =>
+                          setCaseHighlightsByQ((m) => ({ ...m, [q.id]: next }))
+                        }
+                      />
                     </div>
                   )}
                 </div>
               )}
 
               <div className="mb-6">
-                <TextHighlighter 
-                  text={q.stem} 
+                <TextHighlighter
+                  text={q.stem}
                   questionId={q.id}
+                  value={stemHighlightsByQ[q.id] ?? new Set<number>()}
+                  onChange={(next) =>
+                    setStemHighlightsByQ((m) => ({ ...m, [q.id]: next }))
+                  }
                 />
               </div>
 
@@ -1215,69 +1186,7 @@ const aiContext = useMemo(() => {
       )}
 
       {/* ------- Laborwerte ------- */}
-      {labOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Laborwerte" className="fixed inset-0 z-50 bg-black/60 grid place-items-center p-4" onClick={() => setLabOpen(false)}>
-          <div className="w-full max-w-3xl max-h-[85vh] overflow-hidden rounded-lg border bg-white dark:bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b px-4 py-3">
-              <h2 className="font-semibold">Laborwerte</h2>
-              <div className="flex items-center gap-2">
-                <input
-                  className="input h-9 w-64"
-                  placeholder="Suchen (Name, Kategorie, Einheit)…"
-                  value={labQuery}
-                  onChange={(e) => setLabQuery(e.target.value)}
-                  autoFocus
-                />
-                <Button variant="outline" onClick={() => setLabOpen(false)}>Schließen (Esc)</Button>
-              </div>
-            </div>
-
-            <div className="p-0">
-              {labLoading ? (
-                <div className="p-4 text-sm text-muted-foreground">Lade Laborwerte…</div>
-              ) : labError ? (
-                <div className="p-4 text-sm text-red-600">{labError}</div>
-              ) : (
-                <div className="max-h-[70vh] overflow-auto">
-                  <table className="w-full text-sm">
-                    <thead className="sticky top-0 bg-secondary">
-                      <tr className="text-left">
-                        <th className="px-4 py-2 font-medium">Name</th>
-                        <th className="px-4 py-2 font-medium">Einheit</th>
-                        <th className="px-4 py-2 font-medium">Referenz</th>
-                        <th className="px-4 py-2 font-medium">Kategorie</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredLabs.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-4 py-6 text-center text-muted-foreground">
-                            Keine Treffer.
-                          </td>
-                        </tr>
-                      ) : (
-                        filteredLabs.map((lv) => (
-                          <tr key={lv.id} className="odd:bg-muted/40">
-                            <td className="px-4 py-2">{lv.name}</td>
-                            <td className="px-4 py-2">{lv.unit}</td>
-                            <td className="px-4 py-2">{lv.refRange}</td>
-                            <td className="px-4 py-2">{lv.category}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="border-t px-4 py-2 text-xs text-muted-foreground">
-                Tipp: <kbd className="px-1 py-0.5 rounded border">L</kbd> öffnen,&nbsp;
-                <kbd className="px-1 py-0.5 rounded border">Esc</kbd> schließen,&nbsp;
-                <kbd className="px-1 py-0.5 rounded border">P</kbd> Pause/Weiter.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />
 
       {/* ------- Mobile Bottom-Sheet ------- */}
       {navOpen && <div className="fixed inset-0 z-50 bg-black/40 lg:hidden" onClick={() => setNavOpen(false)} />}

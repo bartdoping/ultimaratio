@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { Check, ChevronDown, Strikethrough, X } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
+import { cn } from "@/lib/utils"
 
-type Option = { 
+type Option = {
   id: string
   text: string
   isCorrect: boolean
@@ -19,109 +21,196 @@ type AnswerOptionsProps = {
   submitting?: boolean
 }
 
-export function AnswerOptions({ 
-  options, 
-  selectedOptionId, 
-  onSelect, 
+export function AnswerOptions({
+  options,
+  selectedOptionId,
+  onSelect,
   showFeedback = false,
-  submitting = false 
+  submitting = false,
 }: AnswerOptionsProps) {
-  const [strikethroughOptions, setStrikethroughOptions] = useState<Set<string>>(new Set())
+  const [strikethroughIds, setStrikethroughIds] = useState<Set<string>>(new Set())
+  const [openExplanations, setOpenExplanations] = useState<Set<string>>(new Set())
 
-  const toggleStrikethrough = (optionId: string) => {
-    setStrikethroughOptions(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(optionId)) {
-        newSet.delete(optionId)
-      } else {
-        newSet.add(optionId)
-      }
-      return newSet
+  const toggleStrike = (optionId: string) => {
+    setStrikethroughIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(optionId)) next.delete(optionId)
+      else next.add(optionId)
+      return next
     })
   }
 
-  const handleOptionClick = (optionId: string) => {
-    // Nur durchstreichen, nicht auswählen
-    toggleStrikethrough(optionId)
+  const toggleExplanation = (optionId: string) => {
+    setOpenExplanations((prev) => {
+      const next = new Set(prev)
+      if (next.has(optionId)) next.delete(optionId)
+      else next.add(optionId)
+      return next
+    })
   }
 
-  const handleRadioClick = (optionId: string, event: React.MouseEvent) => {
-    // Radio Button Klick - Option auswählen
-    event.stopPropagation()
-    onSelect(optionId)
-  }
+  // Bei Anzeige des Feedbacks: gewählte und korrekte Option automatisch aufklappen.
+  useEffect(() => {
+    if (!showFeedback) {
+      setOpenExplanations(new Set())
+      return
+    }
+    setOpenExplanations((prev) => {
+      const next = new Set(prev)
+      for (const opt of options) {
+        if (opt.isCorrect || opt.id === selectedOptionId) next.add(opt.id)
+      }
+      return next
+    })
+    // Nur beim Wechsel von vorher→nachher auf showFeedback öffnen
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFeedback])
 
   return (
-    <RadioGroup 
-      value={selectedOptionId || ""} 
-      onValueChange={onSelect}
-      className="rounded-lg border overflow-hidden divide-y"
+    <RadioGroup
+      value={selectedOptionId || ""}
+      onValueChange={(value) => {
+        if (submitting) return
+        onSelect(value)
+      }}
+      className="space-y-2"
     >
-      {options.map((option) => {
+      {options.map((option, index) => {
         const isSelected = selectedOptionId === option.id
-        const isStrikethrough = strikethroughOptions.has(option.id)
-        const canShowFeedback = showFeedback && isSelected
+        const isStruck = strikethroughIds.has(option.id)
+        const isExplOpen = openExplanations.has(option.id)
+        const letter = String.fromCharCode(65 + index)
+        const hasExplanation = !!option.explanation
+        const isCorrect = option.isCorrect
 
         return (
-          <div 
-            key={option.id} 
-            className={`flex items-start gap-3 px-3 py-2 transition-colors ${
-              isSelected
-                ? "bg-blue-50 dark:bg-blue-950/20"
-                : "bg-background hover:bg-muted/50"
-            } ${isStrikethrough ? "opacity-60" : ""}`}
+          <div
+            key={option.id}
+            className={cn(
+              "group rounded-lg border bg-background transition-colors",
+              isSelected && !showFeedback && "border-primary/60 bg-primary/5",
+              showFeedback && isCorrect && "border-emerald-500/60 bg-emerald-500/5",
+              showFeedback && isSelected && !isCorrect && "border-red-500/60 bg-red-500/5",
+              isStruck && "opacity-70"
+            )}
           >
-            {/* Radio Button */}
-            <div 
-              className="mt-0.5 cursor-pointer scale-110"
-              onClick={(e) => handleRadioClick(option.id, e)}
-            >
-              <RadioGroupItem 
-                value={option.id} 
-                id={option.id}
-                disabled={submitting}
-                className="cursor-pointer"
-              />
+            <div className="flex items-start gap-3 px-3 py-3 sm:px-4">
+              <div className="mt-0.5">
+                <RadioGroupItem
+                  value={option.id}
+                  id={option.id}
+                  disabled={submitting}
+                  className="cursor-pointer"
+                />
+              </div>
+
+              <Label
+                htmlFor={option.id}
+                className={cn(
+                  "flex-1 cursor-pointer select-text text-base leading-relaxed",
+                  isStruck && "line-through text-muted-foreground"
+                )}
+              >
+                <span className="mr-2 inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-xs font-semibold text-muted-foreground">
+                  {letter}
+                </span>
+                {option.text}
+              </Label>
+
+              <div className="flex shrink-0 items-center gap-2">
+                {showFeedback && (
+                  <span
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-semibold",
+                      isCorrect
+                        ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : isSelected
+                          ? "bg-red-500/15 text-red-700 dark:text-red-300"
+                          : "bg-muted text-muted-foreground"
+                    )}
+                  >
+                    {isCorrect ? (
+                      <>
+                        <Check className="h-3.5 w-3.5" /> Richtig
+                      </>
+                    ) : isSelected ? (
+                      <>
+                        <X className="h-3.5 w-3.5" /> Falsch
+                      </>
+                    ) : (
+                      "—"
+                    )}
+                  </span>
+                )}
+
+                <StrikeButton
+                  active={isStruck}
+                  disabled={submitting}
+                  onClick={() => toggleStrike(option.id)}
+                />
+              </div>
             </div>
 
-            {/* Option Text */}
-            <Label 
-              htmlFor={option.id}
-              className={`flex-1 cursor-pointer select-none text-base ${
-                isStrikethrough ? 'line-through text-muted-foreground' : ''
-              }`}
-              onClick={(e) => {
-                e.preventDefault()
-                handleOptionClick(option.id)
-              }}
-            >
-              <div className="space-y-1.5">
-                <div className="flex items-start gap-3">
-                  <span className={isStrikethrough ? 'line-through' : ''}>
-                    {option.text}
-                  </span>
-                  {canShowFeedback && (
-                    <span className={`text-base font-semibold px-2 py-0.5 rounded-md whitespace-nowrap ${
-                      option.isCorrect 
-                        ? 'text-green-700 bg-green-100 dark:text-green-300 dark:bg-green-900/30' 
-                        : 'text-red-700 bg-red-100 dark:text-red-300 dark:bg-red-900/30'
-                    }`}>
-                      {option.isCorrect ? '✓ Richtig' : '✗ Falsch'}
-                    </span>
-                  )}
-                </div>
-                
-                {/* Erklärung anzeigen wenn Feedback aktiv und Option ausgewählt */}
-                {canShowFeedback && option.explanation && (
-                  <div className="text-sm text-muted-foreground mt-2 p-2 bg-muted/30 rounded-md border-l-4 border-blue-500">
+            {showFeedback && hasExplanation && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => toggleExplanation(option.id)}
+                  aria-expanded={isExplOpen}
+                  className="flex w-full items-center justify-between gap-2 border-t px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 sm:px-4"
+                >
+                  <span>Erklärung {letter}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isExplOpen && "rotate-180"
+                    )}
+                  />
+                </button>
+                {isExplOpen && (
+                  <div className="border-t bg-muted/30 px-3 py-3 text-sm leading-relaxed text-muted-foreground sm:px-4">
                     {option.explanation}
                   </div>
                 )}
-              </div>
-            </Label>
+              </>
+            )}
           </div>
         )
       })}
     </RadioGroup>
+  )
+}
+
+function StrikeButton({
+  active,
+  disabled,
+  onClick,
+}: {
+  active: boolean
+  disabled?: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.preventDefault()
+        e.stopPropagation()
+        if (!disabled) onClick()
+      }}
+      disabled={disabled}
+      aria-pressed={active}
+      title={active ? "Streichung aufheben" : "Option streichen"}
+      aria-label={active ? "Streichung aufheben" : "Option streichen"}
+      className={cn(
+        "inline-flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground transition-colors",
+        active
+          ? "border-foreground/30 bg-muted text-foreground"
+          : "hover:bg-muted hover:text-foreground",
+        disabled && "pointer-events-none opacity-40"
+      )}
+    >
+      <Strikethrough className="h-4 w-4" aria-hidden="true" />
+    </button>
   )
 }

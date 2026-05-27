@@ -65,12 +65,7 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
 
       // Developer Tools Schutz entfernt
 
-      // Verhindere Kontextmenü
-      document.addEventListener('contextmenu', (e) => {
-        e.preventDefault()
-        alert('⚠️ ACHTUNG: Rechtsklick ist während der Prüfung nicht erlaubt!')
-        return false
-      }, { capture: true })
+      // (Rechtsklick darf bleiben — Nutzer sollen Text markieren können.)
 
       // Verhindere alle Shortcuts
       let lastKeyTime = 0
@@ -107,16 +102,7 @@ export function ExamProtection({ children, examMode = false }: ExamProtectionPro
         }
       }, { capture: true })
 
-      // Verhindere Textauswahl (außer für TextHighlighter)
-      document.addEventListener('selectstart', (e) => {
-        const target = e.target as HTMLElement
-        // Erlaube Textauswahl in TextHighlighter-Komponenten
-        if (target.closest('[data-text-highlighter]') || target.closest('.select-text')) {
-          return // Erlaube Textauswahl
-        }
-        e.preventDefault()
-        return false
-      }, { capture: true })
+      // (Textauswahl ist überall erlaubt — siehe TextHighlighter & Markieren.)
 
       // Verhindere Drag & Drop
       document.addEventListener('dragstart', (e) => {

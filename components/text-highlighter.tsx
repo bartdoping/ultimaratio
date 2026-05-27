@@ -1,196 +1,118 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useCallback, useMemo, useState } from "react"
 
-interface Highlight {
-  id: string
-  start: number
-  end: number
-  text: string
-}
+export type HighlightSet = Set<number>
 
 interface TextHighlighterProps {
   text: string
+  /** Stabiler Schlüssel der aktuellen Frage; Reset bei Wechsel. */
   questionId: string
-  onHighlightsChange?: (highlights: Highlight[]) => void
   /**
-   * Wenn false, werden Markierungen nicht in localStorage persistiert.
-   * Wichtig für den Generator, wo Frage-IDs (`gen-0`, …) bei jeder neuen
-   * Generierung wiederverwendet werden und alte Markierungen sonst
-   * versehentlich übernommen würden.
+   * Optional kontrollierter Modus: Eltern halten den Markierungs-State je
+   * Frage und reichen Wert + Setter rein. Ungenutzt → lokaler State.
    */
-  persist?: boolean
+  value?: HighlightSet
+  onChange?: (next: HighlightSet) => void
+}
+
+type Token =
+  | { type: "word"; index: number; text: string }
+  | { type: "space"; text: string }
+  | { type: "break" }
+
+const WORD_PATTERN = /(\s+|\n)/
+
+function tokenize(text: string): Token[] {
+  const tokens: Token[] = []
+  let wordIdx = 0
+  const parts = text.split(WORD_PATTERN)
+  for (const part of parts) {
+    if (!part) continue
+    if (part === "\n") {
+      tokens.push({ type: "break" })
+      continue
+    }
+    if (/^\s+$/.test(part)) {
+      tokens.push({ type: "space", text: part })
+      continue
+    }
+    tokens.push({ type: "word", index: wordIdx, text: part })
+    wordIdx += 1
+  }
+  return tokens
 }
 
 export function TextHighlighter({
   text,
   questionId,
-  onHighlightsChange,
-  persist = true,
+  value,
+  onChange,
 }: TextHighlighterProps) {
-  const [highlights, setHighlights] = useState<Highlight[]>([])
-  const [isSelecting, setIsSelecting] = useState(false)
-  const textRef = useRef<HTMLDivElement>(null)
-  const hiddenTextRef = useRef<HTMLDivElement>(null)
+  const [internal, setInternal] = useState<HighlightSet>(() => new Set())
+  const isControlled = value !== undefined
+  const active = isControlled ? value : internal
 
-  // Lade gespeicherte Markierungen für diese Frage
-  useEffect(() => {
-    if (!persist) {
-      setHighlights([])
-      return
-    }
-    const savedHighlights = localStorage.getItem(`highlights-${questionId}`)
-    if (savedHighlights) {
-      try {
-        const parsed = JSON.parse(savedHighlights)
-        setHighlights(parsed)
-      } catch (error) {
-        console.error('Fehler beim Laden der Markierungen:', error)
+  const setActive = useCallback(
+    (updater: (prev: HighlightSet) => HighlightSet) => {
+      if (isControlled) {
+        onChange?.(updater(value ?? new Set()))
+      } else {
+        setInternal((prev) => updater(prev))
       }
-    } else {
-      setHighlights([])
-    }
-  }, [questionId, persist])
+    },
+    [isControlled, onChange, value]
+  )
 
-  // Speichere Markierungen bei Änderungen
-  useEffect(() => {
-    if (persist) {
-      localStorage.setItem(`highlights-${questionId}`, JSON.stringify(highlights))
-    }
-    onHighlightsChange?.(highlights)
-  }, [highlights, questionId, onHighlightsChange, persist])
+  const tokens = useMemo(() => tokenize(text), [text])
 
-  const handleMouseDown = () => {
-    setIsSelecting(true)
-  }
-
-  const handleMouseUp = () => {
-    if (isSelecting) {
-      const selection = window.getSelection()
-      if (selection && selection.toString().trim() && hiddenTextRef.current) {
-        const selectedText = selection.toString().trim()
-        
-        // Berechne die Position im ursprünglichen Text
-        const range = selection.getRangeAt(0)
-        const preRange = document.createRange()
-        preRange.setStart(hiddenTextRef.current.firstChild!, 0)
-        preRange.setEnd(range.startContainer, range.startOffset)
-        
-        const preText = preRange.toString()
-        const start = preText.length
-        const end = start + selectedText.length
-        
-        // Prüfe, ob diese Markierung bereits existiert oder überlappt
-        const exists = highlights.some(h => 
-          (h.start <= start && h.end > start) || // Überlappung am Anfang
-          (h.start < end && h.end >= end) ||     // Überlappung am Ende
-          (h.start >= start && h.end <= end)     // Vollständig enthalten
-        )
-        
-        if (!exists && start >= 0 && end <= text.length) {
-          const newHighlight: Highlight = {
-            id: `highlight-${Date.now()}-${Math.random()}`,
-            start,
-            end,
-            text: selectedText
-          }
-
-          setHighlights(prev => [...prev, newHighlight])
-        }
-        
-        selection.removeAllRanges()
-      }
-      setIsSelecting(false)
-    }
-  }
-
-  const removeHighlight = (highlightId: string) => {
-    setHighlights(prev => prev.filter(h => h.id !== highlightId))
-  }
-
-  const renderTextWithHighlights = () => {
-    if (highlights.length === 0) {
-      return text
-    }
-
-    // Sortiere Markierungen nach Start-Position
-    const sortedHighlights = [...highlights].sort((a, b) => a.start - b.start)
-    
-    const parts: React.ReactNode[] = []
-    let lastIndex = 0
-
-    sortedHighlights.forEach((highlight, index) => {
-      // Text vor der Markierung
-      if (highlight.start > lastIndex) {
-        parts.push(
-          <span key={`text-${index}`}>
-            {text.slice(lastIndex, highlight.start)}
-          </span>
-        )
-      }
-
-      // Markierter Text
-      parts.push(
-        <mark
-          key={highlight.id}
-          className="bg-yellow-200 dark:bg-yellow-800 px-1 rounded cursor-pointer hover:bg-yellow-300 dark:hover:bg-yellow-700 transition-colors border border-yellow-300 dark:border-yellow-600"
-          title="Klicken zum Entfernen"
-          onClick={() => removeHighlight(highlight.id)}
-        >
-          {highlight.text}
-        </mark>
-      )
-
-      lastIndex = highlight.end
-    })
-
-    // Restlicher Text nach der letzten Markierung
-    if (lastIndex < text.length) {
-      parts.push(
-        <span key="text-end">
-          {text.slice(lastIndex)}
-        </span>
-      )
-    }
-
-    return parts
-  }
+  const toggle = useCallback(
+    (idx: number) => {
+      setActive((prev) => {
+        const next = new Set(prev)
+        if (next.has(idx)) next.delete(idx)
+        else next.add(idx)
+        return next
+      })
+    },
+    [setActive]
+  )
 
   return (
-    <div>
-      {/* Unsichtbarer Text für Position-Berechnung */}
-      <div
-        ref={hiddenTextRef}
-        style={{ 
-          position: 'absolute',
-          left: '-9999px',
-          top: '-9999px',
-          visibility: 'hidden',
-          whiteSpace: 'pre-wrap',
-          userSelect: 'text'
-        }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-      >
-        {text}
-      </div>
-
-      {/* Text mit Markierungen */}
-      <div
-        ref={textRef}
-        className="select-text cursor-text"
-        data-text-highlighter="true"
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
-        style={{ 
-          userSelect: 'text',
-          WebkitUserSelect: 'text',
-          MozUserSelect: 'text',
-          msUserSelect: 'text'
-        }}
-      >
-        {renderTextWithHighlights()}
-      </div>
+    <div
+      data-text-highlighter="true"
+      data-question-id={questionId}
+      className="text-base leading-relaxed select-text"
+    >
+      {tokens.map((tok, i) => {
+        if (tok.type === "break") {
+          return <br key={`br-${i}`} />
+        }
+        if (tok.type === "space") {
+          return <span key={`sp-${i}`}>{tok.text}</span>
+        }
+        const isOn = active.has(tok.index)
+        return (
+          <button
+            key={`w-${tok.index}`}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              toggle(tok.index)
+            }}
+            aria-pressed={isOn}
+            title={isOn ? "Markierung entfernen" : "Markieren"}
+            className={
+              "inline rounded-sm px-0.5 py-0 align-baseline transition-colors " +
+              (isOn
+                ? "bg-yellow-200 text-foreground dark:bg-yellow-500/40"
+                : "hover:bg-muted/60")
+            }
+          >
+            {tok.text}
+          </button>
+        )
+      })}
     </div>
   )
 }
