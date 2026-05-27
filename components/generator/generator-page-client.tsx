@@ -183,6 +183,10 @@ export function GeneratorPageClient({
       setError("Bitte ein Thema eingeben.")
       return
     }
+    if (trimmed.length < 3) {
+      setError("Bitte ein Thema mit mindestens 3 Zeichen eingeben.")
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -377,7 +381,11 @@ export function GeneratorPageClient({
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && (
+          <p className="text-sm text-red-600" role="alert" aria-live="polite">
+            {error}
+          </p>
+        )}
 
         {loading && (
           <div className="space-y-2 rounded-lg border bg-muted/30 px-4 py-3">
@@ -410,6 +418,8 @@ export function GeneratorPageClient({
 
 function humanizeError(code: string): string {
   if (code === "daily_limit_reached") return "Tageslimit erreicht."
+  if (code === "forbidden") return "Zugriff verweigert."
+  if (code === "method_not_allowed") return "Ungültige Anfrage."
   return code
 }
 

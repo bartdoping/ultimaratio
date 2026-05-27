@@ -18,18 +18,21 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   const runnerQuestions = useMemo(() => bulkQuestionsToRunnerFormat(questions), [questions])
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string | undefined>>({})
-  const [qExpOpen, setQExpOpen] = useState(false)
+  const [confirmed, setConfirmed] = useState<Record<string, boolean>>({})
+  const [qExpOpen, setQExpOpen] = useState<Record<string, boolean>>({})
   const [caseOpen, setCaseOpen] = useState(true)
   const [done, setDone] = useState(false)
   const [labOpen, setLabOpen] = useState(false)
 
   const q = runnerQuestions[idx]
   const given = answers[q.id]
-  const showFeedback = !!given
+  const isConfirmed = !!confirmed[q.id]
+  const showFeedback = isConfirmed
   const atStart = idx === 0
   const atEnd = idx >= runnerQuestions.length - 1
-  const answeredCount = Object.values(answers).filter(Boolean).length
-  const allAnswered = answeredCount === runnerQuestions.length
+  const confirmedCount = Object.values(confirmed).filter(Boolean).length
+  const allConfirmed = confirmedCount === runnerQuestions.length
+  const expandedExplanation = !!qExpOpen[q.id]
 
   useEffect(() => {
     if (done) return
@@ -38,6 +41,9 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
         if (e.key === "Escape") setLabOpen(false)
         return
       }
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName?.toLowerCase()
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return
       if (e.key === "l" || e.key === "L") {
         e.preventDefault()
         setLabOpen(true)
@@ -48,23 +54,26 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   }, [done, labOpen])
 
   function choose(optionId: string) {
+    if (isConfirmed) return
     setAnswers((a) => ({ ...a, [q.id]: optionId }))
+  }
+
+  function confirmAnswer() {
+    if (!given || isConfirmed) return
+    setConfirmed((c) => ({ ...c, [q.id]: true }))
+    setQExpOpen((o) => ({ ...o, [q.id]: true }))
   }
 
   function goNext() {
     if (atEnd) {
-      if (allAnswered) setDone(true)
+      if (allConfirmed) setDone(true)
       return
     }
     setIdx((i) => i + 1)
-    setQExpOpen(false)
   }
 
   function goPrev() {
-    if (!atStart) {
-      setIdx((i) => i - 1)
-      setQExpOpen(false)
-    }
+    if (!atStart) setIdx((i) => i - 1)
   }
 
   if (done) {
@@ -75,21 +84,33 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
     }).length
 
     return (
-      <div className="mx-auto max-w-3xl space-y-6 py-4">
-        <GeneratorDoneCard correct={correct} total={runnerQuestions.length} meta={meta} onNewGeneration={onNewGeneration} />
+      <div className="mx-auto max-w-3xl space-y-6 py-4 px-4">
+        <GeneratorDoneCard
+          correct={correct}
+          total={runnerQuestions.length}
+          meta={meta}
+          onNewGeneration={onNewGeneration}
+        />
       </div>
     )
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 py-2">
+    <div className="mx-auto max-w-4xl space-y-4 py-2 px-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm text-muted-foreground">
-          Generator · {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"} · Schwierigkeit {meta.difficulty}/5
-        </span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium">
+            {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
+          </span>
+          <span className="hidden sm:inline">·</span>
+          <span>Schwierigkeit {meta.difficulty}/5</span>
+        </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-muted-foreground">
-            Frage {idx + 1}/{runnerQuestions.length} · {answeredCount} beantwortet
+          <span className="text-sm font-medium tabular-nums">
+            Frage {idx + 1}/{runnerQuestions.length}
+          </span>
+          <span className="text-xs text-muted-foreground">
+            · {confirmedCount} bestätigt
           </span>
           <Button variant="outline" size="sm" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -100,13 +121,13 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-card shadow-sm p-6 md:p-8 space-y-6">
+      <div className="rounded-xl border bg-card shadow-sm p-5 md:p-8 space-y-6">
         {q.caseVignette && (
           <div className="rounded-lg border bg-secondary/40">
             <button
               type="button"
               onClick={() => setCaseOpen((v) => !v)}
-              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left font-semibold text-lg hover:bg-muted/50 transition-colors"
+              className="w-full flex items-center justify-between gap-3 px-5 py-4 text-left font-semibold text-base md:text-lg hover:bg-muted/50 transition-colors"
               aria-expanded={caseOpen}
             >
               <span>Fall</span>
@@ -127,30 +148,51 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
           </div>
         )}
 
-        <TextHighlighter text={q.stem} questionId={q.id} />
+        <TextHighlighter text={q.stem} questionId={q.id} persist={false} />
 
-        <AnswerOptions options={q.options} selectedOptionId={given} onSelect={choose} showFeedback={showFeedback} />
+        <AnswerOptions
+          options={q.options}
+          selectedOptionId={given}
+          onSelect={choose}
+          showFeedback={showFeedback}
+          submitting={isConfirmed}
+        />
 
-        <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+        <div className="flex flex-wrap items-center gap-2 pt-4 border-t">
           <Button variant="secondary" onClick={goPrev} disabled={atStart}>
             ← Zurück
           </Button>
-          <Button variant="outline" onClick={goNext} disabled={!given}>
-            {atEnd ? "Abschließen" : "Weiter →"}
-          </Button>
+
+          {!isConfirmed ? (
+            <Button onClick={confirmAnswer} disabled={!given} className="ml-auto">
+              Antwort bestätigen
+            </Button>
+          ) : (
+            <Button onClick={goNext} className="ml-auto">
+              {atEnd ? "Abschließen" : "Weiter →"}
+            </Button>
+          )}
         </div>
+
+        {!isConfirmed && !given && (
+          <p className="text-xs text-muted-foreground" aria-live="polite">
+            Wähle eine Antwort und bestätige sie, um Lösung und Erklärungen zu sehen.
+          </p>
+        )}
 
         {q.explanation && showFeedback && (
           <div className="rounded-lg border bg-secondary/40">
             <button
               type="button"
-              onClick={() => setQExpOpen((v) => !v)}
+              onClick={() =>
+                setQExpOpen((o) => ({ ...o, [q.id]: !o[q.id] }))
+              }
               className="w-full flex items-center justify-between px-4 py-3 text-base font-medium hover:bg-muted/50 transition-colors"
-              aria-expanded={qExpOpen}
+              aria-expanded={expandedExplanation}
             >
-              <span>Zusammenfassende Erläuterung</span>
+              <span>Gesamterklärung</span>
               <svg
-                className={`h-5 w-5 transition-transform duration-200 ${qExpOpen ? "rotate-180" : ""}`}
+                className={`h-5 w-5 transition-transform duration-200 ${expandedExplanation ? "rotate-180" : ""}`}
                 viewBox="0 0 24 24"
                 fill="currentColor"
                 aria-hidden
@@ -158,7 +200,7 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
                 <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
               </svg>
             </button>
-            {qExpOpen && (
+            {expandedExplanation && (
               <div className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
                 {q.explanation}
               </div>
@@ -187,11 +229,19 @@ function GeneratorDoneCard({
   meta: Props["meta"]
   onNewGeneration: () => void
 }) {
+  const ratio = total > 0 ? correct / total : 0
+  const tone =
+    ratio >= 0.8 ? "text-emerald-600" : ratio >= 0.5 ? "text-amber-600" : "text-red-600"
+
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm text-center space-y-3">
+    <div className="rounded-xl border bg-card p-6 md:p-8 shadow-sm text-center space-y-4">
       <h2 className="text-xl font-semibold">Durchlauf abgeschlossen</h2>
+      <p className={`text-3xl font-semibold tabular-nums ${tone}`}>
+        {correct} / {total}
+      </p>
       <p className="text-sm text-muted-foreground">
-        {correct} von {total} richtig · Thema: <strong>{meta.topic}</strong> · Schwierigkeit {meta.difficulty}/5
+        Thema: <strong className="text-foreground">{meta.topic}</strong> · Schwierigkeit {meta.difficulty}/5 ·{" "}
+        {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
       </p>
       <p className="text-xs text-muted-foreground">
         Fragen werden nicht gespeichert. Du kannst direkt neue generieren.

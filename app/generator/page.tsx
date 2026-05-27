@@ -8,7 +8,6 @@ import { getGeneratorQuota } from "@/lib/generator-limits"
 import { cookies, headers } from "next/headers"
 import {
   createVisitorId,
-  getClientIp,
   hashClientIp,
   verifyVisitorCookie,
   GENERATOR_VISITOR_COOKIE,

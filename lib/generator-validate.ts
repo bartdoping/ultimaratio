@@ -20,9 +20,17 @@ export function validateGeneratedQuestions(
     }
   }
 
-  for (const q of questions) {
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i]
     if (q.options.length !== 5) {
-      return { ok: false, error: "Jede Frage muss genau 5 Antwortoptionen haben." }
+      return { ok: false, error: `Frage ${i + 1} muss genau 5 Antwortoptionen haben.` }
+    }
+    const correctCount = q.options.filter((o) => o.isCorrect).length
+    if (correctCount !== 1) {
+      return {
+        ok: false,
+        error: `Frage ${i + 1} muss genau eine richtige Antwort haben (erhalten: ${correctCount}).`,
+      }
     }
   }
 

@@ -13,9 +13,21 @@ interface TextHighlighterProps {
   text: string
   questionId: string
   onHighlightsChange?: (highlights: Highlight[]) => void
+  /**
+   * Wenn false, werden Markierungen nicht in localStorage persistiert.
+   * Wichtig für den Generator, wo Frage-IDs (`gen-0`, …) bei jeder neuen
+   * Generierung wiederverwendet werden und alte Markierungen sonst
+   * versehentlich übernommen würden.
+   */
+  persist?: boolean
 }
 
-export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHighlighterProps) {
+export function TextHighlighter({
+  text,
+  questionId,
+  onHighlightsChange,
+  persist = true,
+}: TextHighlighterProps) {
   const [highlights, setHighlights] = useState<Highlight[]>([])
   const [isSelecting, setIsSelecting] = useState(false)
   const textRef = useRef<HTMLDivElement>(null)
@@ -23,6 +35,10 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
 
   // Lade gespeicherte Markierungen für diese Frage
   useEffect(() => {
+    if (!persist) {
+      setHighlights([])
+      return
+    }
     const savedHighlights = localStorage.getItem(`highlights-${questionId}`)
     if (savedHighlights) {
       try {
@@ -34,13 +50,15 @@ export function TextHighlighter({ text, questionId, onHighlightsChange }: TextHi
     } else {
       setHighlights([])
     }
-  }, [questionId])
+  }, [questionId, persist])
 
   // Speichere Markierungen bei Änderungen
   useEffect(() => {
-    localStorage.setItem(`highlights-${questionId}`, JSON.stringify(highlights))
+    if (persist) {
+      localStorage.setItem(`highlights-${questionId}`, JSON.stringify(highlights))
+    }
     onHighlightsChange?.(highlights)
-  }, [highlights, questionId, onHighlightsChange])
+  }, [highlights, questionId, onHighlightsChange, persist])
 
   const handleMouseDown = () => {
     setIsSelecting(true)

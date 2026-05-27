@@ -5,7 +5,10 @@ import {
   generatorMaxOutputTokens,
   GENERATOR_TOPIC_MAX,
 } from "@/lib/generator-ai-config"
-import { buildQuestionGeneratorPrompt } from "@/lib/ai-question-generator-prompt"
+import {
+  buildSystemInstructions,
+  buildUserPrompt,
+} from "@/lib/ai-question-generator-prompt"
 import { callGeneratorModel, callGeneratorModelWithRetry } from "@/lib/generator-openai"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
@@ -17,6 +20,8 @@ import {
 } from "@/lib/generator-limits"
 
 export const runtime = "nodejs"
+
+const GENERATOR_TIMEOUT_MS = 90_000
 
 function parseGenerateBody(body: unknown) {
   const b = body as Record<string, unknown>
@@ -63,8 +68,11 @@ export async function POST(req: Request) {
     const body = await req.json().catch(() => ({}))
     const { topic, difficulty, mode, caseQuestionCount } = parseGenerateBody(body)
 
-    if (!topic) {
-      return NextResponse.json({ ok: false, error: "Bitte ein Thema angeben." }, { status: 400 })
+    if (!topic || topic.length < 3) {
+      return NextResponse.json(
+        { ok: false, error: "Bitte ein Thema mit mindestens 3 Zeichen angeben." },
+        { status: 400 }
+      )
     }
     if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > 5) {
       return NextResponse.json({ ok: false, error: "Schwierigkeitsgrad muss zwischen 1 und 5 liegen." }, { status: 400 })
@@ -87,68 +95,88 @@ export async function POST(req: Request) {
       caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
     }
 
-    const prompt = buildQuestionGeneratorPrompt(promptParams)
-    const maxTokens = generatorMaxOutputTokens(mode, expectedCount)
+    const instructions = buildSystemInstructions()
+    const userPrompt = buildUserPrompt(promptParams)
+    const maxOutputTokens = generatorMaxOutputTokens(mode, expectedCount)
 
-    let rawText = await callGeneratorModelWithRetry(prompt, maxTokens)
-    let jsonText = extractJsonFromModelText(rawText)
-    let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), GENERATOR_TIMEOUT_MS)
 
-    if (!check.ok || !questionsHaveExplanations(check.ok ? check.questions : [])) {
-      const hint = !check.ok
-        ? `VALIDIERUNGSFEHLER: ${check.error}`
-        : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
-      rawText = await callGeneratorModel(
-        prompt,
-        maxTokens,
-        `${hint} Korrigiere und antworte nur mit gültigem JSON.`
-      )
-      jsonText = extractJsonFromModelText(rawText)
-      check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+    try {
+      const callParams = {
+        instructions,
+        input: userPrompt,
+        maxOutputTokens,
+        signal: controller.signal,
+      }
+
+      let rawText = await callGeneratorModelWithRetry(callParams)
+      let jsonText = extractJsonFromModelText(rawText)
+      let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+
+      if (!check.ok || !questionsHaveExplanations(check.ok ? check.questions : [])) {
+        const hint = !check.ok
+          ? `VALIDIERUNGSFEHLER: ${check.error}`
+          : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
+        rawText = await callGeneratorModel(
+          callParams,
+          `${hint} Korrigiere und antworte ausschließlich mit gültigem JSON.`
+        )
+        jsonText = extractJsonFromModelText(rawText)
+        check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+      }
+
+      if (!check.ok) {
+        return NextResponse.json(
+          { ok: false, error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.` },
+          { status: 502 }
+        )
+      }
+
+      if (!questionsHaveExplanations(check.questions)) {
+        return NextResponse.json(
+          { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
+          { status: 502 }
+        )
+      }
+
+      const res = NextResponse.json({
+        ok: true,
+        questions: check.questions,
+        quota: {
+          used: quotaResult.used,
+          remaining: quotaResult.remaining,
+          dailyLimit: quotaResult.dailyLimit,
+          unlimited: quotaResult.unlimited,
+        },
+        meta: {
+          topic,
+          difficulty: Math.round(difficulty),
+          mode,
+          caseQuestionCount: expectedCount,
+        },
+      })
+
+      if (access.newVisitorId) {
+        res.cookies.set(
+          GENERATOR_VISITOR_COOKIE,
+          signVisitorId(access.newVisitorId),
+          visitorCookieOptions()
+        )
+      }
+
+      return res
+    } finally {
+      clearTimeout(timeout)
     }
-
-    if (!check.ok) {
-      return NextResponse.json(
-        { ok: false, error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.` },
-        { status: 502 }
-      )
-    }
-
-    if (!questionsHaveExplanations(check.questions)) {
-      return NextResponse.json(
-        { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
-        { status: 502 }
-      )
-    }
-
-    const res = NextResponse.json({
-      ok: true,
-      questions: check.questions,
-      quota: {
-        used: quotaResult.used,
-        remaining: quotaResult.remaining,
-        dailyLimit: quotaResult.dailyLimit,
-        unlimited: quotaResult.unlimited,
-      },
-      meta: {
-        topic,
-        difficulty: Math.round(difficulty),
-        mode,
-        caseQuestionCount: expectedCount,
-      },
-    })
-
-    if (access.newVisitorId) {
-      res.cookies.set(
-        GENERATOR_VISITOR_COOKIE,
-        signVisitorId(access.newVisitorId),
-        visitorCookieOptions()
-      )
-    }
-
-    return res
   } catch (e: unknown) {
-    const err = e as { status?: number; message?: string }
+    const err = e as { status?: number; message?: string; name?: string }
+    if (err?.name === "AbortError") {
+      return NextResponse.json(
+        { ok: false, error: "Generierung dauerte zu lange. Bitte erneut versuchen." },
+        { status: 504 }
+      )
+    }
     if (err?.status) {
       return NextResponse.json({ ok: false, error: "forbidden" }, { status: err.status })
     }
