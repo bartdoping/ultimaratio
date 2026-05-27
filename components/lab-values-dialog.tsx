@@ -134,7 +134,11 @@ export function LabValuesDialog({ open, onClose }: Props) {
               </button>
             </div>
           ) : filteredLabs.length === 0 ? (
-            <p className="p-5 text-sm text-muted-foreground">Keine Treffer.</p>
+            <p className="p-5 text-sm text-muted-foreground">
+              {labValues.length === 0
+                ? "Keine Laborwerte verfügbar."
+                : "Keine Treffer für deine Suche."}
+            </p>
           ) : (
             <table className="w-full border-collapse text-sm">
               <thead className="sticky top-0 z-10 bg-secondary/95 backdrop-blur">

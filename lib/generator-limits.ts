@@ -170,13 +170,25 @@ export async function getGeneratorQuota(params: {
   return snapshotFromUsed(used, limit, params.isPro, false)
 }
 
-export async function consumeGeneratorQuota(params: {
+export type GeneratorQuotaSubject = {
   userId?: string | null
   anonKey?: string | null
   ipHash?: string | null
   isPro: boolean
   isAdmin: boolean
-}): Promise<GeneratorQuotaConsumeResult> {
+}
+
+/**
+ * Verbucht `units` Generierungen für das Tageskontingent.
+ * - Einzelfrage = 1 unit
+ * - Fallfrage mit N Teilfragen = N units
+ * Schlägt fehl, wenn das verbleibende Kontingent < units ist (atomic).
+ */
+export async function consumeGeneratorQuota(
+  params: GeneratorQuotaSubject,
+  units: number = 1
+): Promise<GeneratorQuotaConsumeResult> {
+  const n = Math.max(1, Math.floor(units))
   const limit = dailyLimit(params.isPro, params.isAdmin)
   if (limit < 0) {
     return { ok: true, ...snapshotFromUsed(0, limit, params.isPro, true) }
@@ -201,7 +213,7 @@ export async function consumeGeneratorQuota(params: {
         ? Math.max(existing?.count ?? 0, ipExisting?.count ?? 0)
         : existing?.count ?? 0
 
-      if (used >= limit) {
+      if (used + n > limit) {
         return {
           ok: false,
           limitReached: true,
@@ -212,7 +224,7 @@ export async function consumeGeneratorQuota(params: {
         }
       }
 
-      const newCount = used + 1
+      const newCount = used + n
 
       if (existing) {
         await tx.generatorDailyUsage.update({
@@ -264,7 +276,7 @@ export async function consumeGeneratorQuota(params: {
       : null
 
     const used = Math.max(anonRow?.count ?? 0, ipRow?.count ?? 0)
-    if (used >= limit) {
+    if (used + n > limit) {
       return {
         ok: false,
         limitReached: true,
@@ -275,7 +287,7 @@ export async function consumeGeneratorQuota(params: {
       }
     }
 
-    const newCount = used + 1
+    const newCount = used + n
 
     if (params.anonKey) {
       await tx.generatorDailyUsage.upsert({
@@ -297,6 +309,40 @@ export async function consumeGeneratorQuota(params: {
       ...snapshotFromUsed(newCount, limit, false, false),
     }
   })
+}
+
+/**
+ * Compensating-Transaction: gibt `units` an verbrauchtem Kontingent zurück,
+ * z. B. wenn die KI-Generierung nach erfolgter Verbuchung fehlschlägt.
+ * Best-effort, niemals werfen.
+ */
+export async function refundGeneratorQuota(
+  params: GeneratorQuotaSubject,
+  units: number = 1
+): Promise<void> {
+  const n = Math.max(1, Math.floor(units))
+  if (params.isAdmin) return
+  const dayKey = getGeneratorDayKey()
+  const decrement = async (where: Record<string, unknown>) => {
+    try {
+      const row = await prisma.generatorDailyUsage.findUnique({ where: where as never })
+      if (!row) return
+      const next = Math.max(0, row.count - n)
+      await prisma.generatorDailyUsage.update({ where: { id: row.id }, data: { count: next } })
+    } catch {
+      // Refund ist best-effort – Fehler schlucken.
+    }
+  }
+
+  if (params.userId) {
+    await decrement({ userId_dayKey: { userId: params.userId, dayKey } })
+  }
+  if (params.anonKey) {
+    await decrement({ anonKey_dayKey: { anonKey: params.anonKey, dayKey } })
+  }
+  if (params.ipHash && !params.isPro) {
+    await decrement({ ipHash_dayKey: { ipHash: params.ipHash, dayKey } })
+  }
 }
 
 export function visitorCookieOptions() {

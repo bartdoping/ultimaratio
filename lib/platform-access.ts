@@ -23,6 +23,7 @@ const PREFIX_PATHS = [
   "/api/auth",
   "/api/account/",
   "/api/ai/generate-questions",
+  "/api/labs",
   "/api/stripe/webhook",
   "/api/stripe/subscription/",
   "/api/subscription/",

@@ -95,15 +95,7 @@ export function SiteHeader() {
             {generatorMode ? (
               <>
                 {navLink("/generator", "Generator")}
-                <Link
-                  href="/coming-soon"
-                  className={[
-                    "px-2 py-1 rounded hover:bg-muted",
-                    pathname === "/coming-soon" ? "font-medium" : "text-muted-foreground",
-                  ].join(" ")}
-                >
-                  Bald verfügbar
-                </Link>
+                {session && navLink("/account", "Account")}
               </>
             ) : (
               <>
@@ -262,13 +254,15 @@ export function SiteHeader() {
                 >
                   Generator
                 </Link>
-                <Link
-                  href="/coming-soon"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Bald verfügbar
-                </Link>
+                {session && (
+                  <Link
+                    href="/account"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Account
+                  </Link>
+                )}
               </>
             ) : (
               <>

@@ -11,6 +11,10 @@ export type BulkQuestion = {
   caseVignette?: string | null
   images?: { url: string; alt?: string | null }[]
   options: BulkQuestionOption[]
+  /** Optionales Lernziel (1 Satz) – wird vom KI-Generator gefüllt. */
+  learningObjective?: string | null
+  /** Optionale Prüfungsfalle (1 Satz) – wird vom KI-Generator gefüllt. */
+  examTrap?: string | null
 }
 
 export type BulkQuestionsPayload = {
@@ -114,6 +118,10 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
       allowImmediate: q.allowImmediate,
       caseVignette: typeof q.caseVignette === "string" ? q.caseVignette : null,
       options: normalizedOptions,
+      learningObjective:
+        typeof q.learningObjective === "string" ? q.learningObjective.trim() || null : null,
+      examTrap:
+        typeof q.examTrap === "string" ? q.examTrap.trim() || null : null,
     })
   }
 
@@ -144,6 +152,8 @@ export function bulkQuestionsToRunnerFormat(questions: BulkQuestion[]) {
     stem: q.stem,
     explanation: q.explanation ?? null,
     caseVignette: q.caseVignette ?? null,
+    learningObjective: q.learningObjective ?? null,
+    examTrap: q.examTrap ?? null,
     options: q.options.map((o, oi) => ({
       id: `gen-${qi}-opt-${oi}`,
       text: o.text,

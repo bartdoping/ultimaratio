@@ -14,6 +14,7 @@ import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
 import {
   consumeGeneratorQuota,
+  refundGeneratorQuota,
   signVisitorId,
   GENERATOR_VISITOR_COOKIE,
   visitorCookieOptions,
@@ -34,7 +35,8 @@ function parseGenerateBody(body: unknown) {
 
 function limitJson(
   access: Awaited<ReturnType<typeof resolveGeneratorAccess>>,
-  quota: Extract<Awaited<ReturnType<typeof consumeGeneratorQuota>>, { ok: false }>
+  quota: Extract<Awaited<ReturnType<typeof consumeGeneratorQuota>>, { ok: false }>,
+  unitsRequested: number
 ) {
   return {
     ok: false as const,
@@ -45,21 +47,15 @@ function limitJson(
     isLoggedIn: access.isLoggedIn,
     isPro: access.isPro,
     used: quota.used,
-    remaining: 0,
+    remaining: Math.max(0, quota.dailyLimit - quota.used),
     dailyLimit: quota.dailyLimit,
+    requested: unitsRequested,
   }
 }
 
 export async function POST(req: Request) {
   try {
     assertSameOrigin(req)
-
-    const access = await resolveGeneratorAccess(req)
-    const quotaResult = await consumeGeneratorQuota(quotaSubjectFromAccess(access))
-
-    if (!quotaResult.ok) {
-      return NextResponse.json(limitJson(access, quotaResult), { status: 429 })
-    }
 
     if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json({ ok: false, error: "OPENAI_API_KEY fehlt auf dem Server." }, { status: 500 })
@@ -75,7 +71,10 @@ export async function POST(req: Request) {
       )
     }
     if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > 5) {
-      return NextResponse.json({ ok: false, error: "Schwierigkeitsgrad muss zwischen 1 und 5 liegen." }, { status: 400 })
+      return NextResponse.json(
+        { ok: false, error: "Schwierigkeitsgrad muss zwischen 1 und 5 liegen." },
+        { status: 400 }
+      )
     }
 
     const expectedCount = mode === "case" ? caseQuestionCount : 1
@@ -86,6 +85,25 @@ export async function POST(req: Request) {
           { status: 400 }
         )
       }
+    }
+
+    const access = await resolveGeneratorAccess(req)
+    const quotaSubject = quotaSubjectFromAccess(access)
+
+    // Verbuche genau so viele Generierungen, wie tatsächlich produziert werden:
+    // 1 für Einzelfragen, N für Fallfragen mit N Teilfragen.
+    const quotaResult = await consumeGeneratorQuota(quotaSubject, expectedCount)
+
+    if (!quotaResult.ok) {
+      return NextResponse.json(limitJson(access, quotaResult, expectedCount), { status: 429 })
+    }
+
+    // Ab hier ist Quota verbraucht – bei jedem Fehlerpfad refund.
+    let refunded = false
+    const refundOnce = async () => {
+      if (refunded) return
+      refunded = true
+      await refundGeneratorQuota(quotaSubject, expectedCount)
     }
 
     const promptParams = {
@@ -110,7 +128,14 @@ export async function POST(req: Request) {
         signal: controller.signal,
       }
 
-      let rawText = await callGeneratorModelWithRetry(callParams)
+      let rawText: string
+      try {
+        rawText = await callGeneratorModelWithRetry(callParams)
+      } catch (err) {
+        await refundOnce()
+        throw err
+      }
+
       let jsonText = extractJsonFromModelText(rawText)
       let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
 
@@ -118,15 +143,21 @@ export async function POST(req: Request) {
         const hint = !check.ok
           ? `VALIDIERUNGSFEHLER: ${check.error}`
           : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
-        rawText = await callGeneratorModel(
-          callParams,
-          `${hint} Korrigiere und antworte ausschließlich mit gültigem JSON.`
-        )
+        try {
+          rawText = await callGeneratorModel(
+            callParams,
+            `${hint} Korrigiere und antworte ausschließlich mit gültigem JSON.`
+          )
+        } catch (err) {
+          await refundOnce()
+          throw err
+        }
         jsonText = extractJsonFromModelText(rawText)
         check = validateGeneratedQuestions(jsonText, mode, expectedCount)
       }
 
       if (!check.ok) {
+        await refundOnce()
         return NextResponse.json(
           { ok: false, error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.` },
           { status: 502 }
@@ -134,6 +165,7 @@ export async function POST(req: Request) {
       }
 
       if (!questionsHaveExplanations(check.questions)) {
+        await refundOnce()
         return NextResponse.json(
           { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
           { status: 502 }
@@ -154,6 +186,7 @@ export async function POST(req: Request) {
           difficulty: Math.round(difficulty),
           mode,
           caseQuestionCount: expectedCount,
+          unitsCharged: expectedCount,
         },
       })
 
@@ -166,6 +199,10 @@ export async function POST(req: Request) {
       }
 
       return res
+    } catch (e) {
+      // Abort/Netzwerk/Unhandled – Refund bevor wir nach oben werfen.
+      await refundOnce()
+      throw e
     } finally {
       clearTimeout(timeout)
     }

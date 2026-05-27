@@ -32,6 +32,12 @@ export function validateGeneratedQuestions(
         error: `Frage ${i + 1} muss genau eine richtige Antwort haben (erhalten: ${correctCount}).`,
       }
     }
+    if (!q.learningObjective || !q.learningObjective.trim()) {
+      return {
+        ok: false,
+        error: `Frage ${i + 1}: "learningObjective" fehlt.`,
+      }
+    }
   }
 
   if (mode === "case") {

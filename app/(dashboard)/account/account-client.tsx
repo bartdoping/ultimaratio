@@ -336,24 +336,17 @@ export default function AccountClient({
         </div>
       </section>
 
-      <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold">Einzelkäufe</h2>
-            <p className="text-sm text-muted-foreground">
-              Freigeschaltete Prüfungen bleiben dauerhaft in deinem Account.
-            </p>
+      {purchases.length > 0 && (
+        <section className="rounded-xl border bg-card p-5 shadow-sm space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Einzelkäufe</h2>
+              <p className="text-sm text-muted-foreground">
+                Freigeschaltete Prüfungen bleiben dauerhaft in deinem Account.
+              </p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" asChild>
-            <Link href="/exams">Zum Katalog</Link>
-          </Button>
-        </div>
 
-        {purchases.length === 0 ? (
-          <div className="rounded-lg border border-dashed bg-muted/20 px-4 py-6 text-center text-sm text-muted-foreground">
-            Noch keine Einzelkäufe. Pro umfasst alle Prüfungen – Einzelkäufe findest du im Katalog.
-          </div>
-        ) : (
           <ul className="divide-y rounded-lg border">
             {purchases.map((p) => (
               <li
@@ -372,8 +365,8 @@ export default function AccountClient({
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </section>
+      )}
 
       <DeleteAccountButton />
     </>

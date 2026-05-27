@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation"
 import prisma from "@/lib/db"
 import AccountClient from "./account-client"
 import { SettingsShell } from "@/components/settings/settings-shell"
+import { GeneratorAccountSummary } from "@/components/account/generator-summary"
 
 export const dynamic = "force-dynamic"
 
@@ -32,9 +33,10 @@ export default async function AccountPage() {
 
   return (
     <SettingsShell
-      title="Profil & Sicherheit"
-      description="Persönliche Daten, Login und freigeschaltete Prüfungen verwalten."
+      title="Account"
+      description="Persönliche Daten, Login, Abo und Generator-Nutzung."
     >
+      <GeneratorAccountSummary />
       <AccountClient
         user={{
           id: me.id,

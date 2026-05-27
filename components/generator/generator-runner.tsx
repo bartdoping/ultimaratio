@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button"
 import { AnswerOptions } from "@/components/answer-options"
 import { TextHighlighter, type HighlightSet } from "@/components/text-highlighter"
 import { LabValuesDialog } from "@/components/lab-values-dialog"
+import { DifficultyBadge } from "@/components/generator/difficulty-badge"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
+import { cn } from "@/lib/utils"
+import { Target, AlertTriangle } from "lucide-react"
 
 type Props = {
   questions: BulkQuestion[]
@@ -107,12 +110,11 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
   return (
     <div className="mx-auto max-w-4xl space-y-4 py-2 px-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium">
             {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
           </span>
-          <span className="hidden sm:inline">·</span>
-          <span>Schwierigkeit {meta.difficulty}/5</span>
+          <DifficultyBadge level={meta.difficulty} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm font-medium tabular-nums">
@@ -229,6 +231,27 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
             )}
           </div>
         )}
+
+        {showFeedback && (q.learningObjective || q.examTrap) && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {q.learningObjective && (
+              <InsightTile
+                icon={<Target className="h-4 w-4" />}
+                label="Lernziel"
+                text={q.learningObjective}
+                tone="emerald"
+              />
+            )}
+            {q.examTrap && (
+              <InsightTile
+                icon={<AlertTriangle className="h-4 w-4" />}
+                label="Prüfungsfalle"
+                text={q.examTrap}
+                tone="amber"
+              />
+            )}
+          </div>
+        )}
       </div>
 
       <p className="text-center text-xs text-muted-foreground">
@@ -236,6 +259,32 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
       </p>
 
       <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />
+    </div>
+  )
+}
+
+function InsightTile({
+  icon,
+  label,
+  text,
+  tone,
+}: {
+  icon: React.ReactNode
+  label: string
+  text: string
+  tone: "emerald" | "amber"
+}) {
+  const toneClasses =
+    tone === "emerald"
+      ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300"
+      : "border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300"
+  return (
+    <div className={cn("rounded-lg border px-3 py-3 text-sm leading-relaxed", toneClasses)}>
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide">
+        {icon}
+        <span>{label}</span>
+      </div>
+      <p className="mt-1 text-foreground">{text}</p>
     </div>
   )
 }

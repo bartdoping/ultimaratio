@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils"
 const items = [
   {
     href: "/account",
-    label: "Profil & Sicherheit",
-    description: "Stammdaten, Login und Käufe",
+    label: "Account",
+    description: "Profil, Login, Generator-Nutzung",
   },
   {
     href: "/subscription",

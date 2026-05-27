@@ -8,9 +8,11 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
+import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
+import { difficultyLabel } from "@/lib/generator-difficulty"
 import { toast } from "sonner"
 
 type QuotaState = {
@@ -35,6 +37,7 @@ type LimitState = {
   loginRequired: boolean
   upgradeRequired: boolean
   dailyLimit: number
+  requested?: number
 }
 
 export function GeneratorPageClient({
@@ -60,6 +63,10 @@ export function GeneratorPageClient({
   const [isPro, setIsPro] = useState(initialIsPro)
   const [quota, setQuota] = useState<QuotaState>(initialQuota)
   const progressTimerRef = useRef<number | null>(null)
+
+  const units = mode === "case" ? caseCount : 1
+
+  const remainingSufficient = quota.unlimited || quota.remaining >= units
 
   const refreshQuota = useCallback(async () => {
     try {
@@ -169,11 +176,12 @@ export function GeneratorPageClient({
 
   async function handleGenerate(e: React.FormEvent) {
     e.preventDefault()
-    if (quota.remaining <= 0 && !quota.unlimited) {
+    if (!quota.unlimited && quota.remaining < units) {
       setLimitState({
         loginRequired: !isLoggedIn,
         upgradeRequired: !isPro,
         dailyLimit: quota.dailyLimit,
+        requested: units,
       })
       return
     }
@@ -210,12 +218,13 @@ export function GeneratorPageClient({
           loginRequired: !!data.loginRequired,
           upgradeRequired: !!data.upgradeRequired,
           dailyLimit: data.dailyLimit ?? quota.dailyLimit,
+          requested: typeof data.requested === "number" ? data.requested : units,
         })
         if (data.dailyLimit != null) {
           setQuota((q) => ({
             ...q,
             used: data.used ?? q.dailyLimit,
-            remaining: 0,
+            remaining: typeof data.remaining === "number" ? data.remaining : 0,
             dailyLimit: data.dailyLimit,
           }))
         }
@@ -263,26 +272,23 @@ export function GeneratorPageClient({
   }
 
   const atLimit = !quota.unlimited && quota.remaining <= 0
-  const effectiveLimitState =
-    limitState ??
-    (atLimit
-      ? {
-          loginRequired: !isLoggedIn,
-          upgradeRequired: !isPro,
-          dailyLimit: quota.dailyLimit,
-        }
-      : null)
+  const effectiveLimitState = limitState
 
   return (
-    <div className="mx-auto max-w-lg space-y-8">
-      <div className="space-y-1 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Generator</h1>
+    <div className="mx-auto max-w-xl space-y-8">
+      <div className="space-y-2 text-center">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          Fragen-Generator
+        </p>
+        <h1 className="text-3xl font-semibold tracking-tight">
+          Medizinische Prüfungsfragen in Sekunden
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Single-Choice-Fragen in Sekundenschnelle generieren
+          Single-Choice-Fragen und Fallvignetten mit ausführlichen Erklärungen – direkt kreuzbar.
         </p>
       </div>
 
-      <QuotaBadge quota={quota} isPro={isPro} />
+      <QuotaBadge quota={quota} isPro={isPro} units={units} />
 
       {effectiveLimitState && (
         <GeneratorLimitPanel
@@ -292,7 +298,7 @@ export function GeneratorPageClient({
         />
       )}
 
-      <form onSubmit={handleGenerate} className="space-y-6 rounded-xl border bg-card p-6 shadow-sm">
+      <form onSubmit={handleGenerate} className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
         <div className="space-y-2">
           <Label>Fragetyp</Label>
           <div className="grid grid-cols-2 gap-2">
@@ -345,7 +351,9 @@ export function GeneratorPageClient({
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="difficulty">Schwierigkeitsgrad</Label>
-            <span className="text-sm font-medium tabular-nums">{difficulty} / 5</span>
+            <span className="text-sm font-medium tabular-nums">
+              {difficulty} / 5 · {difficultyLabel(difficulty)}
+            </span>
           </div>
           <input
             id="difficulty"
@@ -358,9 +366,9 @@ export function GeneratorPageClient({
             className="w-full accent-primary"
           />
           <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>1 · sehr leicht</span>
-            <span>3 · Examensniveau</span>
-            <span>5 · sehr schwer</span>
+            <span>1 · Basis</span>
+            <span>3 · Examen</span>
+            <span>5 · Differential</span>
           </div>
         </div>
 
@@ -379,7 +387,19 @@ export function GeneratorPageClient({
             onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
             disabled={loading}
           />
+          <p className="text-xs text-muted-foreground">
+            Thema wird als Sachthema verwendet, nicht als Anweisung.
+          </p>
         </div>
+
+        {!quota.unlimited && (
+          <p className="text-xs text-muted-foreground">
+            {mode === "case"
+              ? `Diese Fallfrage verwendet ${units} deiner heutigen Generierungen.`
+              : "Diese Einzelfrage verwendet 1 deiner heutigen Generierungen."}
+            {" "}Verbleibend: <span className="font-medium tabular-nums">{quota.remaining}</span>.
+          </p>
+        )}
 
         {error && (
           <p className="text-sm text-red-600" role="alert" aria-live="polite">
@@ -398,20 +418,29 @@ export function GeneratorPageClient({
           </div>
         )}
 
-        <Button type="submit" className="w-full" disabled={loading || atLimit}>
-          {loading ? "Generiere…" : atLimit ? "Tageslimit erreicht" : "Generieren"}
+        <Button
+          type="submit"
+          className="w-full"
+          disabled={loading || atLimit || !remainingSufficient}
+        >
+          {loading
+            ? "Generiere…"
+            : atLimit
+              ? "Tageslimit erreicht"
+              : !remainingSufficient
+                ? `Reicht nicht für ${units} Fragen`
+                : "Generieren"}
         </Button>
-
-        {!isPro && !atLimit && (
-          <p className="text-center text-xs text-muted-foreground">
-            Mit{" "}
-            <button type="button" onClick={handleUpgrade} className="underline hover:text-foreground">
-              Pro
-            </button>{" "}
-            bis zu 100 Generierungen pro Tag.
-          </p>
-        )}
       </form>
+
+      {!isPro && (
+        <ProUpgradeCard
+          variant="generator"
+          onUpgrade={handleUpgrade}
+          upgrading={upgrading}
+          isLoggedIn={isLoggedIn}
+        />
+      )}
     </div>
   )
 }
@@ -423,19 +452,48 @@ function humanizeError(code: string): string {
   return code
 }
 
-function QuotaBadge({ quota, isPro }: { quota: QuotaState; isPro: boolean }) {
+function QuotaBadge({
+  quota,
+  isPro,
+  units,
+}: {
+  quota: QuotaState
+  isPro: boolean
+  units: number
+}) {
   if (quota.unlimited) {
-    return <p className="text-center text-sm text-muted-foreground">Unbegrenzte Generierungen</p>
+    return (
+      <div className="rounded-xl border bg-emerald-500/5 px-4 py-3 text-center text-sm">
+        <span className="font-medium text-emerald-700 dark:text-emerald-300">Unbegrenzt</span>
+        <span className="text-muted-foreground"> · Generierungen heute</span>
+      </div>
+    )
   }
 
   const label = isPro ? "Pro" : "Kostenlos"
+  const willNotFit = quota.remaining < units
+  const tone = willNotFit
+    ? "border-amber-500/40 bg-amber-500/10"
+    : quota.remaining === 0
+      ? "border-red-500/40 bg-red-500/10"
+      : "border-border bg-muted/30"
+
   return (
-    <div className="rounded-lg border bg-muted/30 px-4 py-3 text-center text-sm">
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="font-medium tabular-nums">
-        {quota.remaining} von {quota.dailyLimit}
-      </span>
-      <span className="text-muted-foreground"> Generierungen heute übrig</span>
+    <div className={cn("rounded-xl border px-4 py-3 text-sm", tone)}>
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {label}
+          </span>
+          <div className="mt-0.5 text-base font-semibold tabular-nums">
+            {quota.remaining} <span className="text-sm font-normal text-muted-foreground">/ {quota.dailyLimit} heute übrig</span>
+          </div>
+        </div>
+        <Progress
+          value={quota.dailyLimit > 0 ? (quota.used / quota.dailyLimit) * 100 : 0}
+          className="h-1.5 w-24"
+        />
+      </div>
     </div>
   )
 }
@@ -449,18 +507,23 @@ function GeneratorLimitPanel({
   upgrading: boolean
   onUpgrade: () => void
 }) {
-  const { loginRequired, upgradeRequired, dailyLimit } = limitState
+  const { loginRequired, upgradeRequired, dailyLimit, requested } = limitState
+
+  const reqText = requested && requested > 1
+    ? `Für deine Auswahl werden ${requested} Generierungen benötigt.`
+    : ""
 
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 space-y-4">
       <div className="space-y-1 text-center">
-        <p className="font-medium">Tageslimit erreicht</p>
+        <p className="font-medium">Restkontingent reicht nicht</p>
         <p className="text-sm text-muted-foreground">
           {loginRequired
-            ? `Du hast heute ${dailyLimit} kostenlose Generierungen genutzt. Melde dich an und upgrade auf Pro für mehr.`
+            ? `Heute sind ${dailyLimit} kostenlose Generierungen verfügbar. Melde dich an und upgrade auf Pro für mehr.`
             : upgradeRequired
-              ? `Du hast heute alle ${dailyLimit} kostenlosen Generierungen verbraucht. Mit Pro kannst du bis zu 100 Fragen pro Tag generieren.`
-              : `Du hast heute alle ${dailyLimit} Generierungen verbraucht. Ab Mitternacht (MEZ) geht es weiter.`}
+              ? `Du hast heute nicht genug Kontingent. Mit Pro stehen dir bis zu 100 Generierungen pro Tag zur Verfügung.`
+              : `Heute sind alle ${dailyLimit} Generierungen verbraucht. Ab Mitternacht (MEZ) geht es weiter.`}
+          {reqText && <> {reqText}</>}
         </p>
       </div>
 

@@ -24,11 +24,11 @@ interface SubscriptionData {
 }
 
 const PRO_FEATURES = [
-  "Unbegrenztes Üben pro Tag",
-  "Alle Prüfungsfragen",
-  "Eigene Decks & Spaced Repetition",
-  "Detaillierte Statistiken",
-  "KI-Tutor-Unterstützung",
+  "Bis zu 100 KI-Generierungen pro Tag",
+  "Fallfragen mit bis zu 5 Teilfragen",
+  "Hohe Schwierigkeitsstufen (4 & 5) ohne Limit-Druck",
+  "Tiefere Erklärungen, Lernziele und Prüfungsfallen pro Frage",
+  "Direkt kreuzbar, kein Speicher- oder Setup-Aufwand",
 ] as const
 
 function formatDate(value?: string) {
