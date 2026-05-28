@@ -1,8 +1,15 @@
 import { createHmac, createHash, randomUUID, timingSafeEqual } from "crypto"
 import prisma from "@/lib/db"
+import {
+  GENERATOR_FREE_DAILY_LIMIT,
+  GENERATOR_PRO_DAILY_LIMIT,
+} from "@/lib/generator-plan-config"
 
-export const GENERATOR_FREE_DAILY_LIMIT = 3
-export const GENERATOR_PRO_DAILY_LIMIT = 100
+// Re-export für Backward-Compat: existierende Importer von "generator-limits"
+// können die Konstanten weiter wie gewohnt nutzen, ohne dass Client-Bundles
+// dabei `prisma` mitziehen — Client-Komponenten importieren stattdessen
+// direkt aus "generator-plan-config".
+export { GENERATOR_FREE_DAILY_LIMIT, GENERATOR_PRO_DAILY_LIMIT }
 export const GENERATOR_VISITOR_COOKIE = "ur_gen_vid"
 
 export type GeneratorQuotaSnapshot = {
