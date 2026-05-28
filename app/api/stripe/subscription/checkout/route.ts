@@ -74,6 +74,32 @@ export async function POST(req: Request) {
     // 3) Stripe Customer erstellen oder finden. E-Mail nur an Stripe geben —
     // KEINE Logs mit E-Mail oder PII.
     let customerId = user.subscription?.stripeCustomerId
+
+    // Wenn eine alte Customer-ID in der DB liegt: prüfen, ob sie im aktuellen
+    // Stripe-Account überhaupt noch existiert. Bei Test-Mode-Reset oder
+    // Account-Wechsel ist das oft nicht mehr der Fall — wir behandeln das
+    // wie „kein Customer vorhanden" und legen einen neuen an.
+    if (customerId && !customerId.startsWith("simulated_")) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId)
+        // Stripe markiert gelöschte Customer mit `deleted: true`.
+        if ((existing as { deleted?: boolean }).deleted) {
+          customerId = undefined
+        }
+      } catch (err) {
+        const stripeErr = err as { code?: string; statusCode?: number; type?: string }
+        if (
+          stripeErr?.code === "resource_missing" ||
+          stripeErr?.statusCode === 404 ||
+          stripeErr?.type === "StripeInvalidRequestError"
+        ) {
+          customerId = undefined
+        } else {
+          throw err
+        }
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
@@ -89,7 +115,12 @@ export async function POST(req: Request) {
           status: "free",
           createdAt: new Date(),
         },
-        update: { stripeCustomerId: customerId },
+        update: {
+          stripeCustomerId: customerId,
+          // Falls dort noch eine alte stripeSubscriptionId stand, die zum alten
+          // Customer gehörte: zurücksetzen, sonst zeigt sie ins Nichts.
+          stripeSubscriptionId: null,
+        },
       })
     }
 
