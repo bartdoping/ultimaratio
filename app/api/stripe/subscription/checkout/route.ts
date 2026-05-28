@@ -5,6 +5,7 @@ import { authOptions } from "@/auth";
 import prisma from "@/lib/db";
 import stripe from "@/lib/stripe";
 import { getAppBaseUrl } from "@/lib/app-base-url";
+import { GENERATOR_PRO_DAILY_LIMIT } from "@/lib/generator-limits";
 
 export const runtime = "nodejs";
 
@@ -12,15 +13,7 @@ export async function POST(req: Request) {
   try {
     // 1) Auth
     const session = await getServerSession(authOptions);
-    console.log("Checkout session:", { 
-      hasSession: !!session, 
-      hasUser: !!session?.user, 
-      hasEmail: !!session?.user?.email,
-      email: session?.user?.email 
-    });
-    
     if (!session?.user?.email) {
-      console.error("No session or email found");
       return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
     }
 
@@ -92,7 +85,7 @@ export async function POST(req: Request) {
             currency: "eur",
             product_data: {
               name: "fragenkreuzen.de Pro",
-              description: "Unbegrenzter Zugang zu allen Prüfungsfragen",
+              description: `Bis zu ${GENERATOR_PRO_DAILY_LIMIT} KI-Generierungen pro Tag, Fallvignetten mit 2–5 Teilfragen und vertiefte medizinische Erklärungen im Generator.`,
             },
             unit_amount: 999, // 9,99€ in Cent
             recurring: {
@@ -125,17 +118,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, url: checkoutSession.url });
   } catch (err: any) {
-    console.error("subscription checkout error", err);
-    
-    // Detaillierte Fehlermeldung für besseres Debugging
-    const errorMessage = err.message || "Unbekannter Fehler";
-    const errorType = err.type || "unknown";
-    
-    return NextResponse.json({ 
-      ok: false, 
+    // Datensparsames Error-Log: nur Stripe-Fehlertyp + Kurzmessage, keine PII.
+    const errorType = err?.type || "unknown";
+    const shortMessage =
+      typeof err?.message === "string" ? err.message.slice(0, 200) : "Unbekannter Fehler";
+    console.error("subscription checkout error", { type: errorType, message: shortMessage });
+
+    return NextResponse.json({
+      ok: false,
       error: "checkout failed",
-      details: errorMessage,
-      type: errorType
+      details: shortMessage,
+      type: errorType,
     }, { status: 500 });
   }
 }

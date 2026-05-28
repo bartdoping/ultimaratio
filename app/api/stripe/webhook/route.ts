@@ -24,12 +24,7 @@ export async function POST(req: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object as any
-      console.log("Processing checkout.session.completed:", {
-        sessionId: s.id,
-        paymentStatus: s.payment_status,
-        mode: s.mode,
-        metadata: s.metadata,
-      })
+      // Kein vollständiges Session-Objekt loggen (enthält Mail, Adressen, …).
 
       const userId = s.metadata?.userId as string | undefined
       const examId = s.metadata?.examId as string | undefined
@@ -37,11 +32,9 @@ export async function POST(req: Request) {
 
       if (s.mode === "subscription" && userId) {
         const result = await activateProFromCheckoutSession(s)
-        if (result.ok) {
-          console.log("Subscription checkout → Pro aktiviert:", userId)
-        } else {
-          console.warn("Subscription checkout nicht aktiviert:", result.reason, {
-            sessionId: s.id,
+        if (!result.ok) {
+          console.warn("Subscription checkout nicht aktiviert", {
+            reason: result.reason,
             payment_status: s.payment_status,
           })
         }
@@ -49,7 +42,7 @@ export async function POST(req: Request) {
 
       if (userId && examId && s.mode === "payment") {
         if (s.payment_status !== "paid") {
-          console.log("Exam purchase skipped (not paid):", s.id)
+          // unpaid – nichts loggen, keine Aktion.
         } else {
           const exists = await prisma.purchase.findFirst({
             where: { userId, examId },
@@ -65,46 +58,46 @@ export async function POST(req: Request) {
 
     if (event.type === "customer.subscription.created") {
       const subscription = event.data.object as any
-      console.log("Processing subscription.created:", {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-      })
       try {
         await applyStripeSubscriptionToDatabase(subscription)
       } catch (error) {
-        console.error("Error processing subscription.created:", error)
+        console.error("subscription.created apply failed", {
+          eventId: event.id,
+          message: (error as Error)?.message?.slice(0, 200),
+        })
       }
     }
 
     if (event.type === "customer.subscription.updated") {
       const subscription = event.data.object as any
-      console.log("Processing subscription.updated:", {
-        subscriptionId: subscription.id,
-        status: subscription.status,
-        cancel_at_period_end: subscription.cancel_at_period_end,
-      })
       try {
         await applyStripeSubscriptionToDatabase(subscription)
       } catch (error) {
-        console.error("Error processing subscription.updated:", error)
+        console.error("subscription.updated apply failed", {
+          eventId: event.id,
+          message: (error as Error)?.message?.slice(0, 200),
+        })
       }
     }
 
     if (event.type === "customer.subscription.deleted") {
       const subscription = event.data.object as any
-      console.log("Processing subscription.deleted:", {
-        subscriptionId: subscription.id,
-      })
       try {
         await applyStripeSubscriptionToDatabase(subscription)
       } catch (error) {
-        console.error("Error processing subscription.deleted:", error)
+        console.error("subscription.deleted apply failed", {
+          eventId: event.id,
+          message: (error as Error)?.message?.slice(0, 200),
+        })
       }
     }
 
     return NextResponse.json({ received: true })
   } catch (e: any) {
-    console.error("Webhook handler failed:", e)
+    console.error("Webhook handler failed", {
+      eventType: event?.type,
+      message: (e as Error)?.message?.slice(0, 200),
+    })
     return new NextResponse("Webhook handler failed", { status: 500 })
   }
 }

@@ -261,8 +261,24 @@ export function GeneratorPageClient({
         return
       }
 
+      // Burst-Rate-Limit (kein Quota-Verbrauch)
+      if (res.status === 429 && data.error === "rate_limited") {
+        setError(
+          typeof data.message === "string"
+            ? data.message
+            : "Bitte einen Moment warten und erneut versuchen."
+        )
+        return
+      }
+
       if (!res.ok) {
-        setError(typeof data.error === "string" ? humanizeError(data.error) : "Generierung fehlgeschlagen.")
+        setError(
+          typeof data.message === "string"
+            ? data.message
+            : typeof data.error === "string"
+              ? humanizeError(data.error)
+              : "Generierung fehlgeschlagen."
+        )
         return
       }
       if (!data.ok || !Array.isArray(data.questions)) {

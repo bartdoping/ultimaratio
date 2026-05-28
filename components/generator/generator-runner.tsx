@@ -40,6 +40,13 @@ export function GeneratorRunner({
   const [labOpen, setLabOpen] = useState(false)
   const [highlightsByQ, setHighlightsByQ] = useState<Record<string, HighlightSet>>({})
   const [vignetteHighlights, setVignetteHighlights] = useState<HighlightSet>(() => new Set())
+  /**
+   * Bei welcher Frage-ID der Inline-Pro-Nudge gezeigt wurde. Pro Session/Run
+   * wird er für maximal eine Frage angezeigt — danach erst wieder auf der
+   * Done-Card. Bei akut knappem Kontingent (quotaRemaining <= 1) bleibt er
+   * weiterhin sichtbar, weil das ein echter Limit-Hinweis ist.
+   */
+  const [inlineNudgeForQId, setInlineNudgeForQId] = useState<string | null>(null)
 
   const q = runnerQuestions[idx]
   const given = answers[q.id]
@@ -86,6 +93,10 @@ export function GeneratorRunner({
     if (!given || isConfirmed) return
     setConfirmed((c) => ({ ...c, [q.id]: true }))
     setQExpOpen((o) => ({ ...o, [q.id]: true }))
+    // Inline-Pro-Nudge nur beim ersten bestätigten Frage-Beleg dieser Session.
+    if (!isPro && inlineNudgeForQId == null) {
+      setInlineNudgeForQId(q.id)
+    }
   }
 
   function goNext() {
@@ -273,13 +284,20 @@ export function GeneratorRunner({
         )}
       </div>
 
-      {showFeedback && !isPro && onUpgrade && (
-        <PostAnswerProNudge
-          quotaRemaining={quotaRemaining}
-          onUpgrade={onUpgrade}
-          upgrading={upgrading}
-        />
-      )}
+      {showFeedback && !isPro && onUpgrade && (() => {
+        const lowQuota = quotaRemaining !== null && quotaRemaining <= 1
+        // Standard: nur 1× pro Session am ersten Bestätigungs-Belegmoment.
+        // Ausnahme: bei knappem Kontingent immer (echter Limit-Hinweis).
+        const showHere = lowQuota || inlineNudgeForQId === q.id
+        if (!showHere) return null
+        return (
+          <PostAnswerProNudge
+            quotaRemaining={quotaRemaining}
+            onUpgrade={onUpgrade}
+            upgrading={upgrading}
+          />
+        )
+      })()}
 
       <p className="text-center text-xs text-muted-foreground">
         Keine Speicherung · keine Decks · Markierungen nur in dieser Session

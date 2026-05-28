@@ -9,9 +9,14 @@ import {
   buildSystemInstructions,
   buildUserPrompt,
 } from "@/lib/ai-question-generator-prompt"
-import { callGeneratorModel, callGeneratorModelWithRetry } from "@/lib/generator-openai"
+import {
+  callGeneratorModel,
+  callGeneratorModelWithRetry,
+  GeneratorModelError,
+} from "@/lib/generator-openai"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
+import { buildSpoilerRepairHint, detectSpoilers } from "@/lib/spoiler-detection"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -19,6 +24,11 @@ import {
   GENERATOR_VISITOR_COOKIE,
   visitorCookieOptions,
 } from "@/lib/generator-limits"
+import {
+  GENERATOR_MIN_INTERVAL_MS,
+  rateLimitKeyFor,
+  tryAcquireGeneratorSlot,
+} from "@/lib/generator-rate-limit"
 
 export const runtime = "nodejs"
 
@@ -89,6 +99,22 @@ export async function POST(req: Request) {
 
     const access = await resolveGeneratorAccess(req)
     const quotaSubject = quotaSubjectFromAccess(access)
+
+    // Burst-/Rate-Limit prüfen, BEVOR Quota verbraucht wird.
+    const rlKey = rateLimitKeyFor(quotaSubject)
+    const rl = tryAcquireGeneratorSlot(rlKey)
+    if (!rl.ok) {
+      const retryAfterSec = Math.max(1, Math.ceil(rl.retryAfterMs / 1000))
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "rate_limited",
+          message: `Bitte kurz warten — eine Generierung ist nur alle ${Math.ceil(GENERATOR_MIN_INTERVAL_MS / 1000)} Sekunden möglich.`,
+          retryAfterSec,
+        },
+        { status: 429, headers: { "Retry-After": String(retryAfterSec) } }
+      )
+    }
 
     // Verbuche genau so viele Generierungen, wie tatsächlich produziert werden:
     // 1 für Einzelfragen, N für Fallfragen mit N Teilfragen.
@@ -172,6 +198,29 @@ export async function POST(req: Request) {
         )
       }
 
+      // Spoiler-Check für Fallfragen (maximal ein gezielter Repair-Pass).
+      if (mode === "case") {
+        const hits = detectSpoilers(check.questions)
+        if (hits.length > 0) {
+          try {
+            rawText = await callGeneratorModel(callParams, buildSpoilerRepairHint(hits))
+            jsonText = extractJsonFromModelText(rawText)
+            const recheck = validateGeneratedQuestions(jsonText, mode, expectedCount)
+            if (
+              recheck.ok &&
+              questionsHaveExplanations(recheck.questions) &&
+              detectSpoilers(recheck.questions).length <= hits.length / 2
+            ) {
+              // Repair akzeptieren, wenn er die Trefferzahl spürbar reduziert hat.
+              check = recheck
+            }
+            // Bei Misslingen: Original-Antwort behalten, keine harte Fehler-Eskalation.
+          } catch {
+            // Aborts/Modellfehler hier nicht eskalieren — Original-Antwort verwenden.
+          }
+        }
+      }
+
       const res = NextResponse.json({
         ok: true,
         questions: check.questions,
@@ -214,11 +263,18 @@ export async function POST(req: Request) {
         { status: 504 }
       )
     }
-    if (err?.status) {
+    if (e instanceof GeneratorModelError) {
+      return NextResponse.json(
+        { ok: false, error: e.message, kind: e.kind },
+        { status: e.status ?? 500 }
+      )
+    }
+    // Zugriffsfehler aus assertSameOrigin / resolveGeneratorAccess
+    if (err?.status && err.status >= 400 && err.status < 500) {
       return NextResponse.json({ ok: false, error: "forbidden" }, { status: err.status })
     }
-    console.error("generate-questions failed:", e)
-    return NextResponse.json({ ok: false, error: err?.message || "Generierung fehlgeschlagen." }, { status: 500 })
+    console.error("generate-questions failed:", err?.message || err)
+    return NextResponse.json({ ok: false, error: "Generierung fehlgeschlagen." }, { status: 500 })
   }
 }
 
