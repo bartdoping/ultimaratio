@@ -33,13 +33,6 @@ export async function POST() {
     });
     if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
 
-    console.log("Reactivation request for user:", { 
-      userId: user.id, 
-      subscriptionStatus: user.subscriptionStatus,
-      hasStripeSubscription: !!user.subscription?.stripeSubscriptionId,
-      cancelAtPeriodEnd: user.subscription?.cancelAtPeriodEnd
-    });
-
     // Prüfe ob User Pro-Status hat
     if (user.subscriptionStatus !== "pro") {
       return NextResponse.json({ 
@@ -82,9 +75,9 @@ export async function POST() {
         cancel_at_period_end: false,
       })
     } catch (stripeError: unknown) {
-      console.error("Stripe reactivation error:", stripeError)
       const msg =
-        stripeError instanceof Error ? stripeError.message : "Stripe-Fehler"
+        stripeError instanceof Error ? stripeError.message.slice(0, 200) : "Stripe-Fehler"
+      console.error("Stripe reactivation error", { message: msg })
       return NextResponse.json(
         { ok: false, error: `Reaktivierung fehlgeschlagen: ${msg}` },
         { status: 502 }
@@ -110,11 +103,12 @@ export async function POST() {
     })
 
     return NextResponse.json({ ok: true, message: "subscription_reactivated" })
-  } catch (err: any) {
-    console.error("subscription reactivation error", err);
-    return NextResponse.json({ 
-      ok: false, 
-      error: `Reaktivierung fehlgeschlagen: ${err.message || "Unbekannter Fehler"}` 
+  } catch (err: unknown) {
+    const msg = (err as Error)?.message?.slice(0, 200) || "Unbekannter Fehler"
+    console.error("subscription reactivation error", { message: msg })
+    return NextResponse.json({
+      ok: false,
+      error: `Reaktivierung fehlgeschlagen: ${msg}`
     }, { status: 500 });
   }
 }

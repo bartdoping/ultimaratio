@@ -508,3 +508,19 @@ model GeneratorDailyUsage {
   @@unique([ipHash, dayKey])
   @@index([dayKey])
 }
+
+/**
+ * Idempotenz-Log für Stripe-Webhook-Events. Vor dem Anwenden eines Events
+ * wird hier per `eventId` geprüft, ob das Event schon verarbeitet wurde.
+ */
+model StripeEventLog {
+  id          String   @id @default(cuid())
+  eventId     String   @unique
+  type        String
+  livemode    Boolean  @default(false)
+  receivedAt  DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([type])
+  @@index([receivedAt])
+}

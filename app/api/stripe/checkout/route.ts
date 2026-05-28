@@ -145,13 +145,13 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, url: s.url })
   } catch (err: unknown) {
-    console.error("checkout error", err)
     let details: string | undefined
     if (err instanceof Stripe.errors.StripeError) {
       details = err.message
     } else if (err instanceof Error) {
       details = err.message
     }
+    console.error("checkout error", { message: details?.slice(0, 200) })
     return NextResponse.json(
       { ok: false, error: "checkout failed", details: details ?? "Unbekannter Fehler" },
       { status: 500 }

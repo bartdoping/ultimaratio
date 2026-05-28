@@ -1,134 +1,136 @@
 // app/api/stripe/subscription/checkout/route.ts
-import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
-import prisma from "@/lib/db";
-import stripe from "@/lib/stripe";
-import { getAppBaseUrl } from "@/lib/app-base-url";
-import { GENERATOR_PRO_DAILY_LIMIT } from "@/lib/generator-limits";
+import { NextResponse } from "next/server"
+import { getServerSession } from "next-auth"
+import { authOptions } from "@/auth"
+import prisma from "@/lib/db"
+import stripe from "@/lib/stripe"
+import { getAppBaseUrl } from "@/lib/app-base-url"
+import {
+  assertStripeReadyForCharges,
+  getStripeConfig,
+  StripeConfigError,
+} from "@/lib/stripe-config"
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"
 
 export async function POST(req: Request) {
   try {
+    // 0) Konfiguration validieren — in Production hart, in Dev mit klarer
+    // Fehlermeldung. Wir wollen niemals einen Live-Checkout ohne sk_live_-Key
+    // oder ohne konfigurierte Live-Price-ID öffnen.
+    let cfg
+    try {
+      cfg = assertStripeReadyForCharges()
+    } catch (err) {
+      if (err instanceof StripeConfigError) {
+        const inProd = getStripeConfig().isProduction
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "stripe_misconfigured",
+            details: inProd
+              ? "Stripe ist in Production nicht konfiguriert. Setze STRIPE_PRICE_ID_PRO_MONTHLY und einen Live-Webhook."
+              : err.message,
+          },
+          { status: 500 }
+        )
+      }
+      throw err
+    }
+
     // 1) Auth
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions)
     if (!session?.user?.email) {
-      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
+      return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 })
     }
 
     // 2) User
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { 
-        id: true, 
-        email: true, 
+      select: {
+        id: true,
+        email: true,
         subscriptionStatus: true,
         subscription: {
           select: {
             stripeCustomerId: true,
             stripeSubscriptionId: true,
-            status: true
-          }
-        }
+            status: true,
+          },
+        },
       },
-    });
-    if (!user) return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 });
-
-    // 3) Prüfe ob bereits Pro-User
-    if (user.subscriptionStatus === "pro") {
-      return NextResponse.json({ ok: false, error: "already_pro" }, { status: 400 });
+    })
+    if (!user) {
+      return NextResponse.json({ ok: false, error: "user not found" }, { status: 404 })
     }
 
-    const body = await req.json().catch(() => ({}));
-    const returnTo = body?.returnTo === "/generator" ? "/generator" : "/dashboard";
+    if (user.subscriptionStatus === "pro") {
+      return NextResponse.json({ ok: false, error: "already_pro" }, { status: 400 })
+    }
 
-    // 4) Stripe Customer erstellen oder finden
-    let customerId = user.subscription?.stripeCustomerId;
+    const body = await req.json().catch(() => ({}))
+    const returnTo = body?.returnTo === "/generator" ? "/generator" : "/dashboard"
+
+    // 3) Stripe Customer erstellen oder finden. E-Mail nur an Stripe geben —
+    // KEINE Logs mit E-Mail oder PII.
+    let customerId = user.subscription?.stripeCustomerId
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email,
-        metadata: { userId: user.id }
-      });
-      customerId = customer.id;
-      
-      // Customer ID in DB speichern
+        metadata: { userId: user.id },
+      })
+      customerId = customer.id
+
       await prisma.subscription.upsert({
         where: { userId: user.id },
         create: {
           userId: user.id,
           stripeCustomerId: customerId,
           status: "free",
-          createdAt: new Date()
+          createdAt: new Date(),
         },
-        update: {
-          stripeCustomerId: customerId
-        }
-      });
+        update: { stripeCustomerId: customerId },
+      })
     }
 
-    // 5) Subscription Checkout Session erstellen
-    const base = getAppBaseUrl();
-    
-    // Verwende vordefinierte Preis-ID oder erstelle dynamisch
-    const priceId = process.env.STRIPE_PRICE_ID;
-    
-    let lineItems: any[];
-    if (priceId) {
-      // Verwende vordefinierte Preis-ID
-      lineItems = [{ price: priceId, quantity: 1 }];
-    } else {
-      // Erstelle Preis dynamisch
-      lineItems = [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: "fragenkreuzen.de Pro",
-              description: `Bis zu ${GENERATOR_PRO_DAILY_LIMIT} KI-Generierungen pro Tag, Fallvignetten mit 2–5 Teilfragen und vertiefte medizinische Erklärungen im Generator.`,
-            },
-            unit_amount: 999, // 9,99€ in Cent
-            recurring: {
-              interval: "month" as const,
-            },
-          },
-          quantity: 1,
-        },
-      ];
-    }
-    
+    // 4) Checkout Session — ausschließlich mit Dashboard-konfigurierter Price ID,
+    // KEIN dynamischer price_data-Fallback mehr (würde Preis im Code erlauben).
+    const base = getAppBaseUrl()
     const checkoutSession = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: lineItems,
+      client_reference_id: user.id,
+      line_items: [{ price: cfg.proMonthlyPriceId!, quantity: 1 }],
       success_url: `${base}${returnTo}?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}${returnTo}?subscription=cancelled`,
       allow_promotion_codes: true,
       metadata: {
         userId: user.id,
-        userEmail: user.email,
+        plan: "pro_monthly",
       },
       subscription_data: {
         metadata: {
           userId: user.id,
-          userEmail: user.email,
+          plan: "pro_monthly",
         },
       },
-    });
+    })
 
-    return NextResponse.json({ ok: true, url: checkoutSession.url });
-  } catch (err: any) {
-    // Datensparsames Error-Log: nur Stripe-Fehlertyp + Kurzmessage, keine PII.
-    const errorType = err?.type || "unknown";
+    return NextResponse.json({ ok: true, url: checkoutSession.url })
+  } catch (err: unknown) {
+    const e = err as { type?: string; message?: string }
+    const errorType = typeof e?.type === "string" ? e.type : "unknown"
     const shortMessage =
-      typeof err?.message === "string" ? err.message.slice(0, 200) : "Unbekannter Fehler";
-    console.error("subscription checkout error", { type: errorType, message: shortMessage });
-
-    return NextResponse.json({
-      ok: false,
-      error: "checkout failed",
-      details: shortMessage,
-      type: errorType,
-    }, { status: 500 });
+      typeof e?.message === "string" ? e.message.slice(0, 200) : "Unbekannter Fehler"
+    console.error("subscription checkout error", { type: errorType, message: shortMessage })
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "checkout failed",
+        details: shortMessage,
+        type: errorType,
+      },
+      { status: 500 }
+    )
   }
 }

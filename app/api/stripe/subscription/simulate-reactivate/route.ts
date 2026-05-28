@@ -64,19 +64,18 @@ export async function POST() {
       }
     })
 
-    console.log(`Simulated reactivation for user: ${user.email}`)
-
-    return NextResponse.json({ 
-      ok: true, 
+    return NextResponse.json({
+      ok: true,
       message: "Abonnement simuliert reaktiviert",
       simulated: true
     })
 
-  } catch (err: any) {
-    console.error("simulate reactivate error", err)
-    return NextResponse.json({ 
-      ok: false, 
-      error: `Simulation fehlgeschlagen: ${err.message || "Unbekannter Fehler"}` 
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message.slice(0, 200) : "Unbekannter Fehler"
+    console.error("simulate reactivate error", { message: msg })
+    return NextResponse.json({
+      ok: false,
+      error: `Simulation fehlgeschlagen: ${msg}`
     }, { status: 500 })
   }
 }

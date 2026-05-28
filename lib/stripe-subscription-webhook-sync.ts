@@ -42,10 +42,9 @@ export async function applyStripeSubscriptionToDatabase(
 ): Promise<void> {
   const userId = await resolveUserIdForStripeSubscription(sub)
   if (!userId) {
-    console.warn(
-      "[applyStripeSubscriptionToDatabase] Kein User für Subscription",
-      sub.id
-    )
+    console.warn("[applyStripeSubscriptionToDatabase] Kein User für Subscription", {
+      subscriptionId: sub.id,
+    })
     return
   }
 

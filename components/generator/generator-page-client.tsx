@@ -193,7 +193,25 @@ export function GeneratorPageClient({
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok || !data.url) {
-        toast.error(data.error === "already_pro" ? "Du bist bereits Pro." : "Checkout konnte nicht gestartet werden.")
+        if (data.error === "already_pro") {
+          toast.error("Du bist bereits Pro.")
+        } else if (data.error === "stripe_misconfigured") {
+          toast.error("Checkout konnte nicht gestartet werden.", {
+            description:
+              typeof data.details === "string"
+                ? data.details
+                : "Stripe ist nicht vollständig konfiguriert.",
+          })
+        } else {
+          toast.error("Checkout konnte nicht gestartet werden.", {
+            description:
+              typeof data.details === "string"
+                ? data.details
+                : typeof data.error === "string"
+                  ? data.error
+                  : undefined,
+          })
+        }
         return
       }
       window.location.href = data.url

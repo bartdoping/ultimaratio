@@ -69,8 +69,8 @@ export async function POST() {
       })
     } catch (stripeError: unknown) {
       const msg =
-        stripeError instanceof Error ? stripeError.message : "Stripe-Fehler"
-      console.error("Stripe cancellation error:", stripeError)
+        stripeError instanceof Error ? stripeError.message.slice(0, 200) : "Stripe-Fehler"
+      console.error("Stripe cancellation error", { message: msg })
       return NextResponse.json(
         { ok: false, error: "stripe_failed", details: msg },
         { status: 502 }
@@ -101,11 +101,12 @@ export async function POST() {
       currentPeriodEnd: bounds.end.toISOString(),
     })
   } catch (err: unknown) {
-    console.error("subscription cancel error", err)
+    const msg = err instanceof Error ? err.message.slice(0, 200) : "Unbekannter Fehler"
+    console.error("subscription cancel error", { message: msg })
     return NextResponse.json(
       {
         ok: false,
-        error: `Kündigung fehlgeschlagen: ${err instanceof Error ? err.message : "Unbekannter Fehler"}`,
+        error: `Kündigung fehlgeschlagen: ${msg}`,
       },
       { status: 500 }
     )

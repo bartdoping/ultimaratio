@@ -46,7 +46,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true })
   } catch (e) {
-    console.error("[complete-checkout]", e)
+    const msg = (e as Error)?.message?.slice(0, 200)
+    console.error("[complete-checkout]", { message: msg })
     return NextResponse.json({ ok: false, error: "internal" }, { status: 500 })
   }
 }

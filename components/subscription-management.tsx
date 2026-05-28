@@ -178,6 +178,37 @@ export function SubscriptionManagement() {
     }
   }
 
+  const handleOpenPortal = async () => {
+    setActionLoading(true)
+    try {
+      const response = await fetch("/api/stripe/customer-portal", {
+        method: "POST",
+        credentials: "include",
+      })
+      const data = await response.json().catch(() => ({}))
+      if (response.ok && data.ok && typeof data.url === "string") {
+        window.location.href = data.url
+        return
+      }
+      if (data.error === "no_stripe_customer") {
+        toast.info("Noch kein Abo aktiv – schließe zuerst ein Pro-Abo ab.")
+      } else if (data.error === "portal_unavailable") {
+        toast.error("Stripe-Portal nicht verfügbar", {
+          description:
+            typeof data.details === "string"
+              ? data.details
+              : "Bitte später erneut versuchen.",
+        })
+      } else {
+        toast.error("Portal konnte nicht geöffnet werden")
+      }
+    } catch {
+      toast.error("Netzwerkfehler beim Öffnen des Portals.")
+    } finally {
+      setActionLoading(false)
+    }
+  }
+
   if (loading) {
     return (
       <div className="rounded-xl border bg-card p-8 text-center text-sm text-muted-foreground shadow-sm">
@@ -288,23 +319,32 @@ export function SubscriptionManagement() {
           </p>
           <div className="flex flex-wrap gap-2 shrink-0">
             {subscription.isPro ? (
-              isCancelling ? (
+              <>
                 <Button
-                  onClick={handleReactivate}
-                  disabled={actionLoading}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  {actionLoading ? "Wird reaktiviert…" : "Abo wiederherstellen"}
-                </Button>
-              ) : (
-                <Button
-                  variant="destructive"
-                  onClick={handleCancel}
+                  variant="outline"
+                  onClick={handleOpenPortal}
                   disabled={actionLoading}
                 >
-                  {actionLoading ? "Wird gekündigt…" : "Abo kündigen"}
+                  Rechnungen & Zahlungsdaten
                 </Button>
-              )
+                {isCancelling ? (
+                  <Button
+                    onClick={handleReactivate}
+                    disabled={actionLoading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {actionLoading ? "Wird reaktiviert…" : "Abo wiederherstellen"}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    onClick={handleCancel}
+                    disabled={actionLoading}
+                  >
+                    {actionLoading ? "Wird gekündigt…" : "Abo kündigen"}
+                  </Button>
+                )}
+              </>
             ) : (
               <Button
                 onClick={handleUpgrade}
@@ -340,8 +380,9 @@ export function SubscriptionManagement() {
 
       <Alert>
         <AlertDescription>
-          Fragen oder Probleme mit der Abrechnung? Schreib uns – dein Lernfortschritt bleibt
-          unabhängig vom Tarif erhalten.
+          Rechnungen und Zahlungsmethoden werden direkt bei Stripe verwaltet — sicher und ohne dass
+          wir Kartendaten speichern. Über „Rechnungen & Zahlungsdaten" öffnest du das Stripe
+          Customer Portal.
         </AlertDescription>
       </Alert>
     </div>
