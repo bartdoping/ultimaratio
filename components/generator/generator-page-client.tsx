@@ -40,6 +40,22 @@ type LimitState = {
   requested?: number
 }
 
+const TOPIC_SUGGESTIONS = [
+  "Akutes Koronarsyndrom",
+  "Akutes Nierenversagen",
+  "Pneumonie",
+  "Diabetisches Koma",
+  "Anämie-Differenzialdiagnose",
+  "Schilddrüsen-Notfälle",
+] as const
+
+const LOAD_STAGES = [
+  "Frage wird vorbereitet…",
+  "Antwortoptionen werden geprüft…",
+  "Erklärungen werden verdichtet…",
+  "Letzte Qualitätsprüfung…",
+] as const
+
 export function GeneratorPageClient({
   initialIsLoggedIn,
   initialIsPro,
@@ -56,6 +72,7 @@ export function GeneratorPageClient({
   const [loading, setLoading] = useState(false)
   const [upgrading, setUpgrading] = useState(false)
   const [loadProgress, setLoadProgress] = useState(0)
+  const [loadStage, setLoadStage] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [session, setSession] = useState<SessionState | null>(null)
   const [limitState, setLimitState] = useState<LimitState | null>(null)
@@ -63,6 +80,7 @@ export function GeneratorPageClient({
   const [isPro, setIsPro] = useState(initialIsPro)
   const [quota, setQuota] = useState<QuotaState>(initialQuota)
   const progressTimerRef = useRef<number | null>(null)
+  const stageTimerRef = useRef<number | null>(null)
 
   const units = mode === "case" ? caseCount : 1
 
@@ -81,9 +99,7 @@ export function GeneratorPageClient({
     }
   }, [])
 
-  useEffect(() => {
-    void refreshQuota()
-  }, [refreshQuota])
+  // initial quota kommt vom Server (SSR) — kein zusätzlicher Roundtrip beim Mount.
 
   useEffect(() => {
     function onSubscriptionUpdated() {
@@ -127,10 +143,16 @@ export function GeneratorPageClient({
         window.clearInterval(progressTimerRef.current)
         progressTimerRef.current = null
       }
+      if (stageTimerRef.current) {
+        window.clearInterval(stageTimerRef.current)
+        stageTimerRef.current = null
+      }
+      setLoadStage(0)
       return
     }
 
     setLoadProgress(6)
+    setLoadStage(0)
     progressTimerRef.current = window.setInterval(() => {
       setLoadProgress((prev) => {
         if (prev >= 92) return prev
@@ -140,10 +162,18 @@ export function GeneratorPageClient({
       })
     }, 350)
 
+    stageTimerRef.current = window.setInterval(() => {
+      setLoadStage((s) => (s < 3 ? s + 1 : s))
+    }, 1800)
+
     return () => {
       if (progressTimerRef.current) {
         window.clearInterval(progressTimerRef.current)
         progressTimerRef.current = null
+      }
+      if (stageTimerRef.current) {
+        window.clearInterval(stageTimerRef.current)
+        stageTimerRef.current = null
       }
     }
   }, [loading])
@@ -263,6 +293,10 @@ export function GeneratorPageClient({
       <GeneratorRunner
         questions={session.questions}
         meta={session.meta}
+        isPro={isPro}
+        quotaRemaining={quota.unlimited ? null : quota.remaining}
+        onUpgrade={handleUpgrade}
+        upgrading={upgrading}
         onNewGeneration={() => {
           setSession(null)
           void refreshQuota()
@@ -387,6 +421,20 @@ export function GeneratorPageClient({
             onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
             disabled={loading}
           />
+          {!topic && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {TOPIC_SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setTopic(s)}
+                  className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
           <p className="text-xs text-muted-foreground">
             Thema wird als Sachthema verwendet, nicht als Anweisung.
           </p>
@@ -408,13 +456,17 @@ export function GeneratorPageClient({
         )}
 
         {loading && (
-          <div className="space-y-2 rounded-lg border bg-muted/30 px-4 py-3">
+          <div className="space-y-2 rounded-lg border bg-muted/30 px-4 py-3" aria-live="polite">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">Generiere Fragen…</span>
+              <span className="font-medium">{LOAD_STAGES[loadStage]}</span>
               <span className="tabular-nums text-muted-foreground">{Math.round(loadProgress)}%</span>
             </div>
             <Progress value={loadProgress} className="h-2" />
-            <p className="text-xs text-muted-foreground">Frage und Erklärungen werden generiert…</p>
+            <p className="text-xs text-muted-foreground">
+              {mode === "case"
+                ? `Fall mit ${units} Teilfragen wird vorbereitet…`
+                : "Frage, Antwortoptionen und Erklärungen werden verdichtet…"}
+            </p>
           </div>
         )}
 
@@ -429,7 +481,9 @@ export function GeneratorPageClient({
               ? "Tageslimit erreicht"
               : !remainingSufficient
                 ? `Reicht nicht für ${units} Fragen`
-                : "Generieren"}
+                : mode === "case"
+                  ? `${units} Fallfragen generieren`
+                  : "1 Frage generieren"}
         </Button>
       </form>
 
@@ -510,24 +564,39 @@ function GeneratorLimitPanel({
   const { loginRequired, upgradeRequired, dailyLimit, requested } = limitState
 
   const reqText = requested && requested > 1
-    ? `Für deine Auswahl werden ${requested} Generierungen benötigt.`
+    ? `Deine Auswahl benötigt ${requested} Generierungen.`
     : ""
 
   return (
-    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-4 space-y-4">
-      <div className="space-y-1 text-center">
-        <p className="font-medium">Restkontingent reicht nicht</p>
+    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 px-5 py-5 space-y-4">
+      <div className="space-y-1">
+        <p className="text-sm font-semibold">Restkontingent reicht nicht</p>
         <p className="text-sm text-muted-foreground">
           {loginRequired
             ? `Heute sind ${dailyLimit} kostenlose Generierungen verfügbar. Melde dich an und upgrade auf Pro für mehr.`
             : upgradeRequired
-              ? `Du hast heute nicht genug Kontingent. Mit Pro stehen dir bis zu 100 Generierungen pro Tag zur Verfügung.`
+              ? `Mit Pro stehen dir 100 Generierungen pro Tag zur Verfügung – ideal für ganze Fall-Sessions.`
               : `Heute sind alle ${dailyLimit} Generierungen verbraucht. Ab Mitternacht (MEZ) geht es weiter.`}
           {reqText && <> {reqText}</>}
         </p>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2 justify-center">
+      {upgradeRequired && (
+        <ul className="grid gap-1.5 text-sm">
+          {[
+            "100 statt 3 Generierungen pro Tag",
+            "Lange Fallvignetten ohne Limit-Druck",
+            "Schwierigkeit 4 & 5 als Daily-Driver nutzbar",
+          ].map((b) => (
+            <li key={b} className="flex items-start gap-2">
+              <span className="mt-1 inline-flex h-1.5 w-1.5 shrink-0 rounded-full bg-amber-500" />
+              <span className="text-muted-foreground">{b}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-2">
         {loginRequired && (
           <>
             <Button asChild variant="default" className="sm:flex-1">
@@ -546,7 +615,7 @@ function GeneratorLimitPanel({
       </div>
 
       {loginRequired && upgradeRequired && (
-        <p className="text-xs text-center text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Nach der Anmeldung kannst du direkt Pro abschließen und weiter generieren.
         </p>
       )}

@@ -9,15 +9,27 @@ import { DifficultyBadge } from "@/components/generator/difficulty-badge"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
-import { Target, AlertTriangle } from "lucide-react"
+import { Target, AlertTriangle, Sparkles } from "lucide-react"
 
 type Props = {
   questions: BulkQuestion[]
   meta: { topic: string; difficulty: number; mode: "single" | "case" }
   onNewGeneration: () => void
+  isPro?: boolean
+  quotaRemaining?: number | null
+  onUpgrade?: () => void
+  upgrading?: boolean
 }
 
-export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
+export function GeneratorRunner({
+  questions,
+  meta,
+  onNewGeneration,
+  isPro = false,
+  quotaRemaining = null,
+  onUpgrade,
+  upgrading = false,
+}: Props) {
   const runnerQuestions = useMemo(() => bulkQuestionsToRunnerFormat(questions), [questions])
   const [idx, setIdx] = useState(0)
   const [answers, setAnswers] = useState<Record<string, string | undefined>>({})
@@ -96,13 +108,20 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
     }).length
 
     return (
-      <div className="mx-auto max-w-3xl space-y-6 py-4 px-4">
+      <div className="mx-auto max-w-3xl space-y-4 py-4 px-4">
         <GeneratorDoneCard
           correct={correct}
           total={runnerQuestions.length}
           meta={meta}
           onNewGeneration={onNewGeneration}
         />
+        {!isPro && onUpgrade && (
+          <PostAnswerProNudge
+            quotaRemaining={quotaRemaining}
+            onUpgrade={onUpgrade}
+            upgrading={upgrading}
+          />
+        )}
       </div>
     )
   }
@@ -254,11 +273,51 @@ export function GeneratorRunner({ questions, meta, onNewGeneration }: Props) {
         )}
       </div>
 
+      {showFeedback && !isPro && onUpgrade && (
+        <PostAnswerProNudge
+          quotaRemaining={quotaRemaining}
+          onUpgrade={onUpgrade}
+          upgrading={upgrading}
+        />
+      )}
+
       <p className="text-center text-xs text-muted-foreground">
         Keine Speicherung · keine Decks · Markierungen nur in dieser Session
       </p>
 
       <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />
+    </div>
+  )
+}
+
+function PostAnswerProNudge({
+  quotaRemaining,
+  onUpgrade,
+  upgrading,
+}: {
+  quotaRemaining: number | null
+  onUpgrade: () => void
+  upgrading: boolean
+}) {
+  const low = quotaRemaining !== null && quotaRemaining <= 1
+  return (
+    <div className="rounded-xl border bg-gradient-to-br from-primary/5 via-card to-card px-4 py-3 sm:flex sm:items-center sm:gap-4">
+      <div className="flex-1">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+          <Sparkles className="h-3.5 w-3.5" />
+          Pro
+        </div>
+        <p className="mt-0.5 text-sm">
+          {low
+            ? "Restkontingent fast aufgebraucht – mit Pro generierst du heute bis zu 100 Fragen."
+            : "Mehr solcher Fragen heute generieren? Pro entfernt das Tageslimit."}
+        </p>
+      </div>
+      <div className="mt-3 sm:mt-0">
+        <Button size="sm" onClick={onUpgrade} disabled={upgrading}>
+          {upgrading ? "Weiterleitung…" : "Pro freischalten"}
+        </Button>
+      </div>
     </div>
   )
 }
