@@ -1,88 +1,107 @@
 // app/api/auth/register/route.ts
-import { NextResponse } from "next/server";
-import { z } from "zod";
-import prisma from "@/lib/db";
-import { hashPassword } from "@/lib/password";
-import { sendVerificationMail } from "@/lib/mail";
+//
+// Schritt 2 (neue User) im Auth-Wizard. Erwartet jetzt nur noch
+// E-Mail + Passwort — Vorname/Nachname wurden aus dem Flow entfernt.
+// Das User-Modell hat `name`/`surname` als `String` Pflichtfelder; wir
+// speichern leere Strings, ohne die DB-Migration anzufassen.
+import { NextResponse } from "next/server"
+import { z } from "zod"
+import prisma from "@/lib/db"
+import { hashPassword } from "@/lib/password"
+import { sendVerificationMail } from "@/lib/mail"
+import { rateLimitKey, tryAcquireAuth } from "@/lib/auth-rate-limit"
+import { isCaptchaConfigured, verifyCaptchaToken } from "@/lib/captcha"
 
-export const runtime = "nodejs";
+export const runtime = "nodejs"
 
 const RegisterSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8),
-  name: z.string().min(1),
-  surname: z.string().min(1),
-});
+  email: z.string().email().max(254),
+  password: z.string().min(8).max(200),
+  captchaToken: z.string().optional(),
+})
 
 function generateSixDigitCode(): string {
-  // 000000–999999, immer 6-stellig
-  return Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0");
+  return Math.floor(Math.random() * 1_000_000).toString().padStart(6, "0")
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const parsed = RegisterSchema.safeParse(body);
+    const body = await req.json().catch(() => ({}))
+    const parsed = RegisterSchema.safeParse(body)
     if (!parsed.success) {
-      return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 })
     }
 
-    const { email, password, name, surname } = parsed.data;
+    const email = parsed.data.email.toLowerCase().trim()
+    const password = parsed.data.password
 
-    const exists = await prisma.user.findUnique({ where: { email } });
+    const ip = rateLimitKey(req)
+    const rl = tryAcquireAuth("register", `${ip}|${email}`)
+    if (!rl.ok) {
+      return NextResponse.json(
+        { ok: false, error: "rate_limited", retryAfterMs: rl.retryAfterMs },
+        { status: 429 }
+      )
+    }
+
+    if (isCaptchaConfigured()) {
+      const verify = await verifyCaptchaToken(parsed.data.captchaToken, ip)
+      if (!verify.ok) {
+        return NextResponse.json(
+          { ok: false, error: "captcha_failed" },
+          { status: 400 }
+        )
+      }
+    }
+
+    const exists = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, passwordHash: true, emailVerifiedAt: true },
+    })
     if (exists) {
-      return NextResponse.json({ ok: false, error: "email_taken" }, { status: 409 });
+      // Keine Detail-Info nach außen — schlanker "email_taken"-Fehler reicht;
+      // die UI verarbeitet ihn als Hinweis auf Login-Step.
+      return NextResponse.json({ ok: false, error: "email_taken" }, { status: 409 })
     }
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = await hashPassword(password)
     const user = await prisma.user.create({
-      data: { 
-        email, 
-        name, 
-        surname, 
-        passwordHash, 
+      data: {
+        email,
+        // Pflicht-Spalten im aktuellen Schema. Wir setzen leeren String,
+        // statt Migration in dieser Runde umzusetzen.
+        name: "",
+        surname: "",
+        passwordHash,
         role: "user",
-        // Temporär: User automatisch verifizieren für Production
-        emailVerifiedAt: new Date()
       },
       select: { id: true, email: true },
-    });
+    })
 
-    const code = generateSixDigitCode();
+    const code = generateSixDigitCode()
     await prisma.emailVerification.create({
       data: {
         userId: user.id,
         code,
-        // ⚠️ hier war dein Fehler: "new Date(...)" statt "Date(...)"
         expiresAt: new Date(Date.now() + 15 * 60 * 1000),
       },
-    });
+    })
 
-    // Email-Verification senden
+    // Code per Mail senden — Fehler still schlucken (User existiert bereits in DB,
+    // er kann den Resend-Endpoint nutzen). KEINE E-Mail / kein Code im Log.
     try {
-      console.log("Attempting to send verification email to:", user.email);
-      console.log("Email config:", {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: process.env.EMAIL_SERVER_PORT,
-        user: process.env.EMAIL_SERVER_USER,
-        from: process.env.EMAIL_FROM
-      });
-      
-      await sendVerificationMail(user.email, code);
-      console.log("✅ Verification email sent successfully to:", user.email);
+      await sendVerificationMail(user.email, code)
     } catch (emailError) {
-      console.error("❌ Email send failed:", emailError);
-      console.error("Email error details:", {
-        message: (emailError as any)?.message,
-        code: (emailError as any)?.code,
-        response: (emailError as any)?.response
-      });
-      // User wird trotzdem erstellt - Email kann später gesendet werden
+      console.error("register: mail send failed", {
+        message: (emailError as Error)?.message?.slice(0, 200),
+      })
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error("register error", err);
-    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 });
+    console.error("register error", {
+      message: (err as Error)?.message?.slice(0, 200),
+    })
+    return NextResponse.json({ ok: false, error: "server_error" }, { status: 500 })
   }
 }

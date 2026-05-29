@@ -17,13 +17,15 @@ function buildTransport() {
   const user = process.env.EMAIL_SERVER_USER?.trim().replace(/\n/g, '').replace(/\r/g, '').replace(/\s/g, '')
   const pass = process.env.EMAIL_SERVER_PASSWORD
 
-  console.log("🔧 Zoho Transport Configuration:", {
-    host,
-    port,
-    user: user ? `${user.substring(0, 3)}***@${user.split('@')[1]}` : 'undefined',
-    hasPassword: !!pass,
-    secure: false
-  })
+  // Nur Basis-Konfig loggen, niemals Credentials oder PII.
+  if (process.env.MAIL_DEBUG === "1") {
+    console.log("[mail] transport configured", {
+      host,
+      port,
+      hasUser: !!user,
+      hasPassword: !!pass,
+    })
+  }
 
   // ZOHO-SPEZIFISCHE KONFIGURATION
   const common = {
@@ -31,8 +33,9 @@ function buildTransport() {
     port,
     secure: false, // STARTTLS für Port 587
     auth: user && pass ? { user, pass } : undefined,
-    logger: true,
-    debug: true,
+    // Nodemailer-Eigenes Logging nur bei MAIL_DEBUG, sonst still.
+    logger: process.env.MAIL_DEBUG === "1",
+    debug: process.env.MAIL_DEBUG === "1",
     tls: {
       rejectUnauthorized: false,
       // Zoho benötigt explizite TLS-Einstellungen
@@ -72,14 +75,8 @@ export async function sendMail(opts: {
   text?: string
   html?: string
 }) {
-  console.log("📧 SENDING EMAIL:", {
-    to: opts.to,
-    subject: opts.subject,
-    from: FROM
-  })
-  
   const transporter = getTransporter()
-  
+
   try {
     const info = await transporter.sendMail({
       from: FROM,
@@ -88,17 +85,15 @@ export async function sendMail(opts: {
       text: opts.text,
       html: opts.html,
     })
-    
-    console.log("✅ EMAIL SENT SUCCESSFULLY:", {
-      messageId: info.messageId,
-      response: info.response,
-      accepted: info.accepted,
-      rejected: info.rejected
-    })
-    
+    // Bewusst KEIN to/email/MessageId loggen (PII). Status reicht.
+    if (process.env.MAIL_DEBUG === "1") {
+      console.log("[mail] sent", { subject: opts.subject })
+    }
     return info
   } catch (error) {
-    console.error("❌ EMAIL SEND FAILED:", error)
+    console.error("[mail] send failed", {
+      message: (error as Error)?.message?.slice(0, 200),
+    })
     throw error
   }
 }

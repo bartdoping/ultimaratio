@@ -1,28 +1,21 @@
 // app/(auth)/login/page.tsx
+//
+// Neue, modernisierte Auth-Seite: kombinierter Login-/Registrierungs-Flow,
+// E-Mail-first, optional OAuth, optional Cloudflare-Turnstile.
 import { Suspense } from "react"
-import Link from "next/link"
-import { LoginClient } from "./login-client"
+import { AuthClient } from "./auth-client"
+import { listConfiguredOAuthProviders } from "@/lib/auth-providers"
+import { captchaSiteKey } from "@/lib/captcha"
 
-// optional – hilfreich bei CSR-Hooks wie useSearchParams in Kindkomponenten
 export const dynamic = "force-dynamic"
 
 export default function LoginPage() {
-  return (
-    <div className="max-w-sm mx-auto p-6 space-y-4">
-      <Suspense fallback={<div>Lade…</div>}>
-        <LoginClient />
-      </Suspense>
+  const providers = listConfiguredOAuthProviders()
+  const turnstileSiteKey = captchaSiteKey()
 
-      {/* CTA: Registrieren */}
-      <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-        <span>Noch kein Konto?</span>
-        <Link
-          href="/register"
-          className="inline-flex items-center h-9 rounded-md border px-3 hover:bg-accent hover:text-accent-foreground transition-colors"
-        >
-          Jetzt registrieren
-        </Link>
-      </div>
-    </div>
+  return (
+    <Suspense fallback={null}>
+      <AuthClient providers={providers} turnstileSiteKey={turnstileSiteKey} />
+    </Suspense>
   )
 }
