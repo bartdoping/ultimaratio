@@ -2,11 +2,9 @@ import "./globals.css"
 import "./screenshot-protection.css"
 import type { Metadata, Viewport } from "next"
 import { Inter } from "next/font/google"
-import { SiteHeader } from "@/components/site-header"
 import { Providers } from "@/components/providers"
-import Footer from "@/components/footer"
 import { ScreenshotProtection } from "@/components/screenshot-protection"
-import { FullWidthLayout } from "@/components/full-width-layout"
+import { LayoutSwitch } from "@/components/app-shell/layout-switch"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -93,19 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           <ScreenshotProtection>
-            <div className="min-h-dvh flex flex-col">
-              <SiteHeader />
-
-              {/* Main-Content zentriert, gleiches Padding links/rechts */}
-              <main className="flex-1 w-full">
-                <FullWidthLayout>
-                  {children}
-                </FullWidthLayout>
-              </main>
-
-              {/* Footer */}
-              <Footer />
-            </div>
+            <LayoutSwitch>{children}</LayoutSwitch>
           </ScreenshotProtection>
         </Providers>
       </body>

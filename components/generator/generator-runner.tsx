@@ -9,12 +9,30 @@ import { DifficultyBadge } from "@/components/generator/difficulty-badge"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
-import { Target, AlertTriangle, Sparkles } from "lucide-react"
+import {
+  Target,
+  AlertTriangle,
+  Sparkles,
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Layers,
+  Wand2,
+} from "lucide-react"
+
+export type GeneratorQuickAction =
+  | "same_again"
+  | "harder"
+  | "easier"
+  | "as_case"
+  | "new_topic"
 
 type Props = {
   questions: BulkQuestion[]
   meta: { topic: string; difficulty: number; mode: "single" | "case" }
   onNewGeneration: () => void
+  /** Optional: schnelle Folgeaktionen am Ende eines Durchlaufs. */
+  onQuickAction?: (action: GeneratorQuickAction) => void
   isPro?: boolean
   quotaRemaining?: number | null
   onUpgrade?: () => void
@@ -25,6 +43,7 @@ export function GeneratorRunner({
   questions,
   meta,
   onNewGeneration,
+  onQuickAction,
   isPro = false,
   quotaRemaining = null,
   onUpgrade,
@@ -125,6 +144,7 @@ export function GeneratorRunner({
           total={runnerQuestions.length}
           meta={meta}
           onNewGeneration={onNewGeneration}
+          onQuickAction={onQuickAction}
         />
         {!isPro && onUpgrade && (
           <PostAnswerProNudge
@@ -371,32 +391,117 @@ function GeneratorDoneCard({
   total,
   meta,
   onNewGeneration,
+  onQuickAction,
 }: {
   correct: number
   total: number
   meta: Props["meta"]
   onNewGeneration: () => void
+  onQuickAction?: (action: GeneratorQuickAction) => void
 }) {
   const ratio = total > 0 ? correct / total : 0
   const tone =
-    ratio >= 0.8 ? "text-emerald-600" : ratio >= 0.5 ? "text-amber-600" : "text-red-600"
+    ratio >= 0.8
+      ? "text-emerald-600 dark:text-emerald-400"
+      : ratio >= 0.5
+        ? "text-amber-600 dark:text-amber-400"
+        : "text-red-600 dark:text-red-400"
+
+  const canHarder = meta.difficulty < 5
+  const canEasier = meta.difficulty > 1
+  const canCase = meta.mode === "single"
 
   return (
-    <div className="rounded-xl border bg-card p-6 md:p-8 shadow-sm text-center space-y-4">
-      <h2 className="text-xl font-semibold">Durchlauf abgeschlossen</h2>
-      <p className={`text-3xl font-semibold tabular-nums ${tone}`}>
-        {correct} / {total}
-      </p>
-      <p className="text-sm text-muted-foreground">
-        Thema: <strong className="text-foreground">{meta.topic}</strong> · Schwierigkeit {meta.difficulty}/5 ·{" "}
-        {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
-      </p>
-      <p className="text-xs text-muted-foreground">
-        Fragen werden nicht gespeichert. Du kannst direkt neue generieren.
-      </p>
-      <Button onClick={onNewGeneration} className="mt-2">
-        Neue Fragen generieren
-      </Button>
+    <div className="rounded-2xl border bg-card p-6 md:p-8 shadow-sm space-y-6">
+      <div className="text-center space-y-3">
+        <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
+          Durchlauf abgeschlossen
+        </div>
+        <p className={`text-4xl font-semibold tabular-nums ${tone}`}>
+          {correct} <span className="text-xl text-muted-foreground">/ {total}</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Thema: <strong className="text-foreground">{meta.topic}</strong>
+          {" · "}
+          Schwierigkeit {meta.difficulty}/5
+          {" · "}
+          {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
+        </p>
+      </div>
+
+      {onQuickAction && (
+        <div className="space-y-3">
+          <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Direkt weiter
+          </p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <QuickActionButton
+              icon={RotateCcw}
+              label="Gleiches Thema"
+              onClick={() => onQuickAction("same_again")}
+            />
+            <QuickActionButton
+              icon={TrendingUp}
+              label="Schwieriger"
+              disabled={!canHarder}
+              onClick={() => onQuickAction("harder")}
+            />
+            <QuickActionButton
+              icon={TrendingDown}
+              label="Einfacher"
+              disabled={!canEasier}
+              onClick={() => onQuickAction("easier")}
+            />
+            {canCase && (
+              <QuickActionButton
+                icon={Layers}
+                label="Als Fallfrage"
+                onClick={() => onQuickAction("as_case")}
+              />
+            )}
+            <QuickActionButton
+              icon={Wand2}
+              label="Neues Thema"
+              onClick={() => onQuickAction("new_topic")}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="border-t pt-4 text-center">
+        <Button onClick={onNewGeneration} variant="outline" size="sm">
+          Zum Generator zurück
+        </Button>
+      </div>
     </div>
+  )
+}
+
+function QuickActionButton({
+  icon: Icon,
+  label,
+  onClick,
+  disabled = false,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  onClick: () => void
+  disabled?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(
+        "group inline-flex items-center justify-center gap-2 rounded-lg border bg-background/60 px-3 py-2.5 text-sm font-medium transition-all",
+        disabled
+          ? "cursor-not-allowed opacity-40"
+          : "hover:border-primary/40 hover:bg-primary/5"
+      )}
+    >
+      <Icon className={cn("h-4 w-4 text-muted-foreground", !disabled && "group-hover:text-primary")} />
+      <span>{label}</span>
+    </button>
   )
 }

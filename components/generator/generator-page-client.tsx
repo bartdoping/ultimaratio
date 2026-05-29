@@ -3,9 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { ArrowUp, Layers, Sparkles, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
@@ -42,11 +41,15 @@ type LimitState = {
 
 const TOPIC_SUGGESTIONS = [
   "Akutes Koronarsyndrom",
-  "Akutes Nierenversagen",
-  "Pneumonie",
   "Diabetisches Koma",
-  "Anämie-Differenzialdiagnose",
+  "Pneumonie",
+  "Akutes Nierenversagen",
   "Schilddrüsen-Notfälle",
+  "Anämie-Differenzialdiagnose",
+  "Trigeminus-Neuralgie",
+  "Akutes Abdomen",
+  "Endodontie",
+  "Pharmakologie der Antikoagulanzien",
 ] as const
 
 const LOAD_STAGES = [
@@ -335,6 +338,26 @@ export function GeneratorPageClient({
           setSession(null)
           void refreshQuota()
         }}
+        onQuickAction={(action) => {
+          // Form-State entsprechend anpassen, Session schließen → Nutzer landet
+          // wieder im Command-Center mit voreingestellten Werten.
+          if (action === "harder") {
+            setDifficulty((d) => Math.min(5, d + 1))
+          } else if (action === "easier") {
+            setDifficulty((d) => Math.max(1, d - 1))
+          } else if (action === "as_case") {
+            setMode("case")
+          } else if (action === "new_topic") {
+            setTopic("")
+          }
+          // "same_again" lässt alles wie es ist.
+          setSession(null)
+          void refreshQuota()
+          // Smoothes Scrollen nach oben, damit der Generator wieder im Fokus ist.
+          requestAnimationFrame(() => {
+            window.scrollTo({ top: 0, behavior: "smooth" })
+          })
+        }}
       />
     )
   }
@@ -342,193 +365,254 @@ export function GeneratorPageClient({
   const atLimit = !quota.unlimited && quota.remaining <= 0
   const effectiveLimitState = limitState
 
+  const submitDisabled = loading || atLimit || !remainingSufficient
+  const submitLabel = loading
+    ? "Generiere…"
+    : atLimit
+      ? "Tageslimit erreicht"
+      : !remainingSufficient
+        ? `Reicht nicht für ${units} Fragen`
+        : mode === "case"
+          ? `${units} Fallfragen generieren`
+          : "Frage generieren"
+
   return (
-    <div className="mx-auto max-w-xl space-y-8">
-      <div className="space-y-2 text-center">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Fragen-Generator
-        </p>
-        <h1 className="text-3xl font-semibold tracking-tight">
-          Medizinische Prüfungsfragen in Sekunden
+    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
+      {/* Hero */}
+      <div className="mb-8 space-y-3 text-center">
+        <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+          <Sparkles className="h-3.5 w-3.5 text-primary" />
+          KI-Fragengenerator
+        </div>
+        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+          Was möchtest du heute kreuzen?
         </h1>
-        <p className="text-sm text-muted-foreground">
-          Single-Choice-Fragen und Fallvignetten mit ausführlichen Erklärungen – direkt kreuzbar.
+        <p className="mx-auto max-w-lg text-sm text-muted-foreground sm:text-base">
+          Thema eingeben, Schwierigkeit wählen, sofort kreuzbar — mit Erklärungen, Lernziel und Prüfungsfalle.
         </p>
       </div>
 
-      <QuotaBadge quota={quota} isPro={isPro} units={units} />
-
       {effectiveLimitState && (
-        <GeneratorLimitPanel
-          limitState={effectiveLimitState}
-          upgrading={upgrading}
-          onUpgrade={handleUpgrade}
-        />
+        <div className="mb-6">
+          <GeneratorLimitPanel
+            limitState={effectiveLimitState}
+            upgrading={upgrading}
+            onUpgrade={handleUpgrade}
+          />
+        </div>
       )}
 
-      <form onSubmit={handleGenerate} className="space-y-6 rounded-2xl border bg-card p-6 shadow-sm">
-        <div className="space-y-2">
-          <Label>Fragetyp</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {(
-              [
-                ["single", "Einzelfrage"],
-                ["case", "Fallfrage"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => setMode(value)}
-                className={cn(
-                  "rounded-lg border px-3 py-2.5 text-sm font-medium transition-colors",
-                  mode === value
-                    ? "border-primary bg-primary/10 text-foreground"
-                    : "text-muted-foreground hover:bg-muted/50"
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {mode === "case" && (
-          <div className="space-y-2">
-            <Label>Anzahl Fragen zum Fall</Label>
-            <div className="flex flex-wrap gap-2">
-              {[2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setCaseCount(n)}
-                  className={cn(
-                    "h-10 w-10 rounded-lg border text-sm font-medium transition-colors",
-                    caseCount === n
-                      ? "border-primary bg-primary/10"
-                      : "text-muted-foreground hover:bg-muted/50"
-                  )}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="difficulty">Schwierigkeitsgrad</Label>
-            <span className="text-sm font-medium tabular-nums">
-              {difficulty} / 5 · {difficultyLabel(difficulty)}
-            </span>
-          </div>
-          <input
-            id="difficulty"
-            type="range"
-            min={1}
-            max={5}
-            step={1}
-            value={difficulty}
-            onChange={(e) => setDifficulty(Number(e.target.value))}
-            className="w-full accent-primary"
-          />
-          <div className="flex justify-between text-[11px] text-muted-foreground">
-            <span>1 · Basis</span>
-            <span>3 · Examen</span>
-            <span>5 · Differential</span>
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor="topic">Thema</Label>
-            <span className="text-xs text-muted-foreground tabular-nums">
-              {topic.length}/{GENERATOR_TOPIC_MAX}
-            </span>
-          </div>
-          <Input
+      {/* Command Center */}
+      <form
+        onSubmit={handleGenerate}
+        className="rounded-3xl border bg-card/70 shadow-xl backdrop-blur-sm"
+      >
+        {/* Topic-Eingabe (Hauptfläche, textarea-Optik) */}
+        <div className="p-5 sm:p-6">
+          <label htmlFor="topic" className="sr-only">
+            Thema
+          </label>
+          <textarea
             id="topic"
             value={topic}
             maxLength={GENERATOR_TOPIC_MAX}
-            placeholder="z. B. Akutes Koronarsyndrom"
+            placeholder="z. B. Akutes Koronarsyndrom – Risikostratifizierung und Erstmaßnahmen…"
             onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault()
+                if (!submitDisabled) {
+                  void handleGenerate(e as unknown as React.FormEvent)
+                }
+              }
+            }}
+            rows={2}
             disabled={loading}
+            className="min-h-[64px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:text-lg"
           />
+
+          {/* Topic-Chips: nur wenn Feld leer */}
           {!topic && (
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {TOPIC_SUGGESTIONS.map((s) => (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {TOPIC_SUGGESTIONS.slice(0, 6).map((s) => (
                 <button
                   key={s}
                   type="button"
                   onClick={() => setTopic(s)}
-                  className="rounded-full border bg-background px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                  className="rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
                 >
                   {s}
                 </button>
               ))}
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            Thema wird als Sachthema verwendet, nicht als Anweisung.
-          </p>
         </div>
 
-        {!quota.unlimited && (
-          <p className="text-xs text-muted-foreground">
-            {mode === "case"
-              ? `Diese Fallfrage verwendet ${units} deiner heutigen Generierungen.`
-              : "Diese Einzelfrage verwendet 1 deiner heutigen Generierungen."}
-            {" "}Verbleibend: <span className="font-medium tabular-nums">{quota.remaining}</span>.
-          </p>
-        )}
-
-        {error && (
-          <p className="text-sm text-red-600" role="alert" aria-live="polite">
-            {error}
-          </p>
-        )}
-
-        {loading && (
-          <div className="space-y-2 rounded-lg border bg-muted/30 px-4 py-3" aria-live="polite">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{LOAD_STAGES[loadStage]}</span>
-              <span className="tabular-nums text-muted-foreground">{Math.round(loadProgress)}%</span>
-            </div>
-            <Progress value={loadProgress} className="h-2" />
-            <p className="text-xs text-muted-foreground">
-              {mode === "case"
-                ? `Fall mit ${units} Teilfragen wird vorbereitet…`
-                : "Frage, Antwortoptionen und Erklärungen werden verdichtet…"}
-            </p>
+        {/* Toolbar: Mode + Schwierigkeit + ggf. Anzahl */}
+        <div className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="flex flex-wrap items-center gap-2">
+            <SegmentedControl
+              value={mode}
+              onChange={(v) => setMode(v)}
+              options={[
+                { value: "single", label: "Einzelfrage", icon: Wand2 },
+                { value: "case", label: "Fallfrage", icon: Layers },
+              ]}
+            />
+            {mode === "case" && (
+              <div className="flex items-center gap-1 rounded-full border bg-background/80 p-0.5 text-xs">
+                {[2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setCaseCount(n)}
+                    className={cn(
+                      "h-7 w-7 rounded-full font-medium transition-colors",
+                      caseCount === n
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted"
+                    )}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            )}
+            <DifficultyPill
+              level={difficulty}
+              onChange={setDifficulty}
+            />
           </div>
-        )}
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={loading || atLimit || !remainingSufficient}
-        >
-          {loading
-            ? "Generiere…"
-            : atLimit
-              ? "Tageslimit erreicht"
-              : !remainingSufficient
-                ? `Reicht nicht für ${units} Fragen`
-                : mode === "case"
-                  ? `${units} Fallfragen generieren`
-                  : "1 Frage generieren"}
-        </Button>
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitDisabled}
+            className="h-11 gap-2 rounded-full px-5"
+          >
+            <span>{submitLabel}</span>
+            {!loading && !atLimit && remainingSufficient && (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* Live Status / Microcopy unter der Toolbar */}
+        <div className="border-t px-5 py-3 text-xs text-muted-foreground">
+          {loading ? (
+            <div className="space-y-2" aria-live="polite">
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-foreground">
+                  {LOAD_STAGES[loadStage]}
+                </span>
+                <span className="tabular-nums">{Math.round(loadProgress)}%</span>
+              </div>
+              <Progress value={loadProgress} className="h-1" />
+            </div>
+          ) : error ? (
+            <p className="text-red-500" role="alert" aria-live="polite">
+              {error}
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {quota.unlimited
+                  ? "Unbegrenzte Generierungen."
+                  : mode === "case"
+                    ? `Verbraucht ${units} von ${quota.remaining} verbleibenden heute.`
+                    : `Verbraucht 1 von ${quota.remaining} verbleibenden heute.`}
+              </span>
+              <span className="hidden sm:inline">Enter sendet · Shift+Enter neue Zeile</span>
+            </div>
+          )}
+        </div>
       </form>
 
-      {!isPro && (
-        <ProUpgradeCard
-          variant="generator"
-          onUpgrade={handleUpgrade}
-          upgrading={upgrading}
-          isLoggedIn={isLoggedIn}
-        />
+      {/* Pro-Hint dezent unter dem Command Center */}
+      {!isPro && !quota.unlimited && (
+        <div className="mt-8">
+          <ProUpgradeCard
+            variant="generator"
+            onUpgrade={handleUpgrade}
+            upgrading={upgrading}
+            isLoggedIn={isLoggedIn}
+          />
+        </div>
       )}
+    </div>
+  )
+}
+
+function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T
+  onChange: (v: T) => void
+  options: Array<{
+    value: T
+    label: string
+    icon?: React.ComponentType<{ className?: string }>
+  }>
+}) {
+  return (
+    <div className="inline-flex items-center rounded-full border bg-background/80 p-0.5 text-xs">
+      {options.map((opt) => {
+        const Icon = opt.icon
+        const active = opt.value === value
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            onClick={() => onChange(opt.value)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+              active
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {Icon && <Icon className="h-3.5 w-3.5" />}
+            {opt.label}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function DifficultyPill({
+  level,
+  onChange,
+}: {
+  level: number
+  onChange: (level: number) => void
+}) {
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-2 py-1 text-xs"
+      title={`Schwierigkeit ${level}/5 · ${difficultyLabel(level)}`}
+    >
+      <span className="text-muted-foreground">Schwierigkeit</span>
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3, 4, 5].map((n) => (
+          <button
+            key={n}
+            type="button"
+            onClick={() => onChange(n)}
+            aria-label={`Schwierigkeit ${n} setzen`}
+            className={cn(
+              "h-5 w-5 rounded-full text-[10px] font-semibold transition-colors",
+              n <= level
+                ? "bg-primary text-primary-foreground"
+                : "border bg-background text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -538,52 +622,6 @@ function humanizeError(code: string): string {
   if (code === "forbidden") return "Zugriff verweigert."
   if (code === "method_not_allowed") return "Ungültige Anfrage."
   return code
-}
-
-function QuotaBadge({
-  quota,
-  isPro,
-  units,
-}: {
-  quota: QuotaState
-  isPro: boolean
-  units: number
-}) {
-  if (quota.unlimited) {
-    return (
-      <div className="rounded-xl border bg-emerald-500/5 px-4 py-3 text-center text-sm">
-        <span className="font-medium text-emerald-700 dark:text-emerald-300">Unbegrenzt</span>
-        <span className="text-muted-foreground"> · Generierungen heute</span>
-      </div>
-    )
-  }
-
-  const label = isPro ? "Pro" : "Kostenlos"
-  const willNotFit = quota.remaining < units
-  const tone = willNotFit
-    ? "border-amber-500/40 bg-amber-500/10"
-    : quota.remaining === 0
-      ? "border-red-500/40 bg-red-500/10"
-      : "border-border bg-muted/30"
-
-  return (
-    <div className={cn("rounded-xl border px-4 py-3 text-sm", tone)}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {label}
-          </span>
-          <div className="mt-0.5 text-base font-semibold tabular-nums">
-            {quota.remaining} <span className="text-sm font-normal text-muted-foreground">/ {quota.dailyLimit} heute übrig</span>
-          </div>
-        </div>
-        <Progress
-          value={quota.dailyLimit > 0 ? (quota.used / quota.dailyLimit) * 100 : 0}
-          className="h-1.5 w-24"
-        />
-      </div>
-    </div>
-  )
 }
 
 function GeneratorLimitPanel({
