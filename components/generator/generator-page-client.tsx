@@ -39,19 +39,6 @@ type LimitState = {
   requested?: number
 }
 
-const TOPIC_SUGGESTIONS = [
-  "Akutes Koronarsyndrom",
-  "Diabetisches Koma",
-  "Pneumonie",
-  "Akutes Nierenversagen",
-  "Schilddrüsen-Notfälle",
-  "Anämie-Differenzialdiagnose",
-  "Trigeminus-Neuralgie",
-  "Akutes Abdomen",
-  "Endodontie",
-  "Pharmakologie der Antikoagulanzien",
-] as const
-
 const LOAD_STAGES = [
   "Frage wird vorbereitet…",
   "Antwortoptionen werden geprüft…",
@@ -428,26 +415,8 @@ export function GeneratorPageClient({
             }}
             rows={2}
             disabled={loading}
-            className="min-h-[60px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:text-lg"
+            className="min-h-[80px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:min-h-[96px] sm:text-lg"
           />
-
-          {/* Topic-Chips: horizontal scrollend auf Mobile */}
-          {!topic && (
-            <div className="-mx-4 mt-4 overflow-x-auto pb-1 sm:mx-0">
-              <div className="flex w-max gap-1.5 px-4 sm:flex-wrap sm:px-0">
-                {TOPIC_SUGGESTIONS.slice(0, 8).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setTopic(s)}
-                    className="shrink-0 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Toolbar: Mobile gestapelt, Desktop in einer Reihe */}
