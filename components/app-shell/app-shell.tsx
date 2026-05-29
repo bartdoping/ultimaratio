@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import Logo from "@/components/logo"
 import { cn } from "@/lib/utils"
+import { AccountSheet, type AccountSheetPlan } from "@/components/app-shell/account-sheet"
 
 type NavItem = {
   href: string
@@ -26,13 +27,8 @@ type NavItem = {
   matchPrefix?: string
 }
 
-type PlanState = {
+type PlanState = AccountSheetPlan & {
   loaded: boolean
-  isPro: boolean
-  unlimited: boolean
-  remaining: number
-  dailyLimit: number
-  used: number
 }
 
 const INITIAL_PLAN: PlanState = {
@@ -51,11 +47,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     (session?.user as { role?: "user" | "admin" } | undefined)?.role ?? "user"
   const isAdmin = role === "admin"
   const email = session?.user?.email ?? ""
+  const isLoggedIn = !!session?.user
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [accountOpen, setAccountOpen] = useState(false)
   const [plan, setPlan] = useState<PlanState>(INITIAL_PLAN)
 
   useEffect(() => {
     setMobileOpen(false)
+    setAccountOpen(false)
   }, [pathname])
 
   const refreshPlan = async () => {
@@ -113,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="relative min-h-dvh bg-background text-foreground">
-      {/* Hintergrund: dezenter Glow + feiner Grid (über die ganze App) */}
+      {/* App-Wide Hintergrund: dezenter Glow + feiner Grid */}
       <div
         aria-hidden
         className="pointer-events-none fixed inset-0 -z-10 overflow-hidden"
@@ -134,31 +133,61 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Mobile Top-Bar */}
-        <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center justify-between border-b bg-background/80 px-4 backdrop-blur lg:hidden">
-          <Link href="/generator" className="flex items-center gap-2">
-            <Logo />
-            <span className="text-sm font-semibold">fragenkreuzen</span>
-          </Link>
+        <header
+          className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur-md lg:hidden"
+          style={{ paddingTop: "env(safe-area-inset-top)" }}
+        >
+          {/* Hamburger */}
           <button
             type="button"
             onClick={() => setMobileOpen(true)}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-md border hover:bg-muted"
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-card/60 hover:bg-muted"
             aria-label="Menü öffnen"
           >
             <Menu className="h-4 w-4" />
           </button>
+
+          {/* Brand */}
+          <Link
+            href="/generator"
+            className="flex min-w-0 items-center gap-1.5 text-sm font-semibold"
+          >
+            <Logo />
+            <span className="truncate">fragenkreuzen</span>
+          </Link>
+
+          <div className="flex-1" />
+
+          {/* Plan-Pill */}
+          <MobilePlanPill plan={plan} isLoggedIn={isLoggedIn} />
+
+          {/* Account-Button */}
+          <button
+            type="button"
+            onClick={() => setAccountOpen(true)}
+            className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-card/60 text-xs font-semibold hover:bg-muted"
+            aria-label="Account öffnen"
+          >
+            {avatarInitial(email)}
+          </button>
         </header>
 
-        {/* Mobile Sheet */}
+        {/* Mobile Drawer */}
         {mobileOpen && (
           <div className="fixed inset-0 z-40 lg:hidden">
             <button
               type="button"
               aria-label="Menü schließen"
               onClick={() => setMobileOpen(false)}
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
             />
-            <div className="absolute inset-y-0 left-0 w-72 bg-card shadow-2xl flex flex-col">
+            <div
+              className="absolute inset-y-0 left-0 flex w-80 max-w-[85vw] flex-col bg-card shadow-2xl"
+              style={{
+                paddingTop: "env(safe-area-inset-top)",
+                paddingBottom: "env(safe-area-inset-bottom)",
+              }}
+            >
               <div className="flex items-center justify-between border-b px-4 py-3">
                 <Link
                   href="/generator"
@@ -171,7 +200,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <button
                   type="button"
                   onClick={() => setMobileOpen(false)}
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-md hover:bg-muted"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full hover:bg-muted"
                   aria-label="Schließen"
                 >
                   <X className="h-4 w-4" />
@@ -183,17 +212,83 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 email={email}
                 plan={plan}
                 onNavigate={() => setMobileOpen(false)}
+                isMobile
               />
             </div>
           </div>
         )}
 
+        {/* Account-Sheet */}
+        <AccountSheet
+          open={accountOpen}
+          onOpenChange={setAccountOpen}
+          email={email}
+          plan={plan}
+          isLoggedIn={isLoggedIn}
+          isAdmin={isAdmin}
+        />
+
         {/* Main */}
-        <main className="min-w-0 flex-1 pt-14 lg:pt-0">
+        <main
+          className="min-w-0 flex-1 pb-[max(env(safe-area-inset-bottom),0px)] pt-[calc(env(safe-area-inset-top)+3.5rem)] lg:pt-0"
+        >
           {children}
         </main>
       </div>
     </div>
+  )
+}
+
+function avatarInitial(email: string): string {
+  const ch = email.trim().charAt(0).toUpperCase()
+  return ch || "·"
+}
+
+function MobilePlanPill({
+  plan,
+  isLoggedIn,
+}: {
+  plan: PlanState
+  isLoggedIn: boolean
+}) {
+  if (!isLoggedIn) {
+    return (
+      <Link
+        href="/login?callbackUrl=/generator"
+        className="hidden xs:inline-flex h-9 items-center gap-1 rounded-full border bg-card/60 px-3 text-xs font-medium hover:bg-muted"
+      >
+        Anmelden
+      </Link>
+    )
+  }
+  if (!plan.loaded) {
+    return <div className="h-9 w-14 rounded-full border bg-muted/30 animate-pulse" />
+  }
+  if (plan.unlimited) {
+    return (
+      <span className="inline-flex h-9 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+        <Sparkles className="h-3 w-3" />
+        Unbegrenzt
+      </span>
+    )
+  }
+  if (plan.isPro) {
+    return (
+      <span className="inline-flex h-9 items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-3 text-xs font-semibold text-primary">
+        <Sparkles className="h-3 w-3" />
+        Pro
+      </span>
+    )
+  }
+  // Free: zeigt verbleibende Generierungen
+  return (
+    <Link
+      href="/subscription"
+      className="inline-flex h-9 items-center gap-1.5 rounded-full border bg-card/60 px-3 text-xs font-medium hover:bg-muted"
+    >
+      <span className="tabular-nums">{plan.remaining}</span>
+      <span className="text-muted-foreground">/ {plan.dailyLimit}</span>
+    </Link>
   )
 }
 
@@ -203,23 +298,27 @@ function SidebarContent({
   email,
   plan,
   onNavigate,
+  isMobile = false,
 }: {
   navItems: NavItem[]
   isActive: (item: NavItem) => boolean
   email: string
   plan: PlanState
   onNavigate?: () => void
+  isMobile?: boolean
 }) {
   return (
     <div className="flex flex-1 flex-col">
-      {/* Brand */}
-      <div className="hidden lg:flex items-center gap-2 border-b px-5 py-4 font-semibold">
-        <Logo />
-        <div className="flex flex-col leading-tight">
-          <span className="text-sm">fragenkreuzen</span>
-          <span className="text-[10px] text-muted-foreground">by ultima-rat.io</span>
+      {/* Brand: nur Desktop */}
+      {!isMobile && (
+        <div className="flex items-center gap-2 border-b px-5 py-4 font-semibold">
+          <Logo />
+          <div className="flex flex-col leading-tight">
+            <span className="text-sm">fragenkreuzen</span>
+            <span className="text-[10px] text-muted-foreground">by ultima-rat.io</span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Nav */}
       <nav className="flex flex-1 flex-col gap-1 px-3 py-4">

@@ -64,7 +64,11 @@ export function ProDetailsModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[90vh] w-[calc(100%-2rem)] max-w-2xl flex-col gap-0 overflow-hidden p-0 sm:max-w-2xl"
+        className={
+          // Mobile: nahezu Full-Screen Card mit safe-area; Desktop: zentriertes Modal.
+          "flex flex-col gap-0 overflow-hidden p-0 " +
+          "max-h-[92vh] w-[calc(100%-1rem)] rounded-2xl sm:w-[calc(100%-2rem)] sm:max-w-2xl"
+        }
         showCloseButton
       >
         <DialogHeader className="space-y-2 border-b bg-gradient-to-br from-primary/5 via-background to-background px-6 py-5 text-left">

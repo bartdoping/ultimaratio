@@ -158,7 +158,8 @@ export function GeneratorRunner({
   }
 
   return (
-    <div className="mx-auto max-w-4xl space-y-4 py-2 px-4">
+    <div className="mx-auto max-w-4xl space-y-4 px-4 pb-28 pt-2 sm:pb-4">
+      {/* Sticky-Top Progress + Lab-Button auf Mobile */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
           <span className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium">
@@ -167,20 +168,32 @@ export function GeneratorRunner({
           <DifficultyBadge level={meta.difficulty} />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium tabular-nums">
-            Frage {idx + 1}/{runnerQuestions.length}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            · {confirmedCount} bestätigt
+          <span className="inline-flex items-center gap-1 rounded-full border bg-card/60 px-2.5 py-0.5 text-xs font-medium tabular-nums">
+            <span>Frage {idx + 1}/{runnerQuestions.length}</span>
+            <span className="text-muted-foreground">· {confirmedCount} bestätigt</span>
           </span>
           <Button variant="outline" size="sm" onClick={() => setLabOpen(true)} title="Laborwerte (L)">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zM9 17H7v-7h2v7zm4 0h-2V7h2v10zm4 0h-2v-4h2v4z" />
             </svg>
-            <span className="ml-2">Labor</span>
+            <span className="ml-2 hidden sm:inline">Labor</span>
           </Button>
         </div>
       </div>
+
+      {/* Schmale Progress-Leiste bei Fallfragen */}
+      {runnerQuestions.length > 1 && (
+        <div className="h-1 overflow-hidden rounded-full bg-muted/40">
+          <div
+            className="h-full bg-primary transition-all duration-300"
+            style={{
+              width: `${Math.round(
+                ((confirmedCount + (isConfirmed ? 0 : 0)) / runnerQuestions.length) * 100
+              )}%`,
+            }}
+          />
+        </div>
+      )}
 
       <div className="rounded-xl border bg-card shadow-sm p-5 md:p-8 space-y-6">
         {q.caseVignette && (
@@ -232,7 +245,8 @@ export function GeneratorRunner({
           submitting={isConfirmed}
         />
 
-        <div className="flex flex-wrap items-center gap-2 pt-4 border-t">
+        {/* Desktop Action-Row */}
+        <div className="hidden sm:flex flex-wrap items-center gap-2 pt-4 border-t">
           <Button variant="secondary" onClick={goPrev} disabled={atStart}>
             ← Zurück
           </Button>
@@ -322,6 +336,41 @@ export function GeneratorRunner({
       <p className="text-center text-xs text-muted-foreground">
         Keine Speicherung · keine Decks · Markierungen nur in dieser Session
       </p>
+
+      {/* MOBILE STICKY ACTION-BAR */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-20 border-t bg-card/95 px-4 py-3 backdrop-blur sm:hidden"
+        style={{ paddingBottom: "max(env(safe-area-inset-bottom),0.75rem)" }}
+      >
+        <div className="mx-auto flex max-w-4xl items-center gap-2">
+          <Button
+            variant="outline"
+            size="lg"
+            onClick={goPrev}
+            disabled={atStart}
+            className="h-12 w-12 shrink-0 rounded-full p-0"
+            aria-label="Vorherige Frage"
+          >
+            ←
+          </Button>
+          {!isConfirmed ? (
+            <Button
+              onClick={confirmAnswer}
+              disabled={!given}
+              className="h-12 flex-1 rounded-full text-base"
+            >
+              Antwort bestätigen
+            </Button>
+          ) : (
+            <Button
+              onClick={goNext}
+              className="h-12 flex-1 rounded-full text-base"
+            >
+              {atEnd ? "Abschließen" : "Weiter →"}
+            </Button>
+          )}
+        </div>
+      </div>
 
       <LabValuesDialog open={labOpen} onClose={() => setLabOpen(false)} />
     </div>

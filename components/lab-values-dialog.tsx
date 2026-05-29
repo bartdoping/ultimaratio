@@ -93,7 +93,7 @@ export function LabValuesDialog({ open, onClose }: Props) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="flex h-[85vh] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+        className="flex h-[92vh] w-[calc(100%-1rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:h-[85vh] sm:w-[calc(100%-2rem)] sm:max-w-3xl"
         showCloseButton
       >
         <DialogHeader className="space-y-3 border-b px-5 py-4 text-left">

@@ -377,18 +377,18 @@ export function GeneratorPageClient({
           : "Frage generieren"
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-10 sm:px-6 lg:py-14">
-      {/* Hero */}
-      <div className="mb-8 space-y-3 text-center">
-        <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur">
+    <div className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-10 lg:pb-14 lg:pt-14">
+      {/* Hero — auf Mobile straffer */}
+      <div className="mb-6 space-y-2 text-center sm:mb-8 sm:space-y-3">
+        <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur sm:text-xs">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           KI-Fragengenerator
         </div>
-        <h1 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="text-balance text-2xl font-semibold tracking-tight sm:text-3xl lg:text-4xl">
           Was möchtest du heute kreuzen?
         </h1>
-        <p className="mx-auto max-w-lg text-sm text-muted-foreground sm:text-base">
-          Thema eingeben, Schwierigkeit wählen, sofort kreuzbar — mit Erklärungen, Lernziel und Prüfungsfalle.
+        <p className="mx-auto max-w-lg text-sm text-muted-foreground">
+          Thema eingeben, Schwierigkeit wählen, sofort kreuzbar.
         </p>
       </div>
 
@@ -407,8 +407,8 @@ export function GeneratorPageClient({
         onSubmit={handleGenerate}
         className="rounded-3xl border bg-card/70 shadow-xl backdrop-blur-sm"
       >
-        {/* Topic-Eingabe (Hauptfläche, textarea-Optik) */}
-        <div className="p-5 sm:p-6">
+        {/* Topic-Eingabe */}
+        <div className="p-4 sm:p-6">
           <label htmlFor="topic" className="sr-only">
             Thema
           </label>
@@ -416,7 +416,7 @@ export function GeneratorPageClient({
             id="topic"
             value={topic}
             maxLength={GENERATOR_TOPIC_MAX}
-            placeholder="z. B. Akutes Koronarsyndrom – Risikostratifizierung und Erstmaßnahmen…"
+            placeholder="z. B. Akutes Koronarsyndrom – Risikostratifizierung…"
             onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
@@ -428,27 +428,29 @@ export function GeneratorPageClient({
             }}
             rows={2}
             disabled={loading}
-            className="min-h-[64px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:text-lg"
+            className="min-h-[60px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:text-lg"
           />
 
-          {/* Topic-Chips: nur wenn Feld leer */}
+          {/* Topic-Chips: horizontal scrollend auf Mobile */}
           {!topic && (
-            <div className="mt-4 flex flex-wrap gap-1.5">
-              {TOPIC_SUGGESTIONS.slice(0, 6).map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setTopic(s)}
-                  className="rounded-full border bg-background/60 px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
-                >
-                  {s}
-                </button>
-              ))}
+            <div className="-mx-4 mt-4 overflow-x-auto pb-1 sm:mx-0">
+              <div className="flex w-max gap-1.5 px-4 sm:flex-wrap sm:px-0">
+                {TOPIC_SUGGESTIONS.slice(0, 8).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setTopic(s)}
+                    className="shrink-0 rounded-full border bg-background/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-foreground"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Toolbar: Mode + Schwierigkeit + ggf. Anzahl */}
+        {/* Toolbar: Mobile gestapelt, Desktop in einer Reihe */}
         <div className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
             <SegmentedControl
@@ -478,17 +480,15 @@ export function GeneratorPageClient({
                 ))}
               </div>
             )}
-            <DifficultyPill
-              level={difficulty}
-              onChange={setDifficulty}
-            />
+            <DifficultyPill level={difficulty} onChange={setDifficulty} />
           </div>
 
+          {/* Generate-Button: Desktop in der Toolbar; Mobile sticky bottom */}
           <Button
             type="submit"
             size="lg"
             disabled={submitDisabled}
-            className="h-11 gap-2 rounded-full px-5"
+            className="hidden h-11 gap-2 rounded-full px-5 sm:inline-flex"
           >
             <span>{submitLabel}</span>
             {!loading && !atLimit && remainingSufficient && (
@@ -497,8 +497,8 @@ export function GeneratorPageClient({
           </Button>
         </div>
 
-        {/* Live Status / Microcopy unter der Toolbar */}
-        <div className="border-t px-5 py-3 text-xs text-muted-foreground">
+        {/* Live Status / Microcopy */}
+        <div className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
           {loading ? (
             <div className="space-y-2" aria-live="polite">
               <div className="flex items-center justify-between">
@@ -525,6 +525,23 @@ export function GeneratorPageClient({
               <span className="hidden sm:inline">Enter sendet · Shift+Enter neue Zeile</span>
             </div>
           )}
+        </div>
+
+        {/* MOBILE STICKY GENERATE-CTA */}
+        <div
+          className="sticky bottom-0 z-10 border-t bg-card/95 px-4 py-3 backdrop-blur sm:hidden"
+          style={{ paddingBottom: "max(env(safe-area-inset-bottom),0.75rem)" }}
+        >
+          <Button
+            type="submit"
+            disabled={submitDisabled}
+            className="h-12 w-full gap-2 rounded-full text-base"
+          >
+            <span>{submitLabel}</span>
+            {!loading && !atLimit && remainingSufficient && (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </Button>
         </div>
       </form>
 
