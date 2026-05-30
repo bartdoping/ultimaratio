@@ -469,14 +469,44 @@ export function GeneratorPageClient({
         {/* Live Status / Microcopy */}
         <div className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
           {loading ? (
-            <div className="space-y-2" aria-live="polite">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground">
-                  {LOAD_STAGES[loadStage]}
+            <div className="space-y-3" aria-live="polite">
+              <div className="flex items-center gap-3">
+                <span
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary"
+                  aria-hidden
+                >
+                  <Sparkles className="h-4 w-4 animate-pulse" />
                 </span>
-                <span className="tabular-nums">{Math.round(loadProgress)}%</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-sm font-medium text-foreground">
+                      {LOAD_STAGES[loadStage]}
+                    </span>
+                    <span className="shrink-0 text-xs tabular-nums">
+                      {Math.round(loadProgress)}%
+                    </span>
+                  </div>
+                  <Progress value={loadProgress} className="mt-1.5 h-1" />
+                </div>
               </div>
-              <Progress value={loadProgress} className="h-1" />
+              {/* Stage-Pills (zeigen, was noch kommt) */}
+              <div className="flex flex-wrap gap-1.5">
+                {LOAD_STAGES.map((stage, i) => (
+                  <span
+                    key={stage}
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                      i < loadStage
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : i === loadStage
+                          ? "border-primary/40 bg-primary/10 text-foreground"
+                          : "border-border bg-muted/30 text-muted-foreground"
+                    )}
+                  >
+                    {stage.replace("…", "")}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : error ? (
             <p className="text-red-500" role="alert" aria-live="polite">

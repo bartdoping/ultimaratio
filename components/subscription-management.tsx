@@ -234,7 +234,7 @@ export function SubscriptionManagement() {
 
   return (
     <div className="space-y-6">
-      <section className="rounded-xl border bg-card p-5 shadow-sm">
+      <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -253,14 +253,14 @@ export function SubscriptionManagement() {
             </div>
             <p className="max-w-xl text-sm text-muted-foreground">
               {subscription.isPro
-                ? "Voller Zugriff auf Training, Decks, Spaced Repetition und alle Prüfungsinhalte."
-                : "Upgrade auf Pro für unbegrenztes Üben, eigene Decks und erweiterte Lernfunktionen."}
+                ? "Bis zu 100 KI-Generierungen pro Tag, längere Fallvignetten und intensive Lernsessions."
+                : "Mit Pro: mehr KI-Generierungen pro Tag und längere Fallfragen ohne Limit-Druck."}
             </p>
           </div>
 
           {!subscription.isPro && (
-            <div className="shrink-0 text-left sm:text-right">
-              <div className="text-3xl font-bold text-primary">9,99 €</div>
+            <div className="shrink-0">
+              <div className="text-2xl font-bold text-primary sm:text-3xl">9,99 €</div>
               <div className="text-xs text-muted-foreground">pro Monat · monatlich kündbar</div>
             </div>
           )}
