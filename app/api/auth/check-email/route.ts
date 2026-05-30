@@ -23,7 +23,9 @@ export const runtime = "nodejs"
 
 const Schema = z.object({
   email: z.string().email().max(254),
-  captchaToken: z.string().optional(),
+  // Robust gegen null aus dem Client (JSON.stringify konvertiert null vs.
+  // undefined unterschiedlich).
+  captchaToken: z.string().nullish(),
 })
 
 export async function POST(req: Request) {

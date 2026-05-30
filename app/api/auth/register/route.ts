@@ -17,7 +17,9 @@ export const runtime = "nodejs"
 const RegisterSchema = z.object({
   email: z.string().email().max(254),
   password: z.string().min(8).max(200),
-  captchaToken: z.string().optional(),
+  // Captcha-Token darf string, null oder undefined sein. JSON-Serializer
+  // schickt null statt undefined, wenn der State im Client `null` ist.
+  captchaToken: z.string().nullish(),
 })
 
 function generateSixDigitCode(): string {
