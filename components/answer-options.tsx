@@ -73,7 +73,7 @@ export function AnswerOptions({
         if (submitting) return
         onSelect(value)
       }}
-      className="space-y-2.5"
+      className="space-y-1.5"
     >
       {options.map((option, index) => {
         const isSelected = selectedOptionId === option.id
@@ -87,60 +87,60 @@ export function AnswerOptions({
           <div
             key={option.id}
             className={cn(
-              "group rounded-xl border bg-background transition-colors",
+              "group rounded-lg border bg-background transition-colors",
               isSelected && !showFeedback && "border-primary/60 bg-primary/5 ring-1 ring-primary/30",
               showFeedback && isCorrect && "border-emerald-500/60 bg-emerald-500/5",
               showFeedback && isSelected && !isCorrect && "border-red-500/60 bg-red-500/5",
               isStruck && "opacity-70"
             )}
           >
-            {/* Hauptzeile: Letter + Text → tappbarer Bereich. */}
-            <Label
-              htmlFor={option.id}
-              className={cn(
-                "flex cursor-pointer items-start gap-3 px-3 py-3.5 sm:px-4",
-                isStruck && "text-muted-foreground"
-              )}
-            >
-              {/* Letter-Badge fungiert als Radio-Indikator */}
-              <span
+            {/* Hauptzeile: Letter + Text + Right-Action (Strike oder Feedback-Chip) */}
+            <div className="flex items-start gap-2 px-2.5 py-2 sm:px-3">
+              {/* Tappbarer Bereich für Auswahl: Letter + Text */}
+              <Label
+                htmlFor={option.id}
                 className={cn(
-                  "mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
-                  showFeedback && isCorrect
-                    ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
-                    : showFeedback && isSelected
-                      ? "border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300"
-                      : isSelected
-                        ? "border-primary/60 bg-primary text-primary-foreground"
-                        : "border-border bg-muted text-muted-foreground"
+                  "flex flex-1 cursor-pointer items-start gap-2.5",
+                  isStruck && "text-muted-foreground"
                 )}
               >
-                {letter}
-              </span>
-
-              {/* Antworttext */}
-              <span
-                className={cn(
-                  "flex-1 select-text text-[15px] leading-snug sm:text-base",
-                  isStruck && "line-through"
-                )}
-              >
-                {option.text}
-              </span>
-
-              {/* Versteckter, aber funktionaler Radio-Button für Form-Semantik */}
-              <RadioGroupItem
-                value={option.id}
-                id={option.id}
-                disabled={submitting}
-                className="sr-only"
-              />
-
-              {/* Feedback-Chip nach Bestätigung, rechts */}
-              {showFeedback && (
                 <span
                   className={cn(
-                    "ml-1 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold",
+                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                    showFeedback && isCorrect
+                      ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                      : showFeedback && isSelected
+                        ? "border-red-500/40 bg-red-500/15 text-red-700 dark:text-red-300"
+                        : isSelected
+                          ? "border-primary/60 bg-primary text-primary-foreground"
+                          : "border-border bg-muted text-muted-foreground"
+                  )}
+                >
+                  {letter}
+                </span>
+
+                <span
+                  className={cn(
+                    "flex-1 select-text pt-0.5 text-[15px] leading-snug sm:text-base",
+                    isStruck && "line-through"
+                  )}
+                >
+                  {option.text}
+                </span>
+
+                <RadioGroupItem
+                  value={option.id}
+                  id={option.id}
+                  disabled={submitting}
+                  className="sr-only"
+                />
+              </Label>
+
+              {/* Rechte Seite, gleiche Höhe wie Option: Feedback-Chip nach Bestätigung, sonst Strike-Icon */}
+              {showFeedback ? (
+                <span
+                  className={cn(
+                    "mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
                     isCorrect
                       ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : isSelected
@@ -158,45 +158,35 @@ export function AnswerOptions({
                     </>
                   ) : null}
                 </span>
+              ) : (
+                <StrikeIconButton
+                  active={isStruck}
+                  disabled={submitting}
+                  onClick={() => toggleStrike(option.id)}
+                />
               )}
-            </Label>
+            </div>
 
-            {/* Strike-Button + Erklärung-Toggle als eigene Action-Bar darunter */}
-            {(!showFeedback || hasExplanation) && (
-              <div
-                className={cn(
-                  "flex items-center border-t",
-                  showFeedback && hasExplanation ? "justify-between" : "justify-end"
-                )}
+            {/* Erklärung-Toggle als schmale Bottom-Bar nach Bestätigung */}
+            {showFeedback && hasExplanation && (
+              <button
+                type="button"
+                onClick={() => toggleExplanation(option.id)}
+                aria-expanded={isExplOpen}
+                className="flex w-full items-center justify-between gap-2 border-t px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 sm:px-3"
               >
-                {showFeedback && hasExplanation && (
-                  <button
-                    type="button"
-                    onClick={() => toggleExplanation(option.id)}
-                    aria-expanded={isExplOpen}
-                    className="flex flex-1 items-center justify-between gap-2 px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 sm:px-4"
-                  >
-                    <span>Erklärung {letter}</span>
-                    <ChevronDown
-                      className={cn(
-                        "h-4 w-4 transition-transform duration-200",
-                        isExplOpen && "rotate-180"
-                      )}
-                    />
-                  </button>
-                )}
-                {!showFeedback && (
-                  <StrikeButton
-                    active={isStruck}
-                    disabled={submitting}
-                    onClick={() => toggleStrike(option.id)}
-                  />
-                )}
-              </div>
+                <span>Erklärung {letter}</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 transition-transform duration-200",
+                    isExplOpen && "rotate-180"
+                  )}
+                />
+              </button>
             )}
 
             {showFeedback && hasExplanation && isExplOpen && (
-              <div className="border-t bg-muted/30 px-3 py-3 text-sm leading-relaxed text-muted-foreground sm:px-4">
+              <div className="border-t bg-muted/30 px-2.5 py-2 text-sm leading-relaxed text-muted-foreground sm:px-3">
                 {option.explanation}
               </div>
             )}
@@ -207,7 +197,7 @@ export function AnswerOptions({
   )
 }
 
-function StrikeButton({
+function StrikeIconButton({
   active,
   disabled,
   onClick,
@@ -229,13 +219,12 @@ function StrikeButton({
       title={active ? "Streichung aufheben" : "Option streichen"}
       aria-label={active ? "Streichung aufheben" : "Option streichen"}
       className={cn(
-        "inline-flex h-9 w-full items-center justify-center gap-1.5 px-3 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground sm:w-auto",
-        active && "bg-muted text-foreground",
+        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        active && "border-foreground/30 bg-muted text-foreground",
         disabled && "pointer-events-none opacity-40"
       )}
     >
       <Strikethrough className="h-3.5 w-3.5" aria-hidden="true" />
-      <span>{active ? "Streichung aufheben" : "Option streichen"}</span>
     </button>
   )
 }
