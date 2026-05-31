@@ -10,27 +10,35 @@ export default function Footer() {
             <h3 className="font-semibold mb-4">Rechtliches</h3>
             <ul className="space-y-2 text-sm">
               <li>
-                <Link 
-                  href="/impressum" 
+                <Link
+                  href="/impressum"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   Impressum
                 </Link>
               </li>
               <li>
-                <Link 
-                  href="/datenschutz" 
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Datenschutz
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href="/agb" 
+                <Link
+                  href="/agb"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   AGB
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/widerruf"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Widerrufsbelehrung
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/datenschutz"
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Datenschutzerklärung
                 </Link>
               </li>
             </ul>
@@ -64,11 +72,19 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
-          <p className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2">
+          <p className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 flex-wrap">
             <span>Alle Rechte vorbehalten.</span>
             <span className="hidden sm:inline">|</span>
             <Link href="/impressum" className="hover:text-foreground transition-colors">
               Impressum
+            </Link>
+            <span className="hidden sm:inline">|</span>
+            <Link href="/agb" className="hover:text-foreground transition-colors">
+              AGB
+            </Link>
+            <span className="hidden sm:inline">|</span>
+            <Link href="/widerruf" className="hover:text-foreground transition-colors">
+              Widerruf
             </Link>
             <span className="hidden sm:inline">|</span>
             <Link href="/datenschutz" className="hover:text-foreground transition-colors">

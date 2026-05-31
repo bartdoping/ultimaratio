@@ -12,6 +12,7 @@ const EXACT_PATHS = new Set([
   "/impressum",
   "/datenschutz",
   "/agb",
+  "/widerruf",
   "/account",
   "/subscription",
 ])
