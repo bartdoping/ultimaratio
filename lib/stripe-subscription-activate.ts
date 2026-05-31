@@ -6,6 +6,7 @@ import type Stripe from "stripe"
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
 import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
+import { notifyAdminNewProSubscription } from "@/lib/admin-notify"
 
 function isPaidLikeCheckoutSession(s: Stripe.Checkout.Session): boolean {
   return (
@@ -48,6 +49,15 @@ export async function activateProFromCheckoutSession(
       reason: `payment_not_complete:${s.payment_status ?? "unknown"}`,
     }
   }
+
+  // Vorherigen Status laden, damit Admin-Benachrichtigung nur beim
+  // Übergang free → pro feuert (Schutz vor Doppelversand bei Webhook +
+  // complete-checkout-Redirect-Fallback).
+  const prevUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, subscriptionStatus: true },
+  })
+  const wasPro = prevUser?.subscriptionStatus === "pro"
 
   await prisma.user.update({
     where: { id: userId },
@@ -92,6 +102,27 @@ export async function activateProFromCheckoutSession(
         e
       )
     }
+  }
+
+  // Admin-Benachrichtigung — best-effort, blockt nicht.
+  if (!wasPro && prevUser?.email) {
+    let periodEnd: Date | null = null
+    let stripeSubId: string | null = null
+    if (s.subscription) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(s.subscription as string)
+        stripeSubId = sub.id
+        periodEnd = getStripeSubscriptionPeriodBounds(sub).end
+      } catch {
+        // ignore — Notification trotzdem schicken, ohne Period.
+      }
+    }
+    void notifyAdminNewProSubscription({
+      email: prevUser.email,
+      stripeSubscriptionId: stripeSubId,
+      currentPeriodEnd: periodEnd,
+      source: "checkout.session.completed",
+    })
   }
 
   return { ok: true }

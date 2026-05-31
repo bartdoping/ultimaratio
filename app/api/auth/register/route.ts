@@ -11,6 +11,7 @@ import { hashPassword } from "@/lib/password"
 import { sendVerificationMail } from "@/lib/mail"
 import { rateLimitKey, tryAcquireAuth } from "@/lib/auth-rate-limit"
 import { isCaptchaConfigured, verifyCaptchaToken } from "@/lib/captcha"
+import { notifyAdminNewUser } from "@/lib/admin-notify"
 
 export const runtime = "nodejs"
 
@@ -98,6 +99,10 @@ export async function POST(req: Request) {
         message: (emailError as Error)?.message?.slice(0, 200),
       })
     }
+
+    // Admin-Benachrichtigung (best-effort, blockiert die Registrierung nicht).
+    // Bewusst nicht awaiten, damit der Client schneller die OK-Antwort sieht.
+    void notifyAdminNewUser(user.email)
 
     return NextResponse.json({ ok: true })
   } catch (err) {

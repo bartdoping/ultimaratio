@@ -134,7 +134,9 @@ export async function POST(req: Request) {
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription
-        await applyStripeSubscriptionToDatabase(subscription)
+        await applyStripeSubscriptionToDatabase(subscription, {
+          source: event.type,
+        })
         break
       }
 
@@ -147,7 +149,9 @@ export async function POST(req: Request) {
         if (subId) {
           try {
             const sub = await stripe.subscriptions.retrieve(subId)
-            await applyStripeSubscriptionToDatabase(sub)
+            await applyStripeSubscriptionToDatabase(sub, {
+              source: "invoice.payment_succeeded",
+            })
           } catch (err) {
             console.error("invoice.payment_succeeded apply failed", {
               eventId: event.id,
@@ -168,7 +172,9 @@ export async function POST(req: Request) {
         if (subId) {
           try {
             const sub = await stripe.subscriptions.retrieve(subId)
-            await applyStripeSubscriptionToDatabase(sub)
+            await applyStripeSubscriptionToDatabase(sub, {
+              source: "invoice.payment_failed",
+            })
             // Optional: User-Markierung für UI-Warnung
             const userId = await resolveUserIdForStripeSubscription(sub)
             if (userId) {

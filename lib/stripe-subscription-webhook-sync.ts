@@ -6,6 +6,7 @@ import type Stripe from "stripe"
 import prisma from "@/lib/db"
 import { stripeSubscriptionGrantsPro } from "@/lib/stripe-subscription-access"
 import { getStripeSubscriptionPeriodBounds } from "@/lib/stripe-subscription-period"
+import { notifyAdminNewProSubscription } from "@/lib/admin-notify"
 
 export async function resolveUserIdForStripeSubscription(
   sub: Stripe.Subscription
@@ -36,9 +37,18 @@ export async function resolveUserIdForStripeSubscription(
   return null
 }
 
-/** Schreibt Perioden, Kündigungsende und Pro/Free aus Stripe-Subscription. */
+/**
+ * Schreibt Perioden, Kündigungsende und Pro/Free aus Stripe-Subscription.
+ * Sendet eine Admin-Benachrichtigung, falls sich der User-Status durch dieses
+ * Event von "nicht-pro" → "pro" ändert (Transition-Detection). So wird auch
+ * bei mehrfachen Events pro Subscription nur einmal benachrichtigt.
+ *
+ * Optionaler `source`-Parameter wird in der Benachrichtigung als Trigger
+ * angezeigt (z. B. der konkrete Stripe-Event-Type).
+ */
 export async function applyStripeSubscriptionToDatabase(
-  sub: Stripe.Subscription
+  sub: Stripe.Subscription,
+  options?: { source?: string }
 ): Promise<void> {
   const userId = await resolveUserIdForStripeSubscription(sub)
   if (!userId) {
@@ -60,6 +70,14 @@ export async function applyStripeSubscriptionToDatabase(
   } catch (e) {
     console.warn("[applyStripeSubscriptionToDatabase] period bounds:", e)
   }
+
+  // Vor dem Schreiben den aktuellen User-Status auslesen, um die Transition
+  // free → pro zuverlässig erkennen zu können.
+  const prevUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true, subscriptionStatus: true },
+  })
+  const wasPro = prevUser?.subscriptionStatus === "pro"
 
   await prisma.subscription.upsert({
     where: { userId },
@@ -91,4 +109,15 @@ export async function applyStripeSubscriptionToDatabase(
     where: { id: userId },
     data: { subscriptionStatus: grantsPro ? "pro" : "free" },
   })
+
+  // Admin-Benachrichtigung nur beim echten Übergang nicht-pro → pro.
+  // Best-effort, blockiert den Webhook nicht.
+  if (!wasPro && grantsPro && prevUser?.email) {
+    void notifyAdminNewProSubscription({
+      email: prevUser.email,
+      stripeSubscriptionId: sub.id,
+      currentPeriodEnd: period?.end ?? null,
+      source: options?.source ?? "stripe.webhook",
+    })
+  }
 }
