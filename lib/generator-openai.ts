@@ -1,5 +1,5 @@
 import OpenAI from "openai"
-import { GENERATOR_MODEL } from "@/lib/generator-ai-config"
+import { GENERATOR_MODEL, GENERATOR_MODEL_FALLBACK } from "@/lib/generator-ai-config"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -77,7 +77,8 @@ function classifyOpenAIError(err: unknown): GeneratorModelError {
   )
 }
 
-async function createResponse(
+async function createResponseWithModel(
+  model: string,
   params: GeneratorCallParams,
   repairHint?: string
 ): Promise<string> {
@@ -87,16 +88,10 @@ async function createResponse(
   try {
     resp = await client.responses.create(
       {
-        model: GENERATOR_MODEL,
+        model,
         instructions: params.instructions,
         input,
         max_output_tokens: params.maxOutputTokens,
-        // `json_object` reicht in Kombination mit der serverseitigen
-        // Validierung (`lib/generator-validate.ts`) plus Repair-Pass.
-        // `json_schema` mit strict:true ist aktuell nicht aktiviert, weil
-        // die bestehenden Felder (caseVignette, learningObjective, examTrap)
-        // nullable / optional sind und strict alle Felder als required
-        // verlangt — Migration wäre ein größerer, riskanter Eingriff.
         text: { format: { type: "json_object" }, verbosity: "medium" },
       },
       params.signal ? { signal: params.signal } : undefined
@@ -114,6 +109,13 @@ async function createResponse(
   return text
 }
 
+async function createResponse(
+  params: GeneratorCallParams,
+  repairHint?: string
+): Promise<string> {
+  return createResponseWithModel(GENERATOR_MODEL, params, repairHint)
+}
+
 export async function callGeneratorModel(
   params: GeneratorCallParams,
   repairHint?: string
@@ -129,21 +131,46 @@ export async function callGeneratorModelWithRetry(
   } catch (firstError) {
     // Aborts/Timeouts nicht erneut versuchen.
     if (params.signal?.aborted) throw firstError
-    // Bei harten Modell-/Auth-Fehlern macht ein zweiter Versuch keinen Sinn.
+
+    // Auth-Fehler sind hart — kein Retry und kein Fallback-Modell.
     if (
       firstError instanceof GeneratorModelError &&
-      (firstError.kind === "invalid_model" || firstError.kind === "auth")
+      firstError.kind === "auth"
     ) {
       throw firstError
     }
-    try {
-      return await createResponse(
-        params,
-        "Die vorherige Antwort war ungültig oder leer. Antworte ausschließlich mit gültigem JSON ohne Markdown und ohne zusätzlichen Text."
-      )
-    } catch {
-      throw firstError
+
+    // 1) Same-Model-Retry mit Repair-Hint (kostengünstig).
+    if (
+      !(firstError instanceof GeneratorModelError) ||
+      firstError.kind !== "invalid_model"
+    ) {
+      try {
+        return await createResponse(
+          params,
+          "Die vorherige Antwort war ungültig oder leer. Antworte ausschließlich mit gültigem JSON ohne Markdown und ohne zusätzlichen Text."
+        )
+      } catch (secondError) {
+        if (params.signal?.aborted) throw secondError
+        // Fall durch zum Modell-Fallback unten.
+      }
     }
+
+    // 2) Modell-Fallback: anderes (robusteres) Modell.
+    if (GENERATOR_MODEL_FALLBACK && GENERATOR_MODEL_FALLBACK !== GENERATOR_MODEL) {
+      try {
+        console.warn(
+          `[generator] primary model ${GENERATOR_MODEL} failed (${
+            firstError instanceof Error ? firstError.message : "unknown"
+          }) — falling back to ${GENERATOR_MODEL_FALLBACK}.`
+        )
+        return await createResponseWithModel(GENERATOR_MODEL_FALLBACK, params)
+      } catch {
+        // Beim Fallback-Fehler werfen wir den ursprünglichen Fehler weiter.
+      }
+    }
+
+    throw firstError
   }
 }
 

@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react"
 import ThemeToggle from "@/components/theme-toggle" // ⬅️ default import
 import Logo from "@/components/logo"
 import { SubscriptionStatus } from "@/components/subscription-status"
+import { StreakBadge } from "@/components/streak/streak-badge"
 
 export function SiteHeader() {
   const pathname = usePathname()
@@ -125,6 +126,7 @@ export function SiteHeader() {
         </div>
 
         <div className="flex items-center gap-2">
+          {session && <StreakBadge />}
           {session && <SubscriptionStatus />}
           <ThemeToggle />
 

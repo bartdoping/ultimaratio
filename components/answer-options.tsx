@@ -74,6 +74,7 @@ export function AnswerOptions({
         onSelect(value)
       }}
       className="space-y-1.5"
+      aria-label="Antwortoptionen"
     >
       {options.map((option, index) => {
         const isSelected = selectedOptionId === option.id
@@ -100,7 +101,7 @@ export function AnswerOptions({
               <Label
                 htmlFor={option.id}
                 className={cn(
-                  "flex flex-1 cursor-pointer items-start gap-2.5",
+                  "flex flex-1 cursor-pointer items-start gap-2.5 rounded-md focus-within:outline-none focus-within:ring-2 focus-within:ring-primary/40 focus-within:ring-offset-1",
                   isStruck && "text-muted-foreground"
                 )}
               >
@@ -115,6 +116,7 @@ export function AnswerOptions({
                           ? "border-primary/60 bg-primary text-primary-foreground"
                           : "border-border bg-muted text-muted-foreground"
                   )}
+                  aria-label={`Option ${letter}, Taste ${letter} oder ${index + 1}`}
                 >
                   {letter}
                 </span>

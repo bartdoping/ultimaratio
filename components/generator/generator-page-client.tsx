@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
+import { PresetBar, type PresetData } from "@/components/generator/presets/preset-bar"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
@@ -25,6 +26,8 @@ type Props = {
   initialIsLoggedIn: boolean
   initialIsPro: boolean
   initialQuota: QuotaState
+  initialTrialEligible?: boolean
+  initialTrialEndsAt?: string | null
 }
 
 type SessionState = {
@@ -50,6 +53,8 @@ export function GeneratorPageClient({
   initialIsLoggedIn,
   initialIsPro,
   initialQuota,
+  initialTrialEligible = false,
+  initialTrialEndsAt = null,
 }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -69,6 +74,10 @@ export function GeneratorPageClient({
   const [isLoggedIn, setIsLoggedIn] = useState(initialIsLoggedIn)
   const [isPro, setIsPro] = useState(initialIsPro)
   const [quota, setQuota] = useState<QuotaState>(initialQuota)
+  const [trialEligible, setTrialEligible] = useState(initialTrialEligible)
+  const [trialEndsAt, setTrialEndsAt] = useState<string | null>(initialTrialEndsAt)
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
@@ -84,10 +93,30 @@ export function GeneratorPageClient({
       setQuota(data.quota)
       setIsLoggedIn(!!data.isLoggedIn)
       setIsPro(!!data.isPro)
+      setTrialEligible(!!data.trialEligible)
+      setTrialEndsAt(data.trialEndsAt ?? null)
     } catch {
       // ignore
     }
   }, [])
+
+  // Cooldown-Ticker: aktualisiert verbleibende Sekunden, bis das Burst-Limit abläuft.
+  useEffect(() => {
+    if (!cooldownUntil) {
+      setCooldownRemaining(0)
+      return
+    }
+    function tick() {
+      const remaining = Math.max(0, Math.ceil((cooldownUntil! - Date.now()) / 1000))
+      setCooldownRemaining(remaining)
+      if (remaining <= 0) {
+        setCooldownUntil(null)
+      }
+    }
+    tick()
+    const id = window.setInterval(tick, 250)
+    return () => window.clearInterval(id)
+  }, [cooldownUntil])
 
   // initial quota kommt vom Server (SSR) — kein zusätzlicher Roundtrip beim Mount.
 
@@ -98,6 +127,36 @@ export function GeneratorPageClient({
     window.addEventListener("fragenkreuzen:subscription-updated", onSubscriptionUpdated)
     return () => window.removeEventListener("fragenkreuzen:subscription-updated", onSubscriptionUpdated)
   }, [refreshQuota])
+
+  // Preset über Share-Link laden (?preset=<slug>)
+  useEffect(() => {
+    const presetSlug = searchParams.get("preset")
+    if (!presetSlug) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`/api/presets/${encodeURIComponent(presetSlug)}`)
+        if (!res.ok) return
+        const data = await res.json().catch(() => ({}))
+        if (cancelled || !data?.ok || !data.preset) return
+        const p = data.preset as PresetData
+        setTopic(p.topic ?? "")
+        setDifficulty(p.difficulty ?? 3)
+        setMode(p.mode === "case" ? "case" : "single")
+        if (p.mode === "case" && p.caseQuestionCount) {
+          setCaseCount(p.caseQuestionCount)
+        }
+        toast.success(`Preset geladen: ${p.title}`)
+        // URL aufräumen, damit Reload nicht erneut lädt.
+        router.replace("/generator", { scroll: false })
+      } catch {
+        // ignore
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [searchParams, router])
 
   useEffect(() => {
     const subscription = searchParams.get("subscription")
@@ -271,6 +330,8 @@ export function GeneratorPageClient({
 
       // Burst-Rate-Limit (kein Quota-Verbrauch)
       if (res.status === 429 && data.error === "rate_limited") {
+        const wait = Math.max(1, Math.ceil(Number(data.retryAfterSec) || 10))
+        setCooldownUntil(Date.now() + wait * 1000)
         setError(
           typeof data.message === "string"
             ? data.message
@@ -280,22 +341,47 @@ export function GeneratorPageClient({
       }
 
       if (!res.ok) {
-        setError(
+        const msg =
           typeof data.message === "string"
             ? data.message
             : typeof data.error === "string"
               ? humanizeError(data.error)
               : "Generierung fehlgeschlagen."
-        )
+        setError(msg)
+        // Bei tatsächlichen Generierungsfehlern (nicht Limit/Rate-Limit) wird
+        // serverseitig refundiert — User reassurance per Toast.
+        const isCountedFailure =
+          res.status >= 500 || res.status === 502 || res.status === 504
+        if (isCountedFailure) {
+          toast.error("Diese Generierung ist fehlgeschlagen.", {
+            description:
+              "Dein Tagesbudget wurde nicht belastet – versuch es einfach nochmal.",
+          })
+        }
+        // Quota nach Refund frisch ziehen
+        void refreshQuota()
         return
       }
       if (!data.ok || !Array.isArray(data.questions)) {
         setError("Unerwartete Server-Antwort.")
+        toast.error("Unerwartete Server-Antwort.", {
+          description:
+            "Dein Tagesbudget wurde nicht belastet – versuch es einfach nochmal.",
+        })
+        void refreshQuota()
         return
       }
 
       if (data.quota) setQuota(data.quota)
       setLoadProgress(100)
+      // Streak-Update an alle interessierten Komponenten dispatchen
+      if (data.streak && typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("fragenkreuzen:streak-updated", {
+            detail: data.streak,
+          })
+        )
+      }
       setSession({
         questions: data.questions,
         meta: {
@@ -306,6 +392,10 @@ export function GeneratorPageClient({
       })
     } catch {
       setError("Netzwerkfehler. Bitte später erneut versuchen.")
+      toast.error("Netzwerkfehler beim Generieren.", {
+        description: "Dein Tagesbudget wurde nicht belastet.",
+      })
+      void refreshQuota()
     } finally {
       setLoading(false)
       setLoadProgress(0)
@@ -352,16 +442,19 @@ export function GeneratorPageClient({
   const atLimit = !quota.unlimited && quota.remaining <= 0
   const effectiveLimitState = limitState
 
-  const submitDisabled = loading || atLimit || !remainingSufficient
+  const onCooldown = cooldownRemaining > 0
+  const submitDisabled = loading || atLimit || !remainingSufficient || onCooldown
   const submitLabel = loading
     ? "Generiere…"
-    : atLimit
-      ? "Tageslimit erreicht"
-      : !remainingSufficient
-        ? `Reicht nicht für ${units} Fragen`
-        : mode === "case"
-          ? `${units} Fallfragen generieren`
-          : "Frage generieren"
+    : onCooldown
+      ? `Bitte ${cooldownRemaining}s warten…`
+      : atLimit
+        ? "Tageslimit erreicht"
+        : !remainingSufficient
+          ? `Reicht nicht für ${units} Fragen`
+          : mode === "case"
+            ? `${units} Fallfragen generieren`
+            : "Frage generieren"
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-10 lg:pb-14 lg:pt-14">
@@ -387,6 +480,27 @@ export function GeneratorPageClient({
             onUpgrade={handleUpgrade}
           />
         </div>
+      )}
+
+      {/* Presets (nur für eingeloggte User) */}
+      {isLoggedIn && (
+        <PresetBar
+          isLoggedIn={isLoggedIn}
+          current={{
+            topic,
+            difficulty,
+            mode,
+            caseQuestionCount: mode === "case" ? caseCount : null,
+          }}
+          onApply={(p) => {
+            setTopic(p.topic ?? "")
+            setDifficulty(p.difficulty ?? 3)
+            setMode(p.mode === "case" ? "case" : "single")
+            if (p.mode === "case" && p.caseQuestionCount) {
+              setCaseCount(p.caseQuestionCount)
+            }
+          }}
+        />
       )}
 
       {/* Command Center */}
@@ -552,7 +666,19 @@ export function GeneratorPageClient({
             onUpgrade={handleUpgrade}
             upgrading={upgrading}
             isLoggedIn={isLoggedIn}
+            isPro={isPro}
+            trialEligible={trialEligible}
           />
+        </div>
+      )}
+
+      {/* Aktiv laufendes Trial: Dezenter Hinweis am Ende */}
+      {isPro && trialEndsAt && (
+        <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+          <span className="font-medium">Pro-Testphase aktiv</span>{" "}
+          <span className="text-muted-foreground">
+            – läuft bis {new Date(trialEndsAt).toLocaleDateString("de-DE")}. Du kannst jederzeit ein Abo abschließen, damit es nahtlos weitergeht.
+          </span>
         </div>
       )}
     </div>

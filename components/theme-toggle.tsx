@@ -3,72 +3,74 @@
 
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
+import { Sun, Moon, Monitor } from "lucide-react"
+
+const ORDER = ["light", "dark", "system"] as const
+type ThemeKey = (typeof ORDER)[number]
+
+function nextTheme(current: string | undefined): ThemeKey {
+  const idx = ORDER.indexOf((current as ThemeKey) ?? "system")
+  if (idx < 0) return "light"
+  return ORDER[(idx + 1) % ORDER.length]
+}
 
 export default function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  // Bei nicht-eingegebenen Feldern: Shift+D zum Toggle (Power-User).
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!e.shiftKey || (e.key !== "D" && e.key !== "d")) return
+      const target = e.target as HTMLElement | null
+      const tag = target?.tagName?.toLowerCase()
+      if (tag === "input" || tag === "textarea" || target?.isContentEditable) return
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+      e.preventDefault()
+      setTheme(nextTheme(theme))
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [theme, setTheme])
+
   if (!mounted) {
     return (
       <button
         type="button"
-        className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted focus:outline-none focus:ring"
+        className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm hover:bg-muted focus:outline-none focus:ring"
+        aria-label="Theme wird geladen"
         disabled
       >
-        <span className="relative h-4 w-4 inline-block">
-          <svg
-            viewBox="0 0 24 24"
-            className="absolute inset-0 h-4 w-4 opacity-100"
-            fill="currentColor"
-            aria-hidden="true"
-          >
-            <path d="M6.76 4.84 5.34 3.42 3.92 4.84l1.42 1.42 1.42-1.42Zm10.48 0 1.42-1.42L18.24 3.4l-1.42 1.42 1.42 1.42ZM12 4c.55 0 1-.45 1-1V1a1 1 0 1 0-2 0v2c0 .55.45 1 1 1Zm8 7c0-.55.45-1 1-1h2a1 1 0 1 1 0 2h-2c-.55 0-1-.45-1-1ZM12 20a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0v-2c0-.55-.45-1-1-1ZM2 12c0-.55-.45-1-1-1H-1a1 1 0 1 0 0 2h2c.55 0 1-.45 1-1Zm4.76 7.16L5.34 20.6l-1.42 1.42 1.42 1.42 1.42-1.42-1.42-1.42Zm12.9 0L18.24 20.6l1.42 1.42 1.42-1.42-1.42-1.42ZM12 6.5A5.5 5.5 0 1 0 12 17.5 5.5 5.5 0 0 0 12 6.5Z" />
-          </svg>
-        </span>
-        <span className="hidden sm:inline">Light</span>
+        <Sun className="h-4 w-4 opacity-60" aria-hidden="true" />
       </button>
     )
   }
 
-  const isDark = theme === "dark"
-  const toggle = () => {
-    setTheme(isDark ? "light" : "dark")
+  const current: ThemeKey = (theme as ThemeKey) ?? "system"
+  const next = nextTheme(theme)
+  const tipMap: Record<ThemeKey, string> = {
+    light: "Light Mode aktiv — Klick wechselt zu Dark (Shift+D)",
+    dark: "Dark Mode aktiv — Klick wechselt zu System (Shift+D)",
+    system: `System (gerade ${resolvedTheme === "dark" ? "Dark" : "Light"}) — Klick wechselt zu Light (Shift+D)`,
   }
+
+  const Icon =
+    current === "system" ? Monitor : current === "dark" ? Moon : Sun
 
   return (
     <button
       type="button"
-      onClick={toggle}
-      aria-pressed={isDark}
-      className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-muted focus:outline-none focus:ring"
-      title={isDark ? "Light Mode aktivieren" : "Dark Mode aktivieren"}
-      aria-label={isDark ? "Dark Mode ist aktiv – auf Light wechseln" : "Light Mode ist aktiv – auf Dark wechseln"}
+      onClick={() => setTheme(next)}
+      aria-label={tipMap[current]}
+      title={tipMap[current]}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md border text-sm transition-colors hover:bg-muted focus:outline-none focus:ring"
     >
-      <span className="relative h-4 w-4 inline-block">
-        {/* Sonne */}
-        <svg
-          viewBox="0 0 24 24"
-          className={`absolute inset-0 h-4 w-4 transition-opacity ${isDark ? "opacity-0" : "opacity-100"}`}
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path d="M6.76 4.84 5.34 3.42 3.92 4.84l1.42 1.42 1.42-1.42Zm10.48 0 1.42-1.42L18.24 3.4l-1.42 1.42 1.42 1.42ZM12 4c.55 0 1-.45 1-1V1a1 1 0 1 0-2 0v2c0 .55.45 1 1 1Zm8 7c0-.55.45-1 1-1h2a1 1 0 1 1 0 2h-2c-.55 0-1-.45-1-1ZM12 20a1 1 0 0 0-1 1v2a1 1 0 1 0 2 0v-2c0-.55-.45-1-1-1ZM2 12c0-.55-.45-1-1-1H-1a1 1 0 1 0 0 2h2c.55 0 1-.45 1-1Zm4.76 7.16L5.34 20.6l-1.42 1.42 1.42 1.42 1.42-1.42-1.42-1.42Zm12.9 0L18.24 20.6l1.42 1.42 1.42-1.42-1.42-1.42ZM12 6.5A5.5 5.5 0 1 0 12 17.5 5.5 5.5 0 0 0 12 6.5Z" />
-        </svg>
-        {/* Mond */}
-        <svg
-          viewBox="0 0 24 24"
-          className={`absolute inset-0 h-4 w-4 transition-opacity ${isDark ? "opacity-100" : "opacity-0"}`}
-          fill="currentColor"
-          aria-hidden="true"
-        >
-          <path d="M21 12.79A9 9 0 0 1 11.21 3a7 7 0 1 0 9.79 9.79ZM12 22a10 10 0 0 1-9.95-9 1 1 0 0 1 1.37-1.03A8 8 0 0 0 12 20.58 1 1 0 0 1 12 22Z" />
-        </svg>
-      </span>
-      <span className="hidden sm:inline">{isDark ? "Dark" : "Light"}</span>
+      <Icon className="h-4 w-4" aria-hidden="true" />
+      <span className="sr-only">Theme wechseln</span>
     </button>
   )
 }

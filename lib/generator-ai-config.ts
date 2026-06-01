@@ -19,6 +19,24 @@ export const GENERATOR_MODEL = (
   process.env.OPENAI_MODEL_GENERATOR?.trim() || FALLBACK_MODEL
 )
 
+/**
+ * Sekundärmodell, das verwendet wird, wenn das primäre Modell ausfällt
+ * (z. B. Timeout, 5xx, Rate-Limit nach Retry). Über
+ * `OPENAI_MODEL_GENERATOR_FALLBACK` konfigurierbar.
+ *
+ * Default ist bewusst `gpt-4o-mini` — robust verfügbar und niemals derselbe wie
+ * das Primärmodell, wenn das Primärmodell überschrieben wurde.
+ */
+const FALLBACK_SECONDARY = "gpt-4o-mini"
+const FALLBACK_CONFIGURED =
+  process.env.OPENAI_MODEL_GENERATOR_FALLBACK?.trim() || FALLBACK_SECONDARY
+
+export const GENERATOR_MODEL_FALLBACK =
+  FALLBACK_CONFIGURED === GENERATOR_MODEL
+    ? // Wenn primary == fallback, bringt der Fallback nichts → gpt-4o nehmen.
+      "gpt-4o"
+    : FALLBACK_CONFIGURED
+
 /** Token-Limit für vollständige Fragen inkl. Erklärungen. */
 export function generatorMaxOutputTokens(mode: "single" | "case", caseQuestionCount: number): number {
   if (mode === "single") return 3200

@@ -5,6 +5,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Check, Sparkles } from "lucide-react"
 import { ProDetailsModal } from "@/components/generator/pro-details-modal"
+import { TrialStartButton } from "@/components/subscription/trial-start-button"
 
 type Variant = "generator" | "account"
 
@@ -14,6 +15,8 @@ type Props = {
   upgrading?: boolean
   isLoggedIn?: boolean
   isPro?: boolean
+  /** Wenn true: Trial wurde noch nicht genutzt → Trial-CTA anbieten. */
+  trialEligible?: boolean
 }
 
 const BENEFITS = [
@@ -41,6 +44,7 @@ export function ProUpgradeCard({
   upgrading = false,
   isLoggedIn = true,
   isPro = false,
+  trialEligible = false,
 }: Props) {
   const [detailsOpen, setDetailsOpen] = useState(false)
 
@@ -105,6 +109,9 @@ export function ProUpgradeCard({
                 >
                   Details
                 </Button>
+                {isLoggedIn && trialEligible && !isPro && (
+                  <TrialStartButton size="sm" variant="outline" />
+                )}
                 {onUpgrade && (
                   <Button onClick={onUpgrade} disabled={upgrading} size="sm">
                     {upgrading
@@ -116,9 +123,14 @@ export function ProUpgradeCard({
                 )}
               </>
             ) : isLoggedIn ? (
-              <Button asChild size="sm">
-                <Link href="/subscription">Abo verwalten</Link>
-              </Button>
+              <>
+                {trialEligible && !isPro && (
+                  <TrialStartButton size="sm" variant="outline" />
+                )}
+                <Button asChild size="sm">
+                  <Link href="/subscription">Abo verwalten</Link>
+                </Button>
+              </>
             ) : (
               <Button
                 type="button"

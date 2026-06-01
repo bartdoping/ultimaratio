@@ -1,12 +1,27 @@
 // lib/subscription.ts
 import prisma from "@/lib/db"
 
-export async function isUserPro(userId: string): Promise<boolean> {
+export type ProAccessKind = "none" | "subscription" | "trial" | "admin"
+
+export type ProAccessSnapshot = {
+  isPro: boolean
+  kind: ProAccessKind
+  /** Wann läuft das aktive (oder abgelaufene) Trial. null wenn nie ein Trial gestartet. */
+  trialEndsAt: Date | null
+}
+
+/**
+ * Liefert detaillierte Pro-Access-Information:
+ * - `kind` zeigt, woher der Pro-Status kommt (Subscription / Trial / Admin).
+ * - `isPro` ist true, sobald irgendeine aktive Quelle existiert.
+ */
+export async function getProAccess(userId: string): Promise<ProAccessSnapshot> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       subscriptionStatus: true,
       role: true,
+      proTrialEndsAt: true,
       subscription: {
         select: {
           currentPeriodEnd: true,
@@ -16,14 +31,19 @@ export async function isUserPro(userId: string): Promise<boolean> {
     },
   })
 
-  if (!user) return false
+  if (!user) return { isPro: false, kind: "none", trialEndsAt: null }
+  if (user.role === "admin") return { isPro: true, kind: "admin", trialEndsAt: null }
 
-  if (user.role === "admin") return true
-
-  if (user.subscriptionStatus !== "pro") return false
-
-  const periodEnd = user.subscription?.currentPeriodEnd
-  if (periodEnd && new Date(periodEnd).getTime() <= Date.now()) {
+  // 1) Aktives Stripe-Abo → Pro
+  if (user.subscriptionStatus === "pro") {
+    const periodEnd = user.subscription?.currentPeriodEnd
+    if (!periodEnd || new Date(periodEnd).getTime() > Date.now()) {
+      return {
+        isPro: true,
+        kind: "subscription",
+        trialEndsAt: user.proTrialEndsAt ?? null,
+      }
+    }
     // Best-effort Self-Heal: nicht mehr pro, wenn Period-Ende abgelaufen ist.
     try {
       await prisma.user.update({
@@ -37,10 +57,20 @@ export async function isUserPro(userId: string): Promise<boolean> {
     } catch {
       // ignore
     }
-    return false
   }
 
-  return true
+  // 2) Aktives Trial → Pro
+  const trialEnd = user.proTrialEndsAt
+  if (trialEnd && new Date(trialEnd).getTime() > Date.now()) {
+    return { isPro: true, kind: "trial", trialEndsAt: trialEnd }
+  }
+
+  return { isPro: false, kind: "none", trialEndsAt: trialEnd ?? null }
+}
+
+export async function isUserPro(userId: string): Promise<boolean> {
+  const snap = await getProAccess(userId)
+  return snap.isPro
 }
 
 export async function ensureAdminProStatus() {

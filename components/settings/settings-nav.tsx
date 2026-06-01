@@ -15,6 +15,11 @@ const items = [
     label: "Abonnement",
     description: "Pro, Laufzeit und Verwaltung",
   },
+  {
+    href: "/account/anzeige",
+    label: "Anzeige",
+    description: "Schriftgröße & Theme",
+  },
 ] as const
 
 export function SettingsNav() {

@@ -1,9 +1,11 @@
 import { Suspense } from "react"
+import type { Metadata } from "next"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { isUserPro } from "@/lib/subscription"
 import { GeneratorPageClient } from "@/components/generator/generator-page-client"
+import { OnboardingModal } from "@/components/onboarding/onboarding-modal"
 import { getGeneratorQuota } from "@/lib/generator-limits"
 import { cookies, headers } from "next/headers"
 import {
@@ -15,21 +17,45 @@ import {
 
 export const dynamic = "force-dynamic"
 
+export const metadata: Metadata = {
+  title: "Generator – KI-Prüfungsfragen | fragenkreuzen.de",
+  description:
+    "Generiere medizinische Single-Choice-Fragen und Fallvignetten mit KI – inklusive Erklärungen, Lernziel und Prüfungsfalle.",
+  alternates: { canonical: "/generator" },
+}
+
 async function loadInitialQuota() {
   const session = await getServerSession(authOptions)
   let user: { id: string; role: string } | null = null
   let isPro = false
   let isAdmin = false
+  let trialEligible = false
+  let trialEndsAt: string | null = null
+  let onboardingNeeded = false
 
   if (session?.user?.email) {
     const dbUser = await prisma.user.findUnique({
       where: { email: session.user.email.toLowerCase().trim() },
-      select: { id: true, role: true },
+      select: {
+        id: true,
+        role: true,
+        proTrialStartedAt: true,
+        proTrialEndsAt: true,
+        onboardingCompletedAt: true,
+      },
     })
     if (dbUser) {
-      user = dbUser
+      user = { id: dbUser.id, role: dbUser.role }
       isAdmin = dbUser.role === "admin"
       isPro = isAdmin || (await isUserPro(dbUser.id))
+      // Trial-Eligibility (nicht Admin, nicht aktiv, noch nicht genutzt)
+      if (!isAdmin && !isPro && !dbUser.proTrialStartedAt) {
+        trialEligible = true
+      }
+      if (dbUser.proTrialEndsAt) {
+        trialEndsAt = dbUser.proTrialEndsAt.toISOString()
+      }
+      onboardingNeeded = !dbUser.onboardingCompletedAt && !isAdmin
     }
   }
 
@@ -57,6 +83,9 @@ async function loadInitialQuota() {
     isLoggedIn: !!user,
     isPro,
     quota,
+    trialEligible,
+    trialEndsAt,
+    onboardingNeeded,
   }
 }
 
@@ -70,8 +99,11 @@ export default async function GeneratorPage() {
           initialIsLoggedIn={initial.isLoggedIn}
           initialIsPro={initial.isPro}
           initialQuota={initial.quota}
+          initialTrialEligible={initial.trialEligible}
+          initialTrialEndsAt={initial.trialEndsAt}
         />
       </Suspense>
+      {initial.onboardingNeeded && <OnboardingModal autoOpen />}
     </main>
   )
 }

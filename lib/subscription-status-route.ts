@@ -29,6 +29,8 @@ export async function subscriptionStatusGET() {
       select: {
         id: true,
         subscriptionStatus: true,
+        proTrialStartedAt: true,
+        proTrialEndsAt: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -57,6 +59,8 @@ export async function subscriptionStatusGET() {
         select: {
           id: true,
           subscriptionStatus: true,
+          proTrialStartedAt: true,
+          proTrialEndsAt: true,
           subscription: {
             select: {
               stripeSubscriptionId: true,
@@ -91,6 +95,8 @@ export async function subscriptionStatusGET() {
         select: {
           id: true,
           subscriptionStatus: true,
+          proTrialStartedAt: true,
+          proTrialEndsAt: true,
           subscription: {
             select: {
               stripeSubscriptionId: true,
@@ -139,7 +145,20 @@ export async function subscriptionStatusGET() {
       }
     }
 
-    const isPro = effectiveIsPro
+    // Trial-Status berücksichtigen (Pro ohne Stripe-Abo, max. 7 Tage)
+    const trialEndMs = user.proTrialEndsAt ? new Date(user.proTrialEndsAt).getTime() : null
+    const trialActive = typeof trialEndMs === "number" && trialEndMs > now.getTime()
+    const trialUsed = !!user.proTrialStartedAt
+    const trialDaysRemaining = trialActive && trialEndMs
+      ? Math.max(0, Math.ceil((trialEndMs - now.getTime()) / (1000 * 60 * 60 * 24)))
+      : 0
+
+    const isPro = effectiveIsPro || trialActive
+    const proKind: "subscription" | "trial" | "none" = effectiveIsPro
+      ? "subscription"
+      : trialActive
+        ? "trial"
+        : "none"
     const questionsRemaining = isPro ? -1 : 0
     const dailyQuestionsUsed = 0
 
@@ -175,6 +194,14 @@ export async function subscriptionStatusGET() {
         subscription: {
           status: user.subscriptionStatus,
           isPro,
+          proKind,
+          trial: {
+            active: trialActive,
+            used: trialUsed,
+            endsAt: user.proTrialEndsAt,
+            daysRemaining: trialDaysRemaining,
+            eligibleForStart: !trialUsed && !effectiveIsPro,
+          },
           questionsRemaining,
           dailyQuestionsUsed,
           subscriptionDetails: user.subscription,

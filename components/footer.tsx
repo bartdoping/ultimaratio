@@ -90,6 +90,13 @@ export default function Footer() {
             <Link href="/datenschutz" className="hover:text-foreground transition-colors">
               Datenschutz
             </Link>
+            <span className="hidden sm:inline">|</span>
+            <a
+              href="mailto:info@ultima-rat.io?subject=Bug%20auf%20fragenkreuzen.de"
+              className="hover:text-foreground transition-colors"
+            >
+              Bug melden
+            </a>
           </p>
         </div>
       </div>

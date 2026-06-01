@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
+import { CustomerPortalButton } from "@/components/account/customer-portal-button"
 
 type Quota = {
   used: number
@@ -18,6 +19,8 @@ type Status = {
   quota: Quota
   isPro: boolean
   isLoggedIn: boolean
+  trialEligible: boolean
+  trialEndsAt: string | null
 }
 
 export function GeneratorAccountSummary() {
@@ -31,7 +34,13 @@ export function GeneratorAccountSummary() {
         const res = await fetch("/api/ai/generate-questions/quota", { credentials: "include" })
         const data = await res.json().catch(() => null)
         if (!cancelled && data?.ok) {
-          setStatus({ quota: data.quota, isPro: !!data.isPro, isLoggedIn: !!data.isLoggedIn })
+          setStatus({
+            quota: data.quota,
+            isPro: !!data.isPro,
+            isLoggedIn: !!data.isLoggedIn,
+            trialEligible: !!data.trialEligible,
+            trialEndsAt: data.trialEndsAt ?? null,
+          })
         }
       } finally {
         if (!cancelled) setLoading(false)
@@ -52,7 +61,7 @@ export function GeneratorAccountSummary() {
 
   if (!status) return null
 
-  const { quota, isPro } = status
+  const { quota, isPro, trialEligible, trialEndsAt } = status
   const pct = quota.unlimited
     ? 0
     : quota.dailyLimit > 0
@@ -89,7 +98,29 @@ export function GeneratorAccountSummary() {
       </section>
 
       {!isPro && (
-        <ProUpgradeCard variant="account" />
+        <ProUpgradeCard variant="account" trialEligible={trialEligible} isPro={isPro} />
+      )}
+
+      {/* Pro: Rechnungen & Karte direkt im Account erreichbar */}
+      {isPro && (
+        <section className="rounded-xl border bg-card p-5 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Abo & Zahlungen</h2>
+              <p className="text-sm text-muted-foreground">
+                {trialEndsAt
+                  ? `Pro-Testphase aktiv bis ${new Date(trialEndsAt).toLocaleDateString("de-DE")}.`
+                  : "Rechnungen, Zahlungsmethode und Kündigung verwalten."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <CustomerPortalButton />
+              <Button asChild size="sm" variant="ghost">
+                <Link href="/subscription">Abo-Details</Link>
+              </Button>
+            </div>
+          </div>
+        </section>
       )}
     </div>
   )

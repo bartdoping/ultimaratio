@@ -7,31 +7,51 @@ import {
   GENERATOR_VISITOR_COOKIE,
   visitorCookieOptions,
 } from "@/lib/generator-limits"
+import prisma from "@/lib/db"
 
 export const runtime = "nodejs"
 
-function quotaResponse(access: Awaited<ReturnType<typeof resolveGeneratorAccess>>) {
-  return getGeneratorQuota(quotaSubjectFromAccess(access)).then((quota) => {
-    const res = NextResponse.json({
-      ok: true,
-      quota: {
-        used: quota.used,
-        remaining: quota.remaining,
-        dailyLimit: quota.dailyLimit,
-        unlimited: quota.unlimited,
-      },
-      isLoggedIn: access.isLoggedIn,
-      isPro: access.isPro,
-    })
-    if (access.newVisitorId) {
-      res.cookies.set(
-        GENERATOR_VISITOR_COOKIE,
-        signVisitorId(access.newVisitorId),
-        visitorCookieOptions()
-      )
-    }
-    return res
+async function loadTrialInfo(userId: string | undefined) {
+  if (!userId) return { eligible: false, endsAt: null as string | null }
+  const u = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { proTrialStartedAt: true, proTrialEndsAt: true, role: true },
   })
+  if (!u) return { eligible: false, endsAt: null }
+  const endsAt = u.proTrialEndsAt ?? null
+  const trialActive = endsAt ? new Date(endsAt).getTime() > Date.now() : false
+  return {
+    eligible: u.role !== "admin" && !u.proTrialStartedAt,
+    endsAt: trialActive && endsAt ? endsAt.toISOString() : null,
+  }
+}
+
+async function quotaResponse(access: Awaited<ReturnType<typeof resolveGeneratorAccess>>) {
+  const [quota, trial] = await Promise.all([
+    getGeneratorQuota(quotaSubjectFromAccess(access)),
+    loadTrialInfo(access.user?.id),
+  ])
+  const res = NextResponse.json({
+    ok: true,
+    quota: {
+      used: quota.used,
+      remaining: quota.remaining,
+      dailyLimit: quota.dailyLimit,
+      unlimited: quota.unlimited,
+    },
+    isLoggedIn: access.isLoggedIn,
+    isPro: access.isPro,
+    trialEligible: trial.eligible,
+    trialEndsAt: trial.endsAt,
+  })
+  if (access.newVisitorId) {
+    res.cookies.set(
+      GENERATOR_VISITOR_COOKIE,
+      signVisitorId(access.newVisitorId),
+      visitorCookieOptions()
+    )
+  }
+  return res
 }
 
 export async function GET(req: Request) {

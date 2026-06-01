@@ -94,14 +94,57 @@ export function GeneratorRunner({
       const target = e.target as HTMLElement | null
       const tag = target?.tagName?.toLowerCase()
       if (tag === "input" || tag === "textarea" || target?.isContentEditable) return
+      // Modifier-Keys ignorieren, damit Browser-Shortcuts (Ctrl/Cmd+R etc.) erhalten bleiben.
+      if (e.ctrlKey || e.metaKey || e.altKey) return
+
+      // L = Labor öffnen
       if (e.key === "l" || e.key === "L") {
         e.preventDefault()
         setLabOpen(true)
+        return
+      }
+      // A–E oder 1–5 = Antwort wählen
+      const optionLetters = ["a", "b", "c", "d", "e"] as const
+      const optionDigits = ["1", "2", "3", "4", "5"] as const
+      const k = e.key.toLowerCase()
+      const letterIdx = (optionLetters as readonly string[]).indexOf(k)
+      const digitIdx = (optionDigits as readonly string[]).indexOf(k)
+      const optIdx = letterIdx >= 0 ? letterIdx : digitIdx
+      if (optIdx >= 0 && optIdx < q.options.length) {
+        e.preventDefault()
+        if (!isConfirmed) {
+          choose(q.options[optIdx].id)
+        }
+        return
+      }
+      // Enter = Bestätigen / Weiter
+      if (e.key === "Enter") {
+        e.preventDefault()
+        if (!isConfirmed && given) {
+          confirmAnswer()
+        } else if (isConfirmed && !atEnd) {
+          setIdx((i) => Math.min(runnerQuestions.length - 1, i + 1))
+        } else if (isConfirmed && atEnd && allConfirmed) {
+          setDone(true)
+        }
+        return
+      }
+      // Pfeil rechts/links = Frage wechseln (nur Pre-/Post-Confirm-Nav, kein Bestätigen)
+      if (e.key === "ArrowRight") {
+        e.preventDefault()
+        if (!atEnd) setIdx((i) => Math.min(runnerQuestions.length - 1, i + 1))
+        return
+      }
+      if (e.key === "ArrowLeft") {
+        e.preventDefault()
+        if (!atStart) setIdx((i) => Math.max(0, i - 1))
+        return
       }
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [done, labOpen])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, labOpen, q.id, given, isConfirmed, atEnd, atStart, allConfirmed])
 
   function choose(optionId: string) {
     if (isConfirmed) return
@@ -267,6 +310,15 @@ export function GeneratorRunner({
             Wähle eine Antwort und bestätige sie, um Lösung und Erklärungen zu sehen.
           </p>
         )}
+
+        {/* Tastatur-Shortcuts Hint */}
+        <p className="hidden sm:block text-[11px] text-muted-foreground/80">
+          Tastatur: <kbd className="rounded border bg-muted/40 px-1">A</kbd>–<kbd className="rounded border bg-muted/40 px-1">E</kbd>{" "}
+          oder <kbd className="rounded border bg-muted/40 px-1">1</kbd>–<kbd className="rounded border bg-muted/40 px-1">5</kbd> wählen ·{" "}
+          <kbd className="rounded border bg-muted/40 px-1">Enter</kbd> bestätigen / weiter ·{" "}
+          <kbd className="rounded border bg-muted/40 px-1">L</kbd> Labor ·{" "}
+          <kbd className="rounded border bg-muted/40 px-1">←</kbd>/<kbd className="rounded border bg-muted/40 px-1">→</kbd> Frage wechseln
+        </p>
 
         {q.explanation && showFeedback && (
           <div className="rounded-lg border bg-secondary/40">

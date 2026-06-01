@@ -24,6 +24,7 @@ import {
   GENERATOR_VISITOR_COOKIE,
   visitorCookieOptions,
 } from "@/lib/generator-limits"
+import { recordStreakActivity } from "@/lib/streak"
 import {
   GENERATOR_MIN_INTERVAL_MS,
   rateLimitKeyFor,
@@ -221,6 +222,16 @@ export async function POST(req: Request) {
         }
       }
 
+      // Streak nur für eingeloggte User – best-effort, niemals werfen.
+      let streakInfo: Awaited<ReturnType<typeof recordStreakActivity>> = null
+      if (access.user?.id) {
+        try {
+          streakInfo = await recordStreakActivity(access.user.id)
+        } catch {
+          streakInfo = null
+        }
+      }
+
       const res = NextResponse.json({
         ok: true,
         questions: check.questions,
@@ -237,6 +248,13 @@ export async function POST(req: Request) {
           caseQuestionCount: expectedCount,
           unitsCharged: expectedCount,
         },
+        streak: streakInfo
+          ? {
+              currentStreak: streakInfo.currentStreak,
+              longestStreak: streakInfo.longestStreak,
+              milestoneJustReached: streakInfo.milestoneJustReached,
+            }
+          : null,
       })
 
       if (access.newVisitorId) {

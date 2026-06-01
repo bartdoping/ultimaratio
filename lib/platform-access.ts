@@ -3,6 +3,8 @@
 const EXACT_PATHS = new Set([
   "/",
   "/generator",
+  "/probieren",
+  "/pricing",
   "/coming-soon",
   "/login",
   "/register",
@@ -15,6 +17,7 @@ const EXACT_PATHS = new Set([
   "/widerruf",
   "/account",
   "/subscription",
+  "/feedback",
 ])
 
 const PREFIX_PATHS = [
@@ -29,6 +32,11 @@ const PREFIX_PATHS = [
   "/api/stripe/customer-portal",
   "/api/stripe/subscription/",
   "/api/subscription/",
+  "/api/streak",
+  "/api/feedback",
+  "/api/onboarding",
+  "/api/presets",
+  "/blog",
 ]
 
 export function isAdminRole(role: string | undefined | null): boolean {
