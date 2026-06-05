@@ -11,7 +11,7 @@ import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import {
   Target,
-  AlertTriangle,
+  Lightbulb,
   Sparkles,
   RotateCcw,
   TrendingUp,
@@ -19,6 +19,7 @@ import {
   Layers,
   Wand2,
 } from "lucide-react"
+import { isMnemonicWorthShowing, isMustKnowWorthShowing } from "@/lib/insight-quality"
 
 export type GeneratorQuickAction =
   | "same_again"
@@ -348,26 +349,34 @@ export function GeneratorRunner({
           </div>
         )}
 
-        {showFeedback && (q.learningObjective || q.examTrap) && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {q.learningObjective && (
-              <InsightTile
-                icon={<Target className="h-4 w-4" />}
-                label="Lernziel"
-                text={q.learningObjective}
-                tone="emerald"
-              />
-            )}
-            {q.examTrap && (
-              <InsightTile
-                icon={<AlertTriangle className="h-4 w-4" />}
-                label="Prüfungsfalle"
-                text={q.examTrap}
-                tone="amber"
-              />
-            )}
-          </div>
-        )}
+        {showFeedback && (() => {
+          // Qualitätsfilter: Box NUR rendern, wenn der Inhalt substanziell ist.
+          // Schwache Eselsbrücken oder generische "Lernziele" werden weggelassen
+          // — lieber gar keine Box als eine konstruierte.
+          const showMustKnow = isMustKnowWorthShowing(q.mustKnow)
+          const showMnemonic = isMnemonicWorthShowing(q.mnemonic)
+          if (!showMustKnow && !showMnemonic) return null
+          return (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {showMustKnow && (
+                <InsightTile
+                  icon={<Target className="h-4 w-4" />}
+                  label="Must-Know"
+                  text={q.mustKnow as string}
+                  tone="emerald"
+                />
+              )}
+              {showMnemonic && (
+                <InsightTile
+                  icon={<Lightbulb className="h-4 w-4" />}
+                  label="Lernhilfe"
+                  text={q.mnemonic as string}
+                  tone="amber"
+                />
+              )}
+            </div>
+          )
+        })()}
       </div>
 
       {showFeedback && !isPro && onUpgrade && (() => {

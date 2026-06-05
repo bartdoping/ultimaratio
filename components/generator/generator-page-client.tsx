@@ -271,26 +271,81 @@ export function GeneratorPageClient({
     }
   }
 
-  async function handleGenerate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!quota.unlimited && quota.remaining < units) {
+  /**
+   * Generierung mit optionalen Overrides. Wird sowohl vom Form-Submit als auch
+   * von den Quick-Actions auf der Done-Card aufgerufen.
+   *
+   * Wenn overrides.fromQuickAction === true, kommt der Aufruf aus einer
+   * laufenden Runner-Session — wir blenden für die Wartezeit den Generator
+   * (mit Loading-State) wieder ein, indem wir zuerst die Session schließen.
+   */
+  type GenerateOverrides = {
+    topic?: string
+    difficulty?: number
+    mode?: "single" | "case"
+    caseQuestionCount?: number
+    fromQuickAction?: boolean
+  }
+
+  async function handleGenerate(
+    eventOrOverrides?: React.FormEvent | GenerateOverrides,
+    overridesArg?: GenerateOverrides
+  ) {
+    let overrides: GenerateOverrides = {}
+    if (eventOrOverrides && "preventDefault" in eventOrOverrides) {
+      eventOrOverrides.preventDefault()
+      overrides = overridesArg ?? {}
+    } else if (eventOrOverrides) {
+      overrides = eventOrOverrides
+    }
+
+    const effTopic = (overrides.topic ?? topic).trim()
+    const effDifficulty = overrides.difficulty ?? difficulty
+    const effMode = overrides.mode ?? mode
+    const effCaseCount =
+      effMode === "case" ? (overrides.caseQuestionCount ?? caseCount) : null
+    const effUnits = effMode === "case" ? (effCaseCount ?? 1) : 1
+
+    if (!quota.unlimited && quota.remaining < effUnits) {
+      // Quick-Action mit zu wenig Restbudget → zurück zum Form mit Limit-Panel.
+      if (overrides.fromQuickAction) {
+        setSession(null)
+      }
       setLimitState({
         loginRequired: !isLoggedIn,
         upgradeRequired: !isPro,
         dailyLimit: quota.dailyLimit,
-        requested: units,
+        requested: effUnits,
       })
       return
     }
 
-    const trimmed = topic.trim()
-    if (!trimmed) {
+    if (!effTopic) {
       setError("Bitte ein Thema eingeben.")
+      if (overrides.fromQuickAction) setSession(null)
       return
     }
-    if (trimmed.length < 3) {
+    if (effTopic.length < 3) {
       setError("Bitte ein Thema mit mindestens 3 Zeichen eingeben.")
+      if (overrides.fromQuickAction) setSession(null)
       return
+    }
+
+    // Form-State auf neue Werte syncen, damit die Generator-UI nach Rückkehr
+    // (z. B. "Neues Thema") konsistent bleibt.
+    if (overrides.topic !== undefined) setTopic(overrides.topic)
+    if (overrides.difficulty !== undefined) setDifficulty(overrides.difficulty)
+    if (overrides.mode !== undefined) setMode(overrides.mode)
+    if (overrides.mode === "case" && overrides.caseQuestionCount !== undefined) {
+      setCaseCount(overrides.caseQuestionCount)
+    }
+
+    // Quick-Action: Session schließen, damit der Loading-State sichtbar wird.
+    if (overrides.fromQuickAction) {
+      setSession(null)
+      requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, behavior: "smooth" })
+      })
     }
 
     setLoading(true)
@@ -302,10 +357,10 @@ export function GeneratorPageClient({
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          topic: trimmed,
-          difficulty,
-          mode,
-          caseQuestionCount: mode === "case" ? caseCount : undefined,
+          topic: effTopic,
+          difficulty: effDifficulty,
+          mode: effMode,
+          caseQuestionCount: effMode === "case" ? effCaseCount : undefined,
         }),
       })
       const data = await res.json().catch(() => ({}))
@@ -315,7 +370,7 @@ export function GeneratorPageClient({
           loginRequired: !!data.loginRequired,
           upgradeRequired: !!data.upgradeRequired,
           dailyLimit: data.dailyLimit ?? quota.dailyLimit,
-          requested: typeof data.requested === "number" ? data.requested : units,
+          requested: typeof data.requested === "number" ? data.requested : effUnits,
         })
         if (data.dailyLimit != null) {
           setQuota((q) => ({
@@ -385,8 +440,8 @@ export function GeneratorPageClient({
       setSession({
         questions: data.questions,
         meta: {
-          topic: data.meta?.topic ?? trimmed,
-          difficulty: data.meta?.difficulty ?? difficulty,
+          topic: data.meta?.topic ?? effTopic,
+          difficulty: data.meta?.difficulty ?? effDifficulty,
           mode: data.meta?.mode === "case" ? "case" : "single",
         },
       })
@@ -416,24 +471,35 @@ export function GeneratorPageClient({
           void refreshQuota()
         }}
         onQuickAction={(action) => {
-          // Form-State entsprechend anpassen, Session schließen → Nutzer landet
-          // wieder im Command-Center mit voreingestellten Werten.
-          if (action === "harder") {
-            setDifficulty((d) => Math.min(5, d + 1))
-          } else if (action === "easier") {
-            setDifficulty((d) => Math.max(1, d - 1))
-          } else if (action === "as_case") {
-            setMode("case")
-          } else if (action === "new_topic") {
+          // Quick-Actions auf der Done-Card lösen — bis auf "Neues Thema" —
+          // direkt eine neue Generierung aus, OHNE dass der User zurück zum
+          // Form muss. "Neues Thema" springt zurück zum Form, weil dort eine
+          // neue Eingabe nötig ist.
+          if (action === "new_topic") {
             setTopic("")
+            setSession(null)
+            void refreshQuota()
+            requestAnimationFrame(() => {
+              window.scrollTo({ top: 0, behavior: "smooth" })
+            })
+            return
           }
-          // "same_again" lässt alles wie es ist.
-          setSession(null)
-          void refreshQuota()
-          // Smoothes Scrollen nach oben, damit der Generator wieder im Fokus ist.
-          requestAnimationFrame(() => {
-            window.scrollTo({ top: 0, behavior: "smooth" })
-          })
+
+          const overrides: GenerateOverrides = { fromQuickAction: true }
+          if (action === "harder") {
+            overrides.difficulty = Math.min(5, difficulty + 1)
+          } else if (action === "easier") {
+            overrides.difficulty = Math.max(1, difficulty - 1)
+          } else if (action === "as_case") {
+            overrides.mode = "case"
+            // caseCount bleibt beim zuletzt gewählten Wert
+          }
+          // "same_again" benötigt keine Overrides — nutzt aktuelle Werte.
+
+          // Quota lokal aktualisieren wir asynchron nach der Generierung;
+          // handleGenerate schließt die Session selbst und zeigt den Loading-
+          // State an.
+          void handleGenerate(overrides)
         }}
       />
     )

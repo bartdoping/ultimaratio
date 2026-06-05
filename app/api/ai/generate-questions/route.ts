@@ -209,8 +209,9 @@ export async function POST(req: Request) {
       // behalten wir das Original (keine harte Eskalation).
       {
         const depthIssues = checkExplanationDepth(check.questions)
-        // examTrap-Leere alleine triggert keinen Repair (kann legitim sein).
-        const severe = depthIssues.filter((d) => d.kind !== "exam_trap_missing")
+        // mnemonic-Leere allein triggert KEINEN Repair-Pass — schlechte
+        // Eselsbrücken sind schlechter als keine.
+        const severe = depthIssues.filter((d) => d.kind !== "mnemonic_missing")
         if (severe.length > 0) {
           try {
             rawText = await callGeneratorModel(callParams, buildDepthRepairHint(severe))
@@ -218,7 +219,7 @@ export async function POST(req: Request) {
             const recheck = validateGeneratedQuestions(jsonText, mode, expectedCount)
             if (recheck.ok && questionsHaveExplanations(recheck.questions)) {
               const newIssues = checkExplanationDepth(recheck.questions).filter(
-                (d) => d.kind !== "exam_trap_missing"
+                (d) => d.kind !== "mnemonic_missing"
               )
               // Repair akzeptieren, wenn er die Defizite spürbar reduziert hat.
               if (newIssues.length < severe.length) {

@@ -25,10 +25,9 @@ function makeQuestion(overrides: Record<string, unknown> = {}) {
     stem: "Eine ausführliche, klinisch realistische Fragestellung mit ausreichend Kontext für Single-Best-Answer-Logik?",
     explanation:
       "Pathophysiologisch liegt eine Endothelschaedigung mit Thrombozytenaktivierung und konsekutiver Mikrothrombenbildung vor. Diese Kaskade erklaert sowohl die Akutsymptomatik als auch den Befundverlauf.\n\nKlinisch ergibt sich daraus ein klares Vorgehen entlang der aktuellen Leitlinienempfehlung: zunaechst Risikostratifizierung anhand etablierter Scores, dann zeitkritische Therapieentscheidung mit Beruecksichtigung der absoluten und relativen Kontraindikationen. Die genannten Cut-Off-Werte sind dabei verbindlich.\n\nTake-Home: Der Standardreflex 'erst observieren' verspielt in dieser Konstellation das therapeutische Fenster - der entscheidende Punkt ist die parallele Diagnostik und Therapieeinleitung.",
-    learningObjective:
-      "Erkennen, dass bei dieser klinischen Konstellation die etablierte Akuttherapie trotz scheinbarer Kontraindikation indiziert ist, weil die Risiko-Nutzen-Abwägung gemäß aktueller Leitlinie eindeutig zugunsten der Intervention ausfällt.",
-    examTrap:
-      "Häufige Verwechslung mit einer eng verwandten Differenzialdiagnose, die jedoch ein anderes Akutmanagement erfordert; das entscheidende Trennmerkmal ist anhand des im Stem beschriebenen Befundes erkennbar.",
+    mustKnow:
+      "Bei dieser klinischen Konstellation ist die etablierte Akuttherapie trotz scheinbarer Kontraindikation indiziert, weil die Risiko-Nutzen-Abwägung gemäß aktueller Leitlinie eindeutig zugunsten der Intervention ausfällt.",
+    mnemonic: "",
     allowImmediate: true,
     caseVignette: null as string | null,
     options: makeOptions(2),
@@ -49,24 +48,24 @@ describe("validateGeneratedQuestions", () => {
     expect(result.ok).toBe(true)
   })
 
-  it("lehnt fehlendes learningObjective ab", () => {
+  it("lehnt fehlendes mustKnow ab", () => {
     const json = JSON.stringify({
-      questions: [makeQuestion({ learningObjective: "" })],
+      questions: [makeQuestion({ mustKnow: "" })],
     })
     const result = validateGeneratedQuestions(json, "single", 1)
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toMatch(/learningObjective/)
+    if (!result.ok) expect(result.error).toMatch(/mustKnow/)
   })
 
-  it("lehnt zu generisches learningObjective ab", () => {
+  it("lehnt zu generisches mustKnow ab", () => {
     const json = JSON.stringify({
       questions: [
-        makeQuestion({ learningObjective: "Verständnis von Schlaganfall." }),
+        makeQuestion({ mustKnow: "Verständnis von Schlaganfall." }),
       ],
     })
     const result = validateGeneratedQuestions(json, "single", 1)
     expect(result.ok).toBe(false)
-    if (!result.ok) expect(result.error).toMatch(/learningObjective/)
+    if (!result.ok) expect(result.error).toMatch(/mustKnow/)
   })
 
   it("verlangt genau eine korrekte Antwort", () => {
@@ -156,9 +155,9 @@ describe("questionsHaveExplanations", () => {
 })
 
 describe("checkExplanationDepth", () => {
-  it("findet keine Defizite bei vollständigen Fragen", () => {
+  it("findet keine harten Defizite bei vollständigen Fragen", () => {
     const q = makeQuestion() as never
-    const issues = checkExplanationDepth([q]).filter((i) => i.kind !== "exam_trap_missing")
+    const issues = checkExplanationDepth([q]).filter((i) => i.kind !== "mnemonic_missing")
     expect(issues).toHaveLength(0)
   })
 
@@ -182,10 +181,16 @@ describe("checkExplanationDepth", () => {
     expect(issues.some((i) => i.kind === "distractor_short")).toBe(true)
   })
 
-  it("meldet fehlende examTrap mit eigener Kategorie", () => {
-    const q = makeQuestion({ examTrap: "" })
+  it("meldet fehlendes mnemonic mit eigener (weicher) Kategorie", () => {
+    const q = makeQuestion({ mnemonic: "" })
     const issues = checkExplanationDepth([q as never])
-    expect(issues.some((i) => i.kind === "exam_trap_missing")).toBe(true)
+    expect(issues.some((i) => i.kind === "mnemonic_missing")).toBe(true)
+  })
+
+  it("meldet zu kurzes mustKnow als Defizit", () => {
+    const q = makeQuestion({ mustKnow: "Kurz." })
+    const issues = checkExplanationDepth([q as never])
+    expect(issues.some((i) => i.kind === "must_know_short")).toBe(true)
   })
 
   it("baut nicht-leeren Repair-Hint nur bei Issues", () => {

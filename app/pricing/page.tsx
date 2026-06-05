@@ -35,7 +35,7 @@ const FEATURES: Array<{ label: string; free: string | boolean; pro: string | boo
   { label: "Single-Choice (A–E) mit Einzelerklärungen pro Option", free: true, pro: true },
   { label: "Fallvignetten mit 2–5 Teilfragen", free: true, pro: true },
   { label: "Schwierigkeitsstufen 1–5", free: true, pro: true },
-  { label: "Lernziel & Prüfungsfalle nach jeder Frage", free: true, pro: true },
+  { label: "Must-Know & Lernhilfe je Frage (sofern wirklich hilfreich)", free: true, pro: true },
   { label: "Eingebaute Laborwert-Referenz", free: true, pro: true },
   { label: "Text-Highlighting & Antworten durchstreichen", free: true, pro: true },
   { label: "Lange Fallvignetten alltagstauglich", free: "Theoretisch", pro: "Alltagstauglich" },

@@ -11,10 +11,19 @@ export type BulkQuestion = {
   caseVignette?: string | null
   images?: { url: string; alt?: string | null }[]
   options: BulkQuestionOption[]
-  /** Optionales Lernziel (1 Satz) – wird vom KI-Generator gefüllt. */
-  learningObjective?: string | null
-  /** Optionale Prüfungsfalle (1 Satz) – wird vom KI-Generator gefüllt. */
-  examTrap?: string | null
+  /**
+   * Must-Know (1–2 prägnante Sätze): das eine Kerndetail, das nach dem Lesen
+   * der Frage konkret hängen bleiben muss. Wird vom KI-Generator als
+   * "mustKnow" geliefert.
+   */
+  mustKnow?: string | null
+  /**
+   * Lernhilfe (Eselsbrücke / Akronym / Bild) — NUR wenn substanziell und
+   * tatsächlich hilfreich. Bei wackeliger Qualität bleibt das Feld leer:
+   * lieber gar keine Eselsbrücke als eine erfundene oder schwache. Wird vom
+   * KI-Generator als "mnemonic" geliefert.
+   */
+  mnemonic?: string | null
 }
 
 export type BulkQuestionsPayload = {
@@ -112,16 +121,30 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
       }
     }
 
+    // Rückwärtskompatibilität: ältere Antworten / Tests senden noch
+    // learningObjective/examTrap. Wir mappen sie still auf die neuen Felder,
+    // damit ein in-flight Modell-Rollout nicht alles bricht.
+    const mustKnowRaw =
+      typeof q.mustKnow === "string"
+        ? q.mustKnow
+        : typeof q.learningObjective === "string"
+          ? q.learningObjective
+          : null
+    const mnemonicRaw =
+      typeof q.mnemonic === "string"
+        ? q.mnemonic
+        : typeof q.examTrap === "string"
+          ? q.examTrap
+          : null
+
     normalized.push({
       stem: q.stem.trim(),
       explanation: typeof q.explanation === "string" ? q.explanation : null,
       allowImmediate: q.allowImmediate,
       caseVignette: typeof q.caseVignette === "string" ? q.caseVignette : null,
       options: normalizedOptions,
-      learningObjective:
-        typeof q.learningObjective === "string" ? q.learningObjective.trim() || null : null,
-      examTrap:
-        typeof q.examTrap === "string" ? q.examTrap.trim() || null : null,
+      mustKnow: mustKnowRaw ? mustKnowRaw.trim() || null : null,
+      mnemonic: mnemonicRaw ? mnemonicRaw.trim() || null : null,
     })
   }
 
@@ -152,8 +175,8 @@ export function bulkQuestionsToRunnerFormat(questions: BulkQuestion[]) {
     stem: q.stem,
     explanation: q.explanation ?? null,
     caseVignette: q.caseVignette ?? null,
-    learningObjective: q.learningObjective ?? null,
-    examTrap: q.examTrap ?? null,
+    mustKnow: q.mustKnow ?? null,
+    mnemonic: q.mnemonic ?? null,
     options: q.options.map((o, oi) => ({
       id: `gen-${qi}-opt-${oi}`,
       text: o.text,

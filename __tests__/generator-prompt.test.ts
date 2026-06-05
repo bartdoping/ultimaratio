@@ -35,7 +35,7 @@ describe("ai-question-generator-prompt — Schwierigkeit & Tiefe", () => {
     expect(prompt).toMatch(/Cut-Off|Zeitfenster|Sub-Indikationen/i)
   })
 
-  it("liefert für Stufe 5 explizite Killer-Anforderungen", () => {
+  it("liefert für Stufe 5 explizite Subspezialist-/Curiosa-Anforderungen", () => {
     const prompt = buildUserPrompt({
       topic: "Schlaganfall",
       difficulty: 5,
@@ -43,7 +43,31 @@ describe("ai-question-generator-prompt — Schwierigkeit & Tiefe", () => {
       variabilitySeed: 1,
     })
     expect(prompt).toMatch(/Schwierigkeit 5/i)
-    expect(prompt).toMatch(/Killer|Reasoning|Fachärzte/i)
+    expect(prompt).toMatch(/Subspezialist|Curiosa|Fun Facts/i)
+  })
+
+  it("benennt für jede Stufe einen klaren Wer-kennt-das-Anker", () => {
+    const sys = buildSystemInstructions()
+    expect(sys).toMatch(/Laie/i)
+    expect(sys).toMatch(/Vorklinikum|Vorklinik/i)
+    expect(sys).toMatch(/Hammerexamen|Examenskandidat/i)
+    expect(sys).toMatch(/Facharzt/i)
+    expect(sys).toMatch(/Subspezialist/i)
+  })
+
+  it("erzwingt deutsches medizinisches Vokabular", () => {
+    const sys = buildSystemInstructions()
+    expect(sys).toMatch(/DEUTSCHE MEDIZINISCHE FACHSPRACHE/i)
+    expect(sys).toMatch(/Anglizismen/i)
+    expect(sys).toMatch(/imponiert|pathognomonisch|kontraindiziert/i)
+  })
+
+  it("nennt mustKnow und mnemonic als neue Felder (statt learningObjective/examTrap)", () => {
+    const sys = buildSystemInstructions()
+    expect(sys).toMatch(/"mustKnow"/)
+    expect(sys).toMatch(/"mnemonic"/)
+    // Klare Aussage, dass mnemonic leer bleiben darf
+    expect(sys).toMatch(/mnemonic.*leer/i)
   })
 })
 

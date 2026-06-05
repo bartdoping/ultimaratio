@@ -36,7 +36,7 @@ const BENEFITS = [
   },
   {
     title: "Tiefere Erklärungen lesen, statt sparen",
-    text: "Pro Frage: Begründung je Antwortoption, Lernziel und Prüfungsfalle.",
+    text: "Pro Frage: Begründung je Antwortoption, Must-Know und ggf. Lernhilfe.",
   },
 ] as const
 
@@ -50,7 +50,7 @@ const COMPARISON: Array<{ label: string; free: string; pro: string; highlight?: 
   { label: "Fallvignetten mit 2–5 Teilfragen", free: "Im Limit enthalten", pro: "Ohne Limit-Druck" },
   { label: "Schwierigkeit 1–5", free: "Verfügbar", pro: "Verfügbar" },
   { label: "Erklärungen pro Antwort", free: "Verfügbar", pro: "Verfügbar" },
-  { label: "Lernziel & Prüfungsfalle", free: "Verfügbar", pro: "Verfügbar" },
+  { label: "Must-Know & Lernhilfe (wenn hilfreich)", free: "Verfügbar", pro: "Verfügbar" },
 ]
 
 export function ProDetailsModal({

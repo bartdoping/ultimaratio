@@ -17,22 +17,25 @@ export const QUESTION_QUALITY = {
   MIN_CORRECT_OPTION_EXPL_CHARS: 220,
   /** Erklärung jeder falschen Option — warum nicht + wann wäre richtig. */
   MIN_DISTRACTOR_EXPL_CHARS: 140,
-  /** Lernziel — konkret, nicht generisch. */
-  MIN_LEARNING_OBJECTIVE_CHARS: 40,
+  /**
+   * Must-Know — sehr konkret, nicht generisch. 1–2 Sätze, aber ≥ 40 Zeichen
+   * fordert echte Substanz.
+   */
+  MIN_MUST_KNOW_CHARS: 40,
   /** Fallvignette für Case-Mode — substanzieller Kontext, kein Einzeiler. */
   MIN_CASE_VIGNETTE_CHARS: 180,
 } as const
 
-const ANTI_GENERIC_OBJECTIVE_PHRASES = [
+const ANTI_GENERIC_MUST_KNOW_PHRASES = [
   /verständnis (von|der|des) /i,
   /^(verstehen|kennen|wissen)\b/i,
   /^einf(ü|ue)hrung\b/i,
 ]
 
-function tooGenericLearningObjective(value: string): boolean {
+function tooGenericMustKnow(value: string): boolean {
   const v = value.trim()
-  if (v.length < QUESTION_QUALITY.MIN_LEARNING_OBJECTIVE_CHARS) return true
-  return ANTI_GENERIC_OBJECTIVE_PHRASES.some((re) => re.test(v))
+  if (v.length < QUESTION_QUALITY.MIN_MUST_KNOW_CHARS) return true
+  return ANTI_GENERIC_MUST_KNOW_PHRASES.some((re) => re.test(v))
 }
 
 export function validateGeneratedQuestions(
@@ -68,13 +71,13 @@ export function validateGeneratedQuestions(
         error: `${where} muss genau eine richtige Antwort haben (erhalten: ${correctCount}).`,
       }
     }
-    if (!q.learningObjective || !q.learningObjective.trim()) {
-      return { ok: false, error: `${where}: "learningObjective" fehlt.` }
+    if (!q.mustKnow || !q.mustKnow.trim()) {
+      return { ok: false, error: `${where}: "mustKnow" fehlt.` }
     }
-    if (tooGenericLearningObjective(q.learningObjective)) {
+    if (tooGenericMustKnow(q.mustKnow)) {
       return {
         ok: false,
-        error: `${where}: "learningObjective" ist zu generisch oder zu kurz (mindestens ${QUESTION_QUALITY.MIN_LEARNING_OBJECTIVE_CHARS} Zeichen, keine Floskel wie "Verständnis von …").`,
+        error: `${where}: "mustKnow" ist zu generisch oder zu kurz (mindestens ${QUESTION_QUALITY.MIN_MUST_KNOW_CHARS} Zeichen, keine Floskel wie "Verständnis von …").`,
       }
     }
   }
@@ -122,8 +125,8 @@ export type DepthCheckIssue = {
     | "total_explanation_short"
     | "correct_option_short"
     | "distractor_short"
-    | "learning_objective_short"
-    | "exam_trap_missing"
+    | "must_know_short"
+    | "mnemonic_missing"
   detail: string
 }
 
@@ -144,21 +147,22 @@ export function checkExplanationDepth(questions: BulkQuestion[]): DepthCheckIssu
         detail: `Gesamterklärung ist ${total.length} Zeichen, mindestens ${QUESTION_QUALITY.MIN_TOTAL_EXPLANATION_CHARS} nötig. Drei-Abschnitts-Struktur (Pathophysiologie / Algorithmus / Take-Home) verlangt mehr Substanz.`,
       })
     }
-    const lo = (q.learningObjective ?? "").trim()
-    if (lo.length < QUESTION_QUALITY.MIN_LEARNING_OBJECTIVE_CHARS) {
+    const mk = (q.mustKnow ?? "").trim()
+    if (mk.length < QUESTION_QUALITY.MIN_MUST_KNOW_CHARS) {
       issues.push({
         questionIndex: i,
-        kind: "learning_objective_short",
-        detail: `Lernziel zu knapp/generisch (${lo.length} Zeichen). Konkretes "Erkennen, dass …" oder "Unterscheiden zwischen … und … anhand …".`,
+        kind: "must_know_short",
+        detail: `Must-Know zu knapp/generisch (${mk.length} Zeichen). 1–2 prägnante Sätze mit dem konkreten Kerndetail — z. B. "Bei … gilt Cut-Off X, weil …".`,
       })
     }
-    if (!q.examTrap || !q.examTrap.trim()) {
-      // examTrap darf in Ausnahmen leer sein — aber wir hinterlassen einen
-      // Sub-Issue, der den Repair-Hint auffüllen kann.
+    // mnemonic ist explizit OPTIONAL: nichts erfinden ist besser als
+    // schwache Eselsbrücken. Wir merken es nur als Sub-Issue an und nehmen
+    // es NICHT in den harten Repair-Pass.
+    if (!q.mnemonic || !q.mnemonic.trim()) {
       issues.push({
         questionIndex: i,
-        kind: "exam_trap_missing",
-        detail: "examTrap leer — meist gibt es eine konkrete Verwechslungsfalle.",
+        kind: "mnemonic_missing",
+        detail: "mnemonic leer — falls keine wirklich starke Eselsbrücke existiert, ist Leerlassen korrekt.",
       })
     }
 

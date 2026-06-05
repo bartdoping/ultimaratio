@@ -104,8 +104,8 @@ function keywordsForFutureQuestion(q: BulkQuestion): Set<string> {
     if (correct.explanation) buckets.push(correct.explanation)
   }
   if (q.explanation) buckets.push(q.explanation)
-  if (q.learningObjective) buckets.push(q.learningObjective)
-  if (q.examTrap) buckets.push(q.examTrap)
+  if (q.mustKnow) buckets.push(q.mustKnow)
+  if (q.mnemonic) buckets.push(q.mnemonic)
 
   const result = new Set<string>()
   for (const text of buckets) {
@@ -125,8 +125,8 @@ function earlierVisibleTokens(q: BulkQuestion): Set<string> {
     if (opt.explanation) buckets.push(opt.explanation)
     buckets.push(opt.text)
   }
-  if (q.examTrap) buckets.push(q.examTrap)
-  if (q.learningObjective) buckets.push(q.learningObjective)
+  if (q.mnemonic) buckets.push(q.mnemonic)
+  if (q.mustKnow) buckets.push(q.mustKnow)
 
   const result = new Set<string>()
   for (const text of buckets) {

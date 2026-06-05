@@ -30,8 +30,8 @@ const BENEFITS = [
   },
   {
     icon: Target,
-    title: "Lernziel & Prüfungsfalle pro Frage",
-    text: "Nach jeder Bestätigung: kompaktes Lernziel und die typische Verwechslungsfalle.",
+    title: "Must-Know & Lernhilfe je Frage",
+    text: "Nach jeder Bestätigung: das eine Kerndetail zum Hängenbleiben. Plus echte Eselsbrücken — aber nur, wenn sie wirklich tragen.",
   },
   {
     icon: Microscope,
@@ -55,7 +55,7 @@ const COMPARISON: Array<{
   { label: "Fallvignetten mit 2–5 Teilfragen", free: "Im Limit enthalten", pro: "Ohne Limit-Druck" },
   { label: "Schwierigkeit 1–5", free: "Verfügbar", pro: "Verfügbar" },
   { label: "Erklärungen pro Antwort", free: "Verfügbar", pro: "Verfügbar" },
-  { label: "Lernziel & Prüfungsfalle", free: "Verfügbar", pro: "Verfügbar" },
+  { label: "Must-Know & Lernhilfe (wenn hilfreich)", free: "Verfügbar", pro: "Verfügbar" },
 ]
 
 export function HomeGeneratorFocus({ loggedIn }: Props) {
@@ -74,8 +74,8 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             Direkt kreuzen.
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed text-pretty">
-            Anspruchsvolle Single-Choice-Fragen und Fallvignetten – inklusive Erklärungen, Lernziel und
-            Prüfungsfalle. Themenwahl in Sekunden, sofort kreuzbar.
+            Anspruchsvolle Single-Choice-Fragen und Fallvignetten – mit tiefer Erklärung,
+            klarem Must-Know und einer echten Lernhilfe, wenn es eine gibt. Themenwahl in Sekunden, sofort kreuzbar.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Button asChild size="lg">
@@ -197,7 +197,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             {
               step: "2",
               title: "Generieren",
-              text: "KI erstellt Stem, Optionen, Erklärungen, Lernziel und Prüfungsfalle.",
+              text: "KI erstellt Stem, Optionen, tiefe Erklärungen, Must-Know und ggf. Lernhilfe.",
             },
             {
               step: "3",
@@ -289,15 +289,15 @@ function DemoQuestionCard() {
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm">
             <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
-              <Target className="h-3.5 w-3.5" /> Lernziel
+              <Target className="h-3.5 w-3.5" /> Must-Know
             </div>
-            <p>Risikostratifizierung beim NSTE-ACS und Indikation zur frühinvasiven Strategie.</p>
+            <p>Beim NSTE-ACS bestimmt die GRACE-/TIMI-Risikostratifizierung das Zeitfenster für die invasive Diagnostik – die frühinvasive Strategie ist bei intermediärem bis hohem Risiko leitliniengerecht.</p>
           </div>
           <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
             <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
-              <Sparkles className="h-3.5 w-3.5" /> Prüfungsfalle
+              <Sparkles className="h-3.5 w-3.5" /> Lernhilfe
             </div>
-            <p>Lyse ist beim NSTE-ACS kontraindiziert – ein klassischer Verwechslungspunkt mit STEMI.</p>
+            <p>MONA-B beim akuten Koronarsyndrom: Morphin, Sauerstoff (nur bei SpO₂ &lt; 90 %), Nitrate, ASS, Betablocker.</p>
           </div>
         </div>
       </div>

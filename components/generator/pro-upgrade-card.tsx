@@ -34,7 +34,7 @@ const BENEFITS = [
   },
   {
     title: "Tiefere Erklärungen lesen, statt sparen zu müssen",
-    text: "Jede Antwortoption mit eigener Begründung, Lernziel und Prüfungsfalle.",
+    text: "Jede Antwortoption mit eigener Begründung. Must-Know und ggf. Lernhilfe pro Frage.",
   },
 ] as const
 
