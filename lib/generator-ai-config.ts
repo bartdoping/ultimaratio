@@ -37,8 +37,19 @@ export const GENERATOR_MODEL_FALLBACK =
       "gpt-4o"
     : FALLBACK_CONFIGURED
 
-/** Token-Limit für vollständige Fragen inkl. Erklärungen. */
+/**
+ * Token-Limit für vollständige Fragen inkl. Erklärungen.
+ *
+ * Hochgesetzt: das neue Erklärungs-Mandat verlangt Drei-Abschnitts-Struktur in
+ * der Gesamterklärung (Pathophysiologie / klin. Algorithmus / Take-Home),
+ * ≥4 Sätze für die korrekte Option, ≥3 Sätze für jeden Distraktor.
+ *
+ * Faustregel: ~1.6 Tokens pro deutsches Wort, ~14 Wörter pro Satz → ~22 Tokens
+ * pro Satz. Bei 5 Optionen + Gesamterklärung + Lernziel + examTrap landen wir
+ * pro Frage ≈ 1500–2500 Output-Tokens. Wir geben großzügig Puffer, damit das
+ * Modell sich nicht selbst kürzt, wenn es mehr Tiefe produzieren will.
+ */
 export function generatorMaxOutputTokens(mode: "single" | "case", caseQuestionCount: number): number {
-  if (mode === "single") return 3200
-  return 1200 + caseQuestionCount * 2200
+  if (mode === "single") return 5200
+  return 2200 + caseQuestionCount * 3200
 }

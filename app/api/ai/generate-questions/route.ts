@@ -15,7 +15,12 @@ import {
   GeneratorModelError,
 } from "@/lib/generator-openai"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
-import { questionsHaveExplanations, validateGeneratedQuestions } from "@/lib/generator-validate"
+import {
+  buildDepthRepairHint,
+  checkExplanationDepth,
+  questionsHaveExplanations,
+  validateGeneratedQuestions,
+} from "@/lib/generator-validate"
 import { buildSpoilerRepairHint, detectSpoilers } from "@/lib/spoiler-detection"
 import {
   consumeGeneratorQuota,
@@ -197,6 +202,33 @@ export async function POST(req: Request) {
           { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
           { status: 502 }
         )
+      }
+
+      // Tiefen-Check: knappe Erklärungen sind ein häufiger LLM-Defekt.
+      // Ein gezielter Repair-Pass mit den konkreten Mängeln; bei Misserfolg
+      // behalten wir das Original (keine harte Eskalation).
+      {
+        const depthIssues = checkExplanationDepth(check.questions)
+        // examTrap-Leere alleine triggert keinen Repair (kann legitim sein).
+        const severe = depthIssues.filter((d) => d.kind !== "exam_trap_missing")
+        if (severe.length > 0) {
+          try {
+            rawText = await callGeneratorModel(callParams, buildDepthRepairHint(severe))
+            jsonText = extractJsonFromModelText(rawText)
+            const recheck = validateGeneratedQuestions(jsonText, mode, expectedCount)
+            if (recheck.ok && questionsHaveExplanations(recheck.questions)) {
+              const newIssues = checkExplanationDepth(recheck.questions).filter(
+                (d) => d.kind !== "exam_trap_missing"
+              )
+              // Repair akzeptieren, wenn er die Defizite spürbar reduziert hat.
+              if (newIssues.length < severe.length) {
+                check = recheck
+              }
+            }
+          } catch {
+            // Abort/Modellfehler hier nicht eskalieren.
+          }
+        }
       }
 
       // Spoiler-Check für Fallfragen (maximal ein gezielter Repair-Pass).
