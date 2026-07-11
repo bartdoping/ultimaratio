@@ -25,8 +25,14 @@ function makeQuestion(overrides: Record<string, unknown> = {}) {
     stem: "Eine ausführliche, klinisch realistische Fragestellung mit ausreichend Kontext für Single-Best-Answer-Logik?",
     explanation:
       "Pathophysiologisch liegt eine Endothelschaedigung mit Thrombozytenaktivierung und konsekutiver Mikrothrombenbildung vor. Diese Kaskade erklaert sowohl die Akutsymptomatik als auch den Befundverlauf.\n\nKlinisch ergibt sich daraus ein klares Vorgehen entlang der aktuellen Leitlinienempfehlung: zunaechst Risikostratifizierung anhand etablierter Scores, dann zeitkritische Therapieentscheidung mit Beruecksichtigung der absoluten und relativen Kontraindikationen. Die genannten Cut-Off-Werte sind dabei verbindlich.\n\nTake-Home: Der Standardreflex 'erst observieren' verspielt in dieser Konstellation das therapeutische Fenster - der entscheidende Punkt ist die parallele Diagnostik und Therapieeinleitung.",
+    keyTakeaway:
+      "In dieser Konstellation entscheidet nicht das Alter, sondern die Kontraindikationsliste über die Akuttherapie.",
     mustKnow:
       "Bei dieser klinischen Konstellation ist die etablierte Akuttherapie trotz scheinbarer Kontraindikation indiziert, weil die Risiko-Nutzen-Abwägung gemäß aktueller Leitlinie eindeutig zugunsten der Intervention ausfällt.",
+    highYield: [
+      "Verwandte Differenzialdiagnose lässt sich am Verlauf und am Cut-Off-Wert abgrenzen.",
+      "Der häufigste Denkfehler ist die vorschnelle Anwendung des Standardreflexes.",
+    ],
     mnemonic: "",
     allowImmediate: true,
     caseVignette: null as string | null,
@@ -191,6 +197,26 @@ describe("checkExplanationDepth", () => {
     const q = makeQuestion({ mustKnow: "Kurz." })
     const issues = checkExplanationDepth([q as never])
     expect(issues.some((i) => i.kind === "must_know_short")).toBe(true)
+  })
+
+  it("meldet fehlende Kernaussage (keyTakeaway)", () => {
+    const q = makeQuestion({ keyTakeaway: "" })
+    const issues = checkExplanationDepth([q as never])
+    expect(issues.some((i) => i.kind === "key_takeaway_short")).toBe(true)
+  })
+
+  it("meldet dünnen High-Yield-Transfer als weiches Signal", () => {
+    const q = makeQuestion({ highYield: ["nur ein Punkt"] })
+    const issues = checkExplanationDepth([q as never])
+    expect(issues.some((i) => i.kind === "high_yield_thin")).toBe(true)
+  })
+
+  it("wertet keyTakeaway/highYield/mnemonic nicht als harte Defizite", () => {
+    // Vollständige Frage → keine der weichen Kategorien darf als hart zählen.
+    const q = makeQuestion() as never
+    const issues = checkExplanationDepth([q])
+    expect(issues.some((i) => i.kind === "key_takeaway_short")).toBe(false)
+    expect(issues.some((i) => i.kind === "high_yield_thin")).toBe(false)
   })
 
   it("baut nicht-leeren Repair-Hint nur bei Issues", () => {

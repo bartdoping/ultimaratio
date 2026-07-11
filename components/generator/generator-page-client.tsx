@@ -13,6 +13,11 @@ import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
 import { difficultyLabel } from "@/lib/generator-difficulty"
+import {
+  extractLivePreview,
+  PREVIEW_PHASE_LABEL,
+  type LivePreview,
+} from "@/lib/stream-preview"
 import { toast } from "sonner"
 
 type QuotaState = {
@@ -78,6 +83,7 @@ export function GeneratorPageClient({
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(initialTrialEndsAt)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
+  const [livePreview, setLivePreview] = useState<LivePreview | null>(null)
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
@@ -351,109 +357,90 @@ export function GeneratorPageClient({
     setLoading(true)
     setError(null)
     setLimitState(null)
-    try {
-      const res = await fetch("/api/ai/generate-questions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          topic: effTopic,
-          difficulty: effDifficulty,
-          mode: effMode,
-          caseQuestionCount: effMode === "case" ? effCaseCount : undefined,
-        }),
-      })
-      const data = await res.json().catch(() => ({}))
+    setLivePreview(null)
+    setLoadStage(0)
 
-      if (res.status === 429 && data.limitReached) {
-        setLimitState({
-          loginRequired: !!data.loginRequired,
-          upgradeRequired: !!data.upgradeRequired,
-          dailyLimit: data.dailyLimit ?? quota.dailyLimit,
-          requested: typeof data.requested === "number" ? data.requested : effUnits,
-        })
-        if (data.dailyLimit != null) {
-          setQuota((q) => ({
-            ...q,
-            used: data.used ?? q.dailyLimit,
-            remaining: typeof data.remaining === "number" ? data.remaining : 0,
-            dailyLimit: data.dailyLimit,
-          }))
-        }
-        return
-      }
+    const payload = {
+      topic: effTopic,
+      difficulty: effDifficulty,
+      mode: effMode,
+      caseQuestionCount: effMode === "case" ? (effCaseCount ?? undefined) : undefined,
+    }
 
-      // Burst-Rate-Limit (kein Quota-Verbrauch)
-      if (res.status === 429 && data.error === "rate_limited") {
-        const wait = Math.max(1, Math.ceil(Number(data.retryAfterSec) || 10))
-        setCooldownUntil(Date.now() + wait * 1000)
-        setError(
-          typeof data.message === "string"
-            ? data.message
-            : "Bitte einen Moment warten und erneut versuchen."
-        )
-        return
-      }
-
-      if (!res.ok) {
-        const msg =
-          typeof data.message === "string"
-            ? data.message
-            : typeof data.error === "string"
-              ? humanizeError(data.error)
-              : "Generierung fehlgeschlagen."
-        setError(msg)
-        // Bei tatsächlichen Generierungsfehlern (nicht Limit/Rate-Limit) wird
-        // serverseitig refundiert — User reassurance per Toast.
-        const isCountedFailure =
-          res.status >= 500 || res.status === 502 || res.status === 504
-        if (isCountedFailure) {
-          toast.error("Diese Generierung ist fehlgeschlagen.", {
-            description:
-              "Dein Tagesbudget wurde nicht belastet – versuch es einfach nochmal.",
-          })
-        }
-        // Quota nach Refund frisch ziehen
-        void refreshQuota()
-        return
-      }
-      if (!data.ok || !Array.isArray(data.questions)) {
-        setError("Unerwartete Server-Antwort.")
-        toast.error("Unerwartete Server-Antwort.", {
+    const onFatal = (msg: string, counted: boolean) => {
+      setError(msg)
+      if (counted) {
+        toast.error("Diese Generierung ist fehlgeschlagen.", {
           description:
             "Dein Tagesbudget wurde nicht belastet – versuch es einfach nochmal.",
         })
-        void refreshQuota()
-        return
+      }
+      void refreshQuota()
+    }
+
+    try {
+      // Zuerst Streaming (Live-Preview); fällt automatisch auf den klassischen
+      // Endpoint zurück, wenn Streaming am Verbindungsaufbau scheitert.
+      let result = await runStreamingGeneration(payload, (p) => setLivePreview(p))
+      if (result.kind === "unsupported") {
+        result = await runClassicGeneration(payload)
       }
 
-      if (data.quota) setQuota(data.quota)
-      setLoadProgress(100)
-      // Streak-Update an alle interessierten Komponenten dispatchen
-      if (data.streak && typeof window !== "undefined") {
-        window.dispatchEvent(
-          new CustomEvent("fragenkreuzen:streak-updated", {
-            detail: data.streak,
+      switch (result.kind) {
+        case "limit": {
+          const data = result.data
+          setLimitState({
+            loginRequired: !!data.loginRequired,
+            upgradeRequired: !!data.upgradeRequired,
+            dailyLimit: (data.dailyLimit as number) ?? quota.dailyLimit,
+            requested: typeof data.requested === "number" ? data.requested : effUnits,
           })
-        )
+          if (data.dailyLimit != null) {
+            setQuota((qs) => ({
+              ...qs,
+              used: (data.used as number) ?? qs.dailyLimit,
+              remaining: typeof data.remaining === "number" ? data.remaining : 0,
+              dailyLimit: data.dailyLimit as number,
+            }))
+          }
+          break
+        }
+        case "rate_limited": {
+          setCooldownUntil(Date.now() + result.retryAfterSec * 1000)
+          setError(result.message)
+          break
+        }
+        case "error": {
+          onFatal(result.message, result.counted)
+          break
+        }
+        case "success": {
+          if (result.quota) setQuota(result.quota)
+          setLoadProgress(100)
+          if (result.streak && typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("fragenkreuzen:streak-updated", { detail: result.streak })
+            )
+          }
+          setSession({
+            questions: result.questions,
+            meta: {
+              topic: result.meta?.topic ?? effTopic,
+              difficulty: result.meta?.difficulty ?? effDifficulty,
+              mode: result.meta?.mode === "case" ? "case" : "single",
+            },
+          })
+          break
+        }
+        default:
+          onFatal("Unerwartete Server-Antwort.", false)
       }
-      setSession({
-        questions: data.questions,
-        meta: {
-          topic: data.meta?.topic ?? effTopic,
-          difficulty: data.meta?.difficulty ?? effDifficulty,
-          mode: data.meta?.mode === "case" ? "case" : "single",
-        },
-      })
     } catch {
-      setError("Netzwerkfehler. Bitte später erneut versuchen.")
-      toast.error("Netzwerkfehler beim Generieren.", {
-        description: "Dein Tagesbudget wurde nicht belastet.",
-      })
-      void refreshQuota()
+      onFatal("Netzwerkfehler. Bitte später erneut versuchen.", false)
     } finally {
       setLoading(false)
       setLoadProgress(0)
+      setLivePreview(null)
     }
   }
 
@@ -660,7 +647,9 @@ export function GeneratorPageClient({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium text-foreground">
-                      {LOAD_STAGES[loadStage]}
+                      {livePreview
+                        ? PREVIEW_PHASE_LABEL[livePreview.phase]
+                        : LOAD_STAGES[loadStage]}
                     </span>
                     <span className="shrink-0 text-xs tabular-nums">
                       {Math.round(loadProgress)}%
@@ -669,24 +658,29 @@ export function GeneratorPageClient({
                   <Progress value={loadProgress} className="mt-1.5 h-1" />
                 </div>
               </div>
-              {/* Stage-Pills (zeigen, was noch kommt) */}
-              <div className="flex flex-wrap gap-1.5">
-                {LOAD_STAGES.map((stage, i) => (
-                  <span
-                    key={stage}
-                    className={cn(
-                      "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
-                      i < loadStage
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                        : i === loadStage
-                          ? "border-primary/40 bg-primary/10 text-foreground"
-                          : "border-border bg-muted/30 text-muted-foreground"
-                    )}
-                  >
-                    {stage.replace("…", "")}
-                  </span>
-                ))}
-              </div>
+
+              {/* Live-Preview: die entstehende Frage in Echtzeit */}
+              {livePreview && (livePreview.stem || livePreview.options.length > 0) ? (
+                <LiveQuestionPreview preview={livePreview} />
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {LOAD_STAGES.map((stage, i) => (
+                    <span
+                      key={stage}
+                      className={cn(
+                        "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                        i < loadStage
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                          : i === loadStage
+                            ? "border-primary/40 bg-primary/10 text-foreground"
+                            : "border-border bg-muted/30 text-muted-foreground"
+                      )}
+                    >
+                      {stage.replace("…", "")}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           ) : error ? (
             <p className="text-red-500" role="alert" aria-live="polite">
@@ -830,6 +824,210 @@ function humanizeError(code: string): string {
   if (code === "forbidden") return "Zugriff verweigert."
   if (code === "method_not_allowed") return "Ungültige Anfrage."
   return code
+}
+
+function LiveQuestionPreview({ preview }: { preview: LivePreview }) {
+  return (
+    <div className="rounded-xl border bg-background/60 p-3 sm:p-4">
+      {preview.stem ? (
+        <p className="text-sm leading-relaxed text-foreground">
+          {preview.stem}
+          <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+          <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
+        </div>
+      )}
+
+      {preview.options.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {preview.options.slice(0, 5).map((opt, i) => (
+            <li
+              key={i}
+              className="flex items-start gap-2 text-sm text-muted-foreground"
+              style={{ animation: "fadeIn 240ms ease-out" }}
+            >
+              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-muted text-[11px] font-semibold text-muted-foreground">
+                {String.fromCharCode(65 + i)}
+              </span>
+              <span className="leading-snug">{opt}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+// ============================================================================
+// Generierung: Streaming (mit Live-Preview) + klassischer Fallback.
+// ============================================================================
+
+type GeneratePayload = {
+  topic: string
+  difficulty: number
+  mode: "single" | "case"
+  caseQuestionCount?: number
+}
+
+type GenResult =
+  | {
+      kind: "success"
+      questions: BulkQuestion[]
+      meta?: { topic?: string; difficulty?: number; mode?: string }
+      quota?: QuotaState
+      streak?: unknown
+    }
+  | { kind: "limit"; data: Record<string, unknown> }
+  | { kind: "rate_limited"; retryAfterSec: number; message: string }
+  | { kind: "error"; message: string; counted: boolean }
+  | { kind: "unsupported" }
+
+function mapJsonToResult(
+  status: number,
+  ok: boolean,
+  data: Record<string, unknown>
+): GenResult {
+  if (status === 429 && data.limitReached) {
+    return { kind: "limit", data }
+  }
+  if (status === 429 && data.error === "rate_limited") {
+    return {
+      kind: "rate_limited",
+      retryAfterSec: Math.max(1, Math.ceil(Number(data.retryAfterSec) || 10)),
+      message:
+        typeof data.message === "string"
+          ? data.message
+          : "Bitte einen Moment warten und erneut versuchen.",
+    }
+  }
+  if (!ok) {
+    const counted = status >= 500 || status === 502 || status === 504
+    const message =
+      typeof data.message === "string"
+        ? data.message
+        : typeof data.error === "string"
+          ? humanizeError(data.error)
+          : "Generierung fehlgeschlagen."
+    return { kind: "error", message, counted }
+  }
+  if (!data.ok || !Array.isArray(data.questions)) {
+    return { kind: "error", message: "Unerwartete Server-Antwort.", counted: false }
+  }
+  return {
+    kind: "success",
+    questions: data.questions as BulkQuestion[],
+    meta: data.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+    quota: data.quota as QuotaState | undefined,
+    streak: data.streak,
+  }
+}
+
+async function runClassicGeneration(payload: GeneratePayload): Promise<GenResult> {
+  let res: Response
+  try {
+    res = await fetch("/api/ai/generate-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    return { kind: "error", message: "Netzwerkfehler. Bitte später erneut versuchen.", counted: false }
+  }
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  return mapJsonToResult(res.status, res.ok, data)
+}
+
+async function runStreamingGeneration(
+  payload: GeneratePayload,
+  onPreview: (p: LivePreview) => void
+): Promise<GenResult> {
+  let res: Response
+  try {
+    res = await fetch("/api/ai/generate-questions/stream", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(payload),
+    })
+  } catch {
+    // Verbindungsaufbau fehlgeschlagen → klassischer Fallback.
+    return { kind: "unsupported" }
+  }
+
+  const ct = res.headers.get("content-type") || ""
+  if (!ct.includes("text/event-stream") || !res.body) {
+    // Vorprüfungs-Fehler (Limit / Rate-Limit / Validierung) kommen als JSON.
+    if (ct.includes("application/json")) {
+      const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+      return mapJsonToResult(res.status, res.ok, data)
+    }
+    return { kind: "unsupported" }
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buf = ""
+  let full = ""
+  let lastPreview = 0
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buf += decoder.decode(value, { stream: true })
+      let idx: number
+      while ((idx = buf.indexOf("\n\n")) >= 0) {
+        const rawChunk = buf.slice(0, idx)
+        buf = buf.slice(idx + 2)
+        const dataLine = rawChunk.split("\n").find((l) => l.startsWith("data:"))
+        if (!dataLine) continue
+        const jsonStr = dataLine.slice(5).trim()
+        if (!jsonStr) continue
+        let evt: Record<string, unknown>
+        try {
+          evt = JSON.parse(jsonStr)
+        } catch {
+          continue
+        }
+        if (evt.type === "delta") {
+          full += typeof evt.text === "string" ? evt.text : ""
+          const now = Date.now()
+          if (now - lastPreview > 90) {
+            lastPreview = now
+            onPreview(extractLivePreview(full))
+          }
+        } else if (evt.type === "final") {
+          onPreview(extractLivePreview(full))
+          if (!Array.isArray(evt.questions)) {
+            return { kind: "error", message: "Unerwartete Server-Antwort.", counted: false }
+          }
+          return {
+            kind: "success",
+            questions: evt.questions as BulkQuestion[],
+            meta: evt.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+            quota: evt.quota as QuotaState | undefined,
+            streak: evt.streak,
+          }
+        } else if (evt.type === "error") {
+          return {
+            kind: "error",
+            message: typeof evt.error === "string" ? evt.error : "Generierung fehlgeschlagen.",
+            counted: false,
+          }
+        }
+        // type "start" wird ignoriert.
+      }
+    }
+  } catch {
+    return { kind: "error", message: "Verbindung zur Generierung unterbrochen.", counted: false }
+  }
+
+  // Stream endete ohne "final" → als Fehler behandeln.
+  return { kind: "error", message: "Generierung unvollständig. Bitte erneut versuchen.", counted: false }
 }
 
 function GeneratorLimitPanel({

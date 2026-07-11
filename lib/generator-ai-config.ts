@@ -38,6 +38,46 @@ export const GENERATOR_MODEL_FALLBACK =
     : FALLBACK_CONFIGURED
 
 /**
+ * Erkennt Reasoning-Modelle (GPT-5-Familie, o-Serie), die intern "nachdenken"
+ * und dadurch bei komplexen Prompts deutlich langsamer sind. Für unsere
+ * strukturierte JSON-Generierung brauchen wir KEINE tiefe Chain-of-Thought —
+ * niedriger Effort ist der größte Latenzhebel ohne echten Qualitätsverlust.
+ */
+export function isReasoningModel(model: string): boolean {
+  const m = model.trim().toLowerCase()
+  return (
+    m.startsWith("gpt-5") ||
+    m.startsWith("o1") ||
+    m.startsWith("o3") ||
+    m.startsWith("o4") ||
+    m.startsWith("o5")
+  )
+}
+
+export type ReasoningEffort = "minimal" | "low" | "medium" | "high"
+
+/**
+ * Reasoning-Effort für die Generierung. Default "low": spürbar schneller als
+ * "medium"/"high", ohne dass die Antwortqualität für strukturierte
+ * Fragengenerierung leidet. Per Env `OPENAI_GENERATOR_REASONING_EFFORT`
+ * überschreibbar (z. B. "minimal" für maximale Geschwindigkeit).
+ */
+export function generatorReasoningEffort(): ReasoningEffort {
+  const raw = process.env.OPENAI_GENERATOR_REASONING_EFFORT?.trim().toLowerCase()
+  if (raw === "minimal" || raw === "low" || raw === "medium" || raw === "high") {
+    return raw
+  }
+  return "low"
+}
+
+/** Text-Verbosity für die Responses-API. Default "medium". */
+export function generatorVerbosity(): "low" | "medium" | "high" {
+  const raw = process.env.OPENAI_GENERATOR_VERBOSITY?.trim().toLowerCase()
+  if (raw === "low" || raw === "medium" || raw === "high") return raw
+  return "medium"
+}
+
+/**
  * Token-Limit für vollständige Fragen inkl. Erklärungen.
  *
  * Hochgesetzt: das neue Erklärungs-Mandat verlangt Drei-Abschnitts-Struktur in
@@ -45,9 +85,9 @@ export const GENERATOR_MODEL_FALLBACK =
  * ≥4 Sätze für die korrekte Option, ≥3 Sätze für jeden Distraktor.
  *
  * Faustregel: ~1.6 Tokens pro deutsches Wort, ~14 Wörter pro Satz → ~22 Tokens
- * pro Satz. Bei 5 Optionen + Gesamterklärung + Lernziel + examTrap landen wir
- * pro Frage ≈ 1500–2500 Output-Tokens. Wir geben großzügig Puffer, damit das
- * Modell sich nicht selbst kürzt, wenn es mehr Tiefe produzieren will.
+ * pro Satz. Bei 5 Optionen + Gesamterklärung + keyTakeaway + mustKnow +
+ * highYield landen wir pro Frage ≈ 1500–2500 Output-Tokens. Wir geben großzügig
+ * Puffer, damit das Modell sich nicht selbst kürzt, wenn es mehr Tiefe produziert.
  */
 export function generatorMaxOutputTokens(mode: "single" | "case", caseQuestionCount: number): number {
   if (mode === "single") return 5200

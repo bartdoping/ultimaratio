@@ -69,6 +69,22 @@ describe("ai-question-generator-prompt — Schwierigkeit & Tiefe", () => {
     // Klare Aussage, dass mnemonic leer bleiben darf
     expect(sys).toMatch(/mnemonic.*leer/i)
   })
+
+  it("enthält keyTakeaway und highYield im Schema und Mandat", () => {
+    const sys = buildSystemInstructions()
+    expect(sys).toMatch(/"keyTakeaway"/)
+    expect(sys).toMatch(/"highYield"/)
+    // Kernaussage ist Pflicht
+    expect(sys).toMatch(/keyTakeaway.*PFLICHT|PFLICHT.*keyTakeaway/i)
+  })
+
+  it("enthält die Lern-Transfer-Philosophie (besser als Anki/Amboss)", () => {
+    const sys = buildSystemInstructions()
+    expect(sys).toMatch(/LERN-TRANSFER-PHILOSOPHIE/i)
+    expect(sys).toMatch(/Anki/i)
+    expect(sys).toMatch(/Amboss/i)
+    expect(sys).toMatch(/erste[n]? Prinzipien/i)
+  })
 })
 
 describe("ai-question-generator-prompt — Variabilität (Random-Angle)", () => {

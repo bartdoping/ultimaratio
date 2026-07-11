@@ -12,11 +12,23 @@ export type BulkQuestion = {
   images?: { url: string; alt?: string | null }[]
   options: BulkQuestionOption[]
   /**
+   * Kernaussage (1 prägnanter Satz): die EINE zentrale Einsicht der Frage,
+   * als scanbare Überschrift der Erklärung. Wird als "keyTakeaway" geliefert.
+   */
+  keyTakeaway?: string | null
+  /**
    * Must-Know (1–2 prägnante Sätze): das eine Kerndetail, das nach dem Lesen
    * der Frage konkret hängen bleiben muss. Wird vom KI-Generator als
    * "mustKnow" geliefert.
    */
   mustKnow?: string | null
+  /**
+   * High-Yield-Transfer: 2–4 kurze, prüfungsrelevante Zusatzpunkte, die über
+   * die konkrete Frage hinaus Wissen vernetzen (verwandte Differenzialdiagnose,
+   * typische Verwechslung, benachbartes High-Yield-Fakt, klinische
+   * Konsequenz). Erzeugt Transfer statt Insellernen. Als "highYield" geliefert.
+   */
+  highYield?: string[] | null
   /**
    * Lernhilfe (Eselsbrücke / Akronym / Bild) — NUR wenn substanziell und
    * tatsächlich hilfreich. Bei wackeliger Qualität bleibt das Feld leer:
@@ -136,6 +148,14 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
         : typeof q.examTrap === "string"
           ? q.examTrap
           : null
+    const keyTakeawayRaw = typeof q.keyTakeaway === "string" ? q.keyTakeaway : null
+    const highYieldRaw = Array.isArray(q.highYield)
+      ? (q.highYield as unknown[])
+          .filter((x): x is string => typeof x === "string")
+          .map((x) => x.trim())
+          .filter((x) => x.length > 0)
+          .slice(0, 6)
+      : null
 
     normalized.push({
       stem: q.stem.trim(),
@@ -143,7 +163,9 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
       allowImmediate: q.allowImmediate,
       caseVignette: typeof q.caseVignette === "string" ? q.caseVignette : null,
       options: normalizedOptions,
+      keyTakeaway: keyTakeawayRaw ? keyTakeawayRaw.trim() || null : null,
       mustKnow: mustKnowRaw ? mustKnowRaw.trim() || null : null,
+      highYield: highYieldRaw && highYieldRaw.length > 0 ? highYieldRaw : null,
       mnemonic: mnemonicRaw ? mnemonicRaw.trim() || null : null,
     })
   }
@@ -175,7 +197,9 @@ export function bulkQuestionsToRunnerFormat(questions: BulkQuestion[]) {
     stem: q.stem,
     explanation: q.explanation ?? null,
     caseVignette: q.caseVignette ?? null,
+    keyTakeaway: q.keyTakeaway ?? null,
     mustKnow: q.mustKnow ?? null,
+    highYield: q.highYield ?? null,
     mnemonic: q.mnemonic ?? null,
     options: q.options.map((o, oi) => ({
       id: `gen-${qi}-opt-${oi}`,

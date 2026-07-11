@@ -22,6 +22,10 @@ export const QUESTION_QUALITY = {
    * fordert echte Substanz.
    */
   MIN_MUST_KNOW_CHARS: 40,
+  /** Kernaussage — ein prägnanter, aber substanzieller Satz. */
+  MIN_KEY_TAKEAWAY_CHARS: 25,
+  /** High-Yield-Transfer — mindestens so viele Punkte sind wünschenswert. */
+  MIN_HIGH_YIELD_ITEMS: 2,
   /** Fallvignette für Case-Mode — substanzieller Kontext, kein Einzeiler. */
   MIN_CASE_VIGNETTE_CHARS: 180,
 } as const
@@ -126,6 +130,8 @@ export type DepthCheckIssue = {
     | "correct_option_short"
     | "distractor_short"
     | "must_know_short"
+    | "key_takeaway_short"
+    | "high_yield_thin"
     | "mnemonic_missing"
   detail: string
 }
@@ -153,6 +159,24 @@ export function checkExplanationDepth(questions: BulkQuestion[]): DepthCheckIssu
         questionIndex: i,
         kind: "must_know_short",
         detail: `Must-Know zu knapp/generisch (${mk.length} Zeichen). 1–2 prägnante Sätze mit dem konkreten Kerndetail — z. B. "Bei … gilt Cut-Off X, weil …".`,
+      })
+    }
+    const kt = (q.keyTakeaway ?? "").trim()
+    if (kt.length < QUESTION_QUALITY.MIN_KEY_TAKEAWAY_CHARS) {
+      issues.push({
+        questionIndex: i,
+        kind: "key_takeaway_short",
+        detail: `Kernaussage ("keyTakeaway") fehlt oder ist zu knapp (${kt.length} Zeichen). Ein prägnanter Satz mit der zentralen Einsicht der Frage.`,
+      })
+    }
+    // high-yield ist wünschenswert, aber weich: fehlende Transfer-Punkte
+    // triggern KEINEN harten Repair (siehe Route), sondern sind nur ein Signal.
+    const hy = Array.isArray(q.highYield) ? q.highYield.filter((x) => x.trim().length > 0) : []
+    if (hy.length < QUESTION_QUALITY.MIN_HIGH_YIELD_ITEMS) {
+      issues.push({
+        questionIndex: i,
+        kind: "high_yield_thin",
+        detail: `high-yield-Transfer dünn (${hy.length} Punkte). 2–4 kurze Punkte, die über die Frage hinaus Wissen vernetzen (Differenzial, typische Verwechslung, benachbartes High-Yield-Fakt).`,
       })
     }
     // mnemonic ist explizit OPTIONAL: nichts erfinden ist besser als

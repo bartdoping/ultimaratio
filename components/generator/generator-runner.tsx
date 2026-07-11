@@ -13,13 +13,19 @@ import {
   Target,
   Lightbulb,
   Sparkles,
+  Zap,
   RotateCcw,
   TrendingUp,
   TrendingDown,
   Layers,
   Wand2,
 } from "lucide-react"
-import { isMnemonicWorthShowing, isMustKnowWorthShowing } from "@/lib/insight-quality"
+import {
+  isKeyTakeawayWorthShowing,
+  isMnemonicWorthShowing,
+  isMustKnowWorthShowing,
+  isNearDuplicate,
+} from "@/lib/insight-quality"
 
 export type GeneratorQuickAction =
   | "same_again"
@@ -321,62 +327,94 @@ export function GeneratorRunner({
           <kbd className="rounded border bg-muted/40 px-1">←</kbd>/<kbd className="rounded border bg-muted/40 px-1">→</kbd> Frage wechseln
         </p>
 
-        {q.explanation && showFeedback && (
-          <div className="rounded-lg border bg-secondary/40">
-            <button
-              type="button"
-              onClick={() =>
-                setQExpOpen((o) => ({ ...o, [q.id]: !o[q.id] }))
-              }
-              className="w-full flex items-center justify-between px-4 py-3 text-base font-medium hover:bg-muted/50 transition-colors"
-              aria-expanded={expandedExplanation}
-            >
-              <span>Gesamterklärung</span>
-              <svg
-                className={`h-5 w-5 transition-transform duration-200 ${expandedExplanation ? "rotate-180" : ""}`}
-                viewBox="0 0 24 24"
-                fill="currentColor"
-                aria-hidden
-              >
-                <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
-              </svg>
-            </button>
-            {expandedExplanation && (
-              <div className="px-4 pb-4 text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                {q.explanation}
+        {showFeedback && (
+          <div className="space-y-3">
+            {/* Kernaussage — der eine Satz, den man behält */}
+            {isKeyTakeawayWorthShowing(q.keyTakeaway) && (
+              <div className="animate-fade-in rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card px-4 py-3">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                  <Sparkles className="h-3.5 w-3.5" />
+                  Kernaussage
+                </div>
+                <p className="mt-1 text-sm font-medium leading-relaxed text-foreground">
+                  {q.keyTakeaway}
+                </p>
               </div>
             )}
+
+            {/* Ausführliche Erklärung — Denkweg in Abschnitten */}
+            {q.explanation && (
+              <div className="rounded-lg border bg-secondary/40">
+                <button
+                  type="button"
+                  onClick={() => setQExpOpen((o) => ({ ...o, [q.id]: !o[q.id] }))}
+                  className="flex w-full items-center justify-between px-4 py-3 text-base font-medium transition-colors hover:bg-muted/50"
+                  aria-expanded={expandedExplanation}
+                >
+                  <span>Ausführliche Erklärung</span>
+                  <svg
+                    className={`h-5 w-5 transition-transform duration-200 ${expandedExplanation ? "rotate-180" : ""}`}
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    aria-hidden
+                  >
+                    <path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z" />
+                  </svg>
+                </button>
+                {expandedExplanation && (
+                  <div className="space-y-3 px-4 pb-4">
+                    {(q.explanation as string)
+                      .split(/\n\n+/)
+                      .map((para) => para.trim())
+                      .filter(Boolean)
+                      .map((para, i) => (
+                        <p
+                          key={i}
+                          className="text-sm leading-relaxed text-muted-foreground"
+                        >
+                          {para}
+                        </p>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* High-Yield-Transfer — Wissen vernetzen */}
+            {Array.isArray(q.highYield) && q.highYield.length > 0 && (
+              <HighYieldCard items={q.highYield} />
+            )}
+
+            {/* Must-Know + Lernhilfe — nur bei echtem Mehrwert */}
+            {(() => {
+              const showMustKnow =
+                isMustKnowWorthShowing(q.mustKnow) &&
+                !isNearDuplicate(q.mustKnow, q.keyTakeaway)
+              const showMnemonic = isMnemonicWorthShowing(q.mnemonic)
+              if (!showMustKnow && !showMnemonic) return null
+              return (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {showMustKnow && (
+                    <InsightTile
+                      icon={<Target className="h-4 w-4" />}
+                      label="Must-Know"
+                      text={q.mustKnow as string}
+                      tone="emerald"
+                    />
+                  )}
+                  {showMnemonic && (
+                    <InsightTile
+                      icon={<Lightbulb className="h-4 w-4" />}
+                      label="Lernhilfe"
+                      text={q.mnemonic as string}
+                      tone="amber"
+                    />
+                  )}
+                </div>
+              )
+            })()}
           </div>
         )}
-
-        {showFeedback && (() => {
-          // Qualitätsfilter: Box NUR rendern, wenn der Inhalt substanziell ist.
-          // Schwache Eselsbrücken oder generische "Lernziele" werden weggelassen
-          // — lieber gar keine Box als eine konstruierte.
-          const showMustKnow = isMustKnowWorthShowing(q.mustKnow)
-          const showMnemonic = isMnemonicWorthShowing(q.mnemonic)
-          if (!showMustKnow && !showMnemonic) return null
-          return (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {showMustKnow && (
-                <InsightTile
-                  icon={<Target className="h-4 w-4" />}
-                  label="Must-Know"
-                  text={q.mustKnow as string}
-                  tone="emerald"
-                />
-              )}
-              {showMnemonic && (
-                <InsightTile
-                  icon={<Lightbulb className="h-4 w-4" />}
-                  label="Lernhilfe"
-                  text={q.mnemonic as string}
-                  tone="amber"
-                />
-              )}
-            </div>
-          )
-        })()}
       </div>
 
       {showFeedback && !isPro && onUpgrade && (() => {
@@ -466,6 +504,30 @@ function PostAnswerProNudge({
           {upgrading ? "Weiterleitung…" : "Pro freischalten"}
         </Button>
       </div>
+    </div>
+  )
+}
+
+function HighYieldCard({ items }: { items: string[] }) {
+  const clean = items.map((s) => s.trim()).filter(Boolean).slice(0, 4)
+  if (clean.length === 0) return null
+  return (
+    <div className="animate-fade-in rounded-xl border border-indigo-500/30 bg-indigo-500/5 px-4 py-3">
+      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-600 dark:text-indigo-300">
+        <Zap className="h-3.5 w-3.5" />
+        High-Yield &amp; Transfer
+      </div>
+      <ul className="mt-2 space-y-1.5">
+        {clean.map((item, i) => (
+          <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-foreground">
+            <span
+              className="mt-2 inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-500"
+              aria-hidden
+            />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }

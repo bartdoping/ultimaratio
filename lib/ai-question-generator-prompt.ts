@@ -58,24 +58,38 @@ ANTI-CLICHÉ — verbotene Standardmuster (außer im Fokus-Winkel ausdrücklich 
 - Standard-Lehrbuch-Vignette: 60-jährig, klassische Symptomatik, klassisches Labor, klassische Bildgebung — diese Form NUR wenn explizit verlangt.
 - Antworten, die sich semantisch durch ein Schlüsselwort im Stem verraten ("Streptokokken-Pharyngitis" → "Penicillin V").
 
+LERN-TRANSFER-PHILOSOPHIE (das Alleinstellungsmerkmal):
+Deine Erklärung soll für den Lernerfolg BESSER sein als Anki, Amboss, YouTube, DocCheck oder ein Lehrbuch. Der Unterschied ist nicht Länge, sondern Didaktik: Du erklärst so, dass der Studierende das PRINZIP versteht und es auf die nächste, anders verpackte Frage übertragen kann. Konkret heißt das:
+- Erkläre das WARUM aus ersten Prinzipien (Physiologie/Pharmakologie/Anatomie), nicht nur das WAS. Ein auswendig gelernter Fakt vergeht; ein verstandener Mechanismus bleibt.
+- Baue eine explizite Denk-Kette: "Weil A → folgt B → deshalb ist C indiziert." So lernt der Studierende das Vorgehen, nicht nur die Lösung.
+- Adressiere aktiv den wahrscheinlichsten Denkfehler ("Der Reflex wäre X — das ist hier falsch, weil …"). Fehler-Antizipation schafft mehr Behaltensleistung als reine Korrektheit.
+- Vernetze mit Nachbarwissen (Differenzialdiagnose, verwandte Cut-Offs, angrenzendes High-Yield-Fakt), damit isolierte Fakten zu einem Netz werden — genau das, was Transfer erzeugt.
+- Schreibe aktiv, konkret, zahlengestützt. Ein exemplarischer Wert schlägt eine vage Umschreibung.
+
 ERKLÄRUNGS-MANDAT (Knappheit = Defekt):
 
-(a) "explanation" (Gesamterklärung):
+(a) "keyTakeaway" (PFLICHT, ein Satz):
+  Die EINE zentrale Einsicht der Frage in einem prägnanten, vollständigen Satz — die Überschrift der Erklärung, die man sich merkt, wenn man nur eine Zeile behält. Konkret und aussagekräftig, kein Titel-Fragment. Beispiel: "Im 4,5-h-Fenster entscheidet nicht das Alter, sondern die Kontraindikationsliste über die Lyse — ein INR < 1,7 erlaubt rtPA trotz vorheriger Antikoagulation."
+
+(b) "explanation" (Gesamterklärung):
   Strukturierter Fließtext, mindestens 6 inhaltsvolle Sätze (Ziel: 8–14 Sätze). Drei Abschnitte, im Text durch Absätze (\\n\\n) getrennt:
-    1) Pathophysiologisch-mechanistische Einordnung: warum entsteht dieses Krankheitsbild / dieser Effekt. Konkret, nicht "ist multifaktoriell".
-    2) Klinischer Algorithmus / Entscheidungsweg: warum gerade DIESE Antwort und nicht eine andere — mit Bezug auf Leitlinien-Empfehlungen, Cut-Off-Werte, Zeitfenster, Klassifikationen.
+    1) Pathophysiologisch-mechanistische Einordnung aus ersten Prinzipien: warum entsteht dieses Krankheitsbild / dieser Effekt. Konkret, nicht "ist multifaktoriell".
+    2) Klinischer Algorithmus / Entscheidungsweg als explizite Denk-Kette: warum gerade DIESE Antwort und nicht eine andere — mit Bezug auf Leitlinien-Empfehlungen, Cut-Off-Werte, Zeitfenster, Klassifikationen.
     3) Klinische Perle / Take-Home: ein konkretes Detail, das selbst gute Studierende übersehen. Kein Filler.
 
-(b) "explanation" der korrekten Option:
+(c) "explanation" der korrekten Option:
   Mindestens 4 Sätze. Genau: (1) was macht diese Option pathophysiologisch korrekt, (2) warum genau hier im klinischen Algorithmus, (3) welche etablierte Empfehlung / welcher Cut-Off stützt sie, (4) welche Falle wäre der "Standard-Reflex" und warum führt er in die Irre.
 
-(c) "explanation" jeder falschen Antwortoption:
+(d) "explanation" jeder falschen Antwortoption:
   Mindestens 3 Sätze. Genau: (1) warum hier präzise falsch (nicht "weil X richtig ist"), (2) in welcher konkreten anderen klinischen Konstellation WÄRE diese Option die richtige Entscheidung (Differenzialwissen), (3) eine konkrete Verwechslungsfalle.
 
-(d) "mustKnow" (NEUER Pflicht-Wert, ersetzt das alte "learningObjective"):
-  1–2 prägnante deutsche Sätze. Das EINE Kerndetail aus dieser Frage, das hängen bleiben muss. Format-Beispiele: "Bei … gilt Cut-Off X, weil …" / "Bei Verdacht auf … ist Y das primär indizierte Vorgehen, weil …" / "Z unterscheidet sich von ähnlich präsentierendem W durch …". Niemals "Verständnis von …", niemals "Kennen, dass …" als bloße Floskel.
+(e) "mustKnow" (PFLICHT):
+  1–2 prägnante deutsche Sätze. Das EINE konkret memorierbare Kerndetail/Regel, das über die Frage hinaus trägt (Cut-Off, Kriterium, Zeitfenster, Trennmerkmal) — NICHT wortgleich mit keyTakeaway, sondern die abstrahierbare Faustregel. Format-Beispiele: "Bei … gilt Cut-Off X, weil …" / "Z unterscheidet sich von ähnlich präsentierendem W durch …". Niemals "Verständnis von …", niemals "Kennen, dass …" als bloße Floskel.
 
-(e) "mnemonic" (NEUER OPTIONALER Wert, ersetzt das alte "examTrap"):
+(f) "highYield" (PFLICHT, Array mit 2–4 Punkten):
+  2–4 kurze, prüfungsrelevante Transfer-Punkte, die über die konkrete Frage hinausgehen und Wissen vernetzen. Jeder Punkt ist ein eigenständiger, konkreter Fakt (nicht die Antwort wiederholen). Erlaubte Typen: verwandte Differenzialdiagnose mit Trennmerkmal, typische Verwechslung/Prüfungsfalle, benachbarter Cut-Off/Score, klinische Konsequenz, häufig gemeinsam gefragtes Nachbarwissen. Beispiele: "STEMI vs. NSTE-ACS: Lyse ist nur beim STEMI ohne PCI-Verfügbarkeit indiziert, beim NSTE-ACS kontraindiziert." / "rtPA-Zeitfenster 4,5 h; mechanische Thrombektomie bis 6 h Standard, mit Bildgebungsselektion bis 24 h." Jeder Punkt ein knapper Satz, kein Aufsatz.
+
+(g) "mnemonic" (OPTIONAL):
   Eine ECHTE Lernhilfe / Eselsbrücke / Akronym / Bildbrücke — ABER NUR, wenn sie a) substanziell, b) inhaltlich treffend und c) für deutsche Studierende eingängig ist. Beispiele für GUT: "ACHT-S-Kriterien beim Wernicke-Korsakow", "FAST-Schema beim Schlaganfall (Face Arms Speech Time)", "BANANA-Regel zur ASS-Pause vor Operation". Beispiele für SCHLECHT (verboten): irgendwelche zufällig zusammengesetzten Anfangsbuchstaben, Wortspiele ohne klinischen Halt, "merke dir: X führt zu Y" (kein Memory-Hook).
   WENN keine wirklich starke Eselsbrücke existiert: leerer String "". Lieber leer als schwach erfunden. Eine schwache, holprige oder konstruierte Eselsbrücke ist explizit untersagt und gilt als Qualitätsverletzung.
 
@@ -144,8 +158,10 @@ Schema:
   "questions": [
     {
       "stem": "string",
+      "keyTakeaway": "string",
       "explanation": "string",
       "mustKnow": "string",
+      "highYield": ["string", "string"],
       "mnemonic": "string",
       "allowImmediate": true,
       "caseVignette": "string oder null",
@@ -163,14 +179,15 @@ Schema:
 Regeln zum Schema:
 - "questions" enthält die angeforderte Anzahl.
 - Jede Frage hat genau 5 Antwortoptionen, genau eine mit "isCorrect": true.
-- "stem", "explanation", "mustKnow" und alle Option-"explanation" sind nicht leer.
+- "stem", "keyTakeaway", "explanation", "mustKnow" und alle Option-"explanation" sind nicht leer.
+- "highYield" ist ein Array mit 2–4 nicht-leeren Strings.
 - "mnemonic" darf leer sein ("") — und SOLL leer bleiben, wenn keine wirklich starke Eselsbrücke existiert. Schwache, holprige oder konstruierte Eselsbrücken sind verboten.
 - "allowImmediate" ist immer true.
 - Bei Einzelfragen ist "caseVignette" null.
 - Bei Fallfragen ist "caseVignette" in allen Teilfragen identisch und nicht-leer.
 - JSON muss syntaktisch valide und direkt maschinenlesbar sein.
 
-Vor der Ausgabe (intern): Überprüfe jede Frage gegen die Qualitäts-Messlatte, die Anti-Cliché-Liste, die Schwierigkeits-Kalibrierung mit Wer-kennt-das-Anker, das Erklärungs-Mandat, die deutsche medizinische Fachsprache. Wenn auch nur ein Punkt nicht erfüllt ist, überarbeite intern, bevor du antwortest.`
+Vor der Ausgabe (intern): Überprüfe jede Frage gegen die Qualitäts-Messlatte, die Lern-Transfer-Philosophie, die Anti-Cliché-Liste, die Schwierigkeits-Kalibrierung mit Wer-kennt-das-Anker, das Erklärungs-Mandat (keyTakeaway + Drei-Abschnitts-Erklärung + mustKnow + 2–4 highYield-Punkte), die deutsche medizinische Fachsprache. Wenn auch nur ein Punkt nicht erfüllt ist, überarbeite intern, bevor du antwortest.`
 
 export type GeneratorRequestParams = {
   topic: string
@@ -337,7 +354,7 @@ export function buildUserPrompt(params: GeneratorRequestParams): string {
     "",
     variability,
     "",
-    "Selbst-Check vor Ausgabe (intern, nicht im Output): Erfüllt jede Frage die Qualitäts-Messlatte (lernt der Studierende etwas Neues jenseits trivialer Lehrbuch-Definitionen?), die Wer-kennt-das-Schwierigkeits-Kalibrierung, das Erklärungs-Mandat (Mindest-Satzanzahl, Drei-Abschnitts-Struktur in der Gesamterklärung), die deutsche medizinische Fachsprache, und vermeidet sie alle Anti-Cliché-Muster? Ist 'mnemonic' nur dann gefüllt, wenn die Eselsbrücke wirklich stark ist (sonst leerer String)? Wenn nicht — überarbeite intern, bevor du antwortest.",
+    "Selbst-Check vor Ausgabe (intern, nicht im Output): Erfüllt jede Frage die Qualitäts-Messlatte (lernt der Studierende etwas Neues jenseits trivialer Lehrbuch-Definitionen und kann er das Prinzip auf andere Fragen übertragen?), die Wer-kennt-das-Schwierigkeits-Kalibrierung, das Erklärungs-Mandat (keyTakeaway als ein prägnanter Satz, Drei-Abschnitts-Struktur in der Gesamterklärung mit Mindest-Satzanzahl, mustKnow konkret, 2–4 highYield-Transfer-Punkte), die deutsche medizinische Fachsprache, und vermeidet sie alle Anti-Cliché-Muster? Ist 'mnemonic' nur dann gefüllt, wenn die Eselsbrücke wirklich stark ist (sonst leerer String)? Wenn nicht — überarbeite intern, bevor du antwortest.",
     "",
     "Antworte nur mit dem JSON-Objekt.",
   ].join("\n")

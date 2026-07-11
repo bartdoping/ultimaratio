@@ -28,6 +28,43 @@ export function isMustKnowWorthShowing(value: string | null | undefined): boolea
 }
 
 /**
+ * Kernaussage (keyTakeaway): ein substanzieller Satz, keine Floskel.
+ */
+export function isKeyTakeawayWorthShowing(value: string | null | undefined): boolean {
+  if (!value) return false
+  const v = value.trim()
+  if (v.length < 20) return false
+  if (GENERIC_MUST_KNOW_PATTERNS.some((re) => re.test(v))) return false
+  return true
+}
+
+/**
+ * Grobe Duplikatserkennung: verhindert, dass Must-Know und Kernaussage
+ * praktisch denselben Satz doppelt zeigen. Vergleicht normalisierte Präfixe.
+ */
+export function isNearDuplicate(
+  a: string | null | undefined,
+  b: string | null | undefined
+): boolean {
+  if (!a || !b) return false
+  const norm = (s: string) =>
+    s
+      .toLowerCase()
+      .replace(/[^a-zäöüß0-9 ]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+  const na = norm(a)
+  const nb = norm(b)
+  if (!na || !nb) return false
+  if (na === nb) return true
+  const shorter = na.length <= nb.length ? na : nb
+  const longer = na.length <= nb.length ? nb : na
+  // Wenn der kürzere fast vollständig im längeren steckt → Duplikat.
+  const head = shorter.slice(0, Math.min(50, shorter.length))
+  return longer.includes(head) && head.length >= 25
+}
+
+/**
  * Lernhilfe / Eselsbrücke: signifikant strenger.
  *
  * Heuristik für eine echte Eselsbrücke:

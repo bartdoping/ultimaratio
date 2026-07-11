@@ -1,5 +1,11 @@
 import OpenAI from "openai"
-import { GENERATOR_MODEL, GENERATOR_MODEL_FALLBACK } from "@/lib/generator-ai-config"
+import {
+  GENERATOR_MODEL,
+  GENERATOR_MODEL_FALLBACK,
+  generatorReasoningEffort,
+  generatorVerbosity,
+  isReasoningModel,
+} from "@/lib/generator-ai-config"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -9,6 +15,38 @@ export type GeneratorCallParams = {
   input: string
   maxOutputTokens: number
   signal?: AbortSignal
+}
+
+/**
+ * Baut den Request-Body für die Responses-API. Für Reasoning-Modelle
+ * (GPT-5-Familie / o-Serie) wird ein niedriger Reasoning-Effort gesetzt — das
+ * ist der wichtigste Latenzhebel, weil diese Modelle sonst bei komplexen
+ * Prompts lange "nachdenken". Für Nicht-Reasoning-Modelle bleibt der Body
+ * schlank (kein verbosity/reasoning, das dort Fehler werfen könnte).
+ */
+function buildRequestBody(
+  model: string,
+  params: GeneratorCallParams,
+  repairHint?: string
+): OpenAI.Responses.ResponseCreateParamsNonStreaming {
+  const input = repairHint ? `${params.input}\n\n${repairHint}` : params.input
+  const reasoning = isReasoningModel(model)
+
+  const body: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
+    model,
+    instructions: params.instructions,
+    input,
+    max_output_tokens: params.maxOutputTokens,
+    text: reasoning
+      ? { format: { type: "json_object" }, verbosity: generatorVerbosity() }
+      : { format: { type: "json_object" } },
+  }
+
+  if (reasoning) {
+    body.reasoning = { effort: generatorReasoningEffort() }
+  }
+
+  return body
 }
 
 /**
@@ -82,18 +120,10 @@ async function createResponseWithModel(
   params: GeneratorCallParams,
   repairHint?: string
 ): Promise<string> {
-  const input = repairHint ? `${params.input}\n\n${repairHint}` : params.input
-
   let resp
   try {
     resp = await client.responses.create(
-      {
-        model,
-        instructions: params.instructions,
-        input,
-        max_output_tokens: params.maxOutputTokens,
-        text: { format: { type: "json_object" }, verbosity: "medium" },
-      },
+      buildRequestBody(model, params, repairHint),
       params.signal ? { signal: params.signal } : undefined
     )
   } catch (err) {
@@ -107,6 +137,45 @@ async function createResponseWithModel(
     throw new GeneratorModelError("Leere Modell-Antwort.", "unknown", 502)
   }
   return text
+}
+
+/**
+ * Streamt die Generierung. `onDelta` erhält Text-Deltas, sobald sie eintreffen
+ * (für die Live-Preview im Client). Rückgabe ist der vollständige Text nach
+ * Stream-Ende — die serverseitige Validierung passiert unverändert darauf.
+ *
+ * Wirft dieselben GeneratorModelError-Typen wie der Non-Streaming-Pfad.
+ */
+export async function streamGeneratorModel(
+  params: GeneratorCallParams,
+  onDelta: (text: string) => void
+): Promise<string> {
+  let full = ""
+  try {
+    const stream = await client.responses.create(
+      { ...buildRequestBody(GENERATOR_MODEL, params), stream: true },
+      params.signal ? { signal: params.signal } : undefined
+    )
+
+    for await (const event of stream) {
+      // Text-Deltas der Antwort weiterreichen.
+      if (event.type === "response.output_text.delta") {
+        const delta = (event as { delta?: string }).delta ?? ""
+        if (delta) {
+          full += delta
+          onDelta(delta)
+        }
+      }
+    }
+  } catch (err) {
+    if ((err as { name?: string })?.name === "AbortError") throw err
+    throw classifyOpenAIError(err)
+  }
+
+  if (!full.trim()) {
+    throw new GeneratorModelError("Leere Modell-Antwort.", "unknown", 502)
+  }
+  return full
 }
 
 async function createResponse(

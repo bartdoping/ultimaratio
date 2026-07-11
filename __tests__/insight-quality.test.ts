@@ -2,7 +2,55 @@ import { describe, it, expect } from "vitest"
 import {
   isMnemonicWorthShowing,
   isMustKnowWorthShowing,
+  isKeyTakeawayWorthShowing,
+  isNearDuplicate,
 } from "../lib/insight-quality"
+
+describe("isKeyTakeawayWorthShowing", () => {
+  it("lehnt leere / zu kurze / floskelhafte Werte ab", () => {
+    expect(isKeyTakeawayWorthShowing(null)).toBe(false)
+    expect(isKeyTakeawayWorthShowing("Kurz.")).toBe(false)
+    expect(isKeyTakeawayWorthShowing("Verständnis von X.")).toBe(false)
+  })
+  it("akzeptiert einen substanziellen Satz", () => {
+    expect(
+      isKeyTakeawayWorthShowing(
+        "Im 4,5-h-Fenster entscheidet die Kontraindikationsliste über die Lyse, nicht das Alter."
+      )
+    ).toBe(true)
+  })
+})
+
+describe("isNearDuplicate", () => {
+  it("erkennt praktisch identische Sätze", () => {
+    expect(
+      isNearDuplicate(
+        "Bei NSTE-ACS ist die frühinvasive Strategie leitliniengerecht.",
+        "Bei NSTE-ACS ist die frühinvasive Strategie leitliniengerecht."
+      )
+    ).toBe(true)
+  })
+  it("erkennt Präfix-Überlappung als Duplikat", () => {
+    expect(
+      isNearDuplicate(
+        "Bei NSTE-ACS ist die frühinvasive Strategie leitliniengerecht",
+        "Bei NSTE-ACS ist die frühinvasive Strategie leitliniengerecht, weil das Risiko hoch ist."
+      )
+    ).toBe(true)
+  })
+  it("hält klar verschiedene Sätze auseinander", () => {
+    expect(
+      isNearDuplicate(
+        "Die Lyse ist im 4,5-h-Fenster indiziert.",
+        "Die Thrombektomie ist bei M1-Verschluss die Methode der Wahl."
+      )
+    ).toBe(false)
+  })
+  it("ist bei leeren Werten false", () => {
+    expect(isNearDuplicate(null, "x")).toBe(false)
+    expect(isNearDuplicate("x", null)).toBe(false)
+  })
+})
 
 describe("isMustKnowWorthShowing", () => {
   it("lehnt leeren / null Wert ab", () => {

@@ -14,14 +14,7 @@ import {
   callGeneratorModelWithRetry,
   GeneratorModelError,
 } from "@/lib/generator-openai"
-import { extractJsonFromModelText } from "@/lib/question-bulk-json"
-import {
-  buildDepthRepairHint,
-  checkExplanationDepth,
-  questionsHaveExplanations,
-  validateGeneratedQuestions,
-} from "@/lib/generator-validate"
-import { buildSpoilerRepairHint, detectSpoilers } from "@/lib/spoiler-detection"
+import { finalizeGenerated } from "@/lib/generator-finalize"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -168,92 +161,20 @@ export async function POST(req: Request) {
         throw err
       }
 
-      let jsonText = extractJsonFromModelText(rawText)
-      let check = validateGeneratedQuestions(jsonText, mode, expectedCount)
+      // Gemeinsame Validierung + konservative Repair-Pässe.
+      const finalized = await finalizeGenerated({
+        rawText,
+        mode,
+        expectedCount,
+        repair: (hint) => callGeneratorModel(callParams, hint),
+      })
 
-      if (!check.ok || !questionsHaveExplanations(check.ok ? check.questions : [])) {
-        const hint = !check.ok
-          ? `VALIDIERUNGSFEHLER: ${check.error}`
-          : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
-        try {
-          rawText = await callGeneratorModel(
-            callParams,
-            `${hint} Korrigiere und antworte ausschließlich mit gültigem JSON.`
-          )
-        } catch (err) {
-          await refundOnce()
-          throw err
-        }
-        jsonText = extractJsonFromModelText(rawText)
-        check = validateGeneratedQuestions(jsonText, mode, expectedCount)
-      }
-
-      if (!check.ok) {
+      if (!finalized.ok) {
         await refundOnce()
-        return NextResponse.json(
-          { ok: false, error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.` },
-          { status: 502 }
-        )
+        return NextResponse.json({ ok: false, error: finalized.error }, { status: finalized.status })
       }
 
-      if (!questionsHaveExplanations(check.questions)) {
-        await refundOnce()
-        return NextResponse.json(
-          { ok: false, error: "KI-Antwort unvollständig: Erklärungen fehlen. Bitte erneut generieren." },
-          { status: 502 }
-        )
-      }
-
-      // Tiefen-Check: knappe Erklärungen sind ein häufiger LLM-Defekt.
-      // Ein gezielter Repair-Pass mit den konkreten Mängeln; bei Misserfolg
-      // behalten wir das Original (keine harte Eskalation).
-      {
-        const depthIssues = checkExplanationDepth(check.questions)
-        // mnemonic-Leere allein triggert KEINEN Repair-Pass — schlechte
-        // Eselsbrücken sind schlechter als keine.
-        const severe = depthIssues.filter((d) => d.kind !== "mnemonic_missing")
-        if (severe.length > 0) {
-          try {
-            rawText = await callGeneratorModel(callParams, buildDepthRepairHint(severe))
-            jsonText = extractJsonFromModelText(rawText)
-            const recheck = validateGeneratedQuestions(jsonText, mode, expectedCount)
-            if (recheck.ok && questionsHaveExplanations(recheck.questions)) {
-              const newIssues = checkExplanationDepth(recheck.questions).filter(
-                (d) => d.kind !== "mnemonic_missing"
-              )
-              // Repair akzeptieren, wenn er die Defizite spürbar reduziert hat.
-              if (newIssues.length < severe.length) {
-                check = recheck
-              }
-            }
-          } catch {
-            // Abort/Modellfehler hier nicht eskalieren.
-          }
-        }
-      }
-
-      // Spoiler-Check für Fallfragen (maximal ein gezielter Repair-Pass).
-      if (mode === "case") {
-        const hits = detectSpoilers(check.questions)
-        if (hits.length > 0) {
-          try {
-            rawText = await callGeneratorModel(callParams, buildSpoilerRepairHint(hits))
-            jsonText = extractJsonFromModelText(rawText)
-            const recheck = validateGeneratedQuestions(jsonText, mode, expectedCount)
-            if (
-              recheck.ok &&
-              questionsHaveExplanations(recheck.questions) &&
-              detectSpoilers(recheck.questions).length <= hits.length / 2
-            ) {
-              // Repair akzeptieren, wenn er die Trefferzahl spürbar reduziert hat.
-              check = recheck
-            }
-            // Bei Misslingen: Original-Antwort behalten, keine harte Fehler-Eskalation.
-          } catch {
-            // Aborts/Modellfehler hier nicht eskalieren — Original-Antwort verwenden.
-          }
-        }
-      }
+      const questions = finalized.questions
 
       // Streak nur für eingeloggte User – best-effort, niemals werfen.
       let streakInfo: Awaited<ReturnType<typeof recordStreakActivity>> = null
@@ -267,7 +188,7 @@ export async function POST(req: Request) {
 
       const res = NextResponse.json({
         ok: true,
-        questions: check.questions,
+        questions,
         quota: {
           used: quotaResult.used,
           remaining: quotaResult.remaining,
