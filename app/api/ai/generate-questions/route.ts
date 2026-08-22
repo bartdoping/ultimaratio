@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai-question-generator-prompt"
 import {
   callGeneratorRepair,
+  callMedicalReviewer,
   callGeneratorModelWithRetry,
   GeneratorModelError,
 } from "@/lib/generator-openai"
@@ -148,6 +149,7 @@ export async function POST(req: Request) {
         mode,
         expectedCount,
         repair: (opts) => callGeneratorRepair(callParams, opts),
+        medicalReview: (input) => callMedicalReviewer(input, controller.signal),
       })
 
       if (!finalized.ok) {

@@ -7,6 +7,7 @@ import {
   isReasoningModel,
 } from "@/lib/generator-ai-config"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
+import { MEDICAL_REVIEW_INSTRUCTIONS } from "@/lib/generator-medical-review"
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -145,6 +146,27 @@ async function createResponseWithModel(
     throw new GeneratorModelError("Leere Modell-Antwort.", "unknown", 502)
   }
   return text
+}
+
+/**
+ * Ruft den unabhängigen Facharzt-Gegencheck auf.
+ *
+ * Bewusst mit EIGENEN Instructions statt der Generator-Instructions: Der
+ * Gutachter soll die Frage unvoreingenommen prüfen und nicht die Denkweise
+ * übernehmen, die sie erzeugt hat. Kleines Token-Budget, weil nur ein knappes
+ * JSON-Urteil zurückkommt.
+ */
+export async function callMedicalReviewer(
+  input: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const params: GeneratorCallParams = {
+    instructions: MEDICAL_REVIEW_INSTRUCTIONS,
+    input,
+    maxOutputTokens: 1200,
+    signal,
+  }
+  return createResponseWithModel(GENERATOR_MODEL, params)
 }
 
 /**

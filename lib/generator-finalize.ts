@@ -8,6 +8,12 @@ import {
   type DepthCheckIssue,
 } from "@/lib/generator-validate"
 import { buildSpoilerRepairHint, detectSpoilers } from "@/lib/spoiler-detection"
+import {
+  buildMedicalRepairHint,
+  hasFindings,
+  reviewMedicalAccuracy,
+  type ReviewFn,
+} from "@/lib/generator-medical-review"
 
 export type FinalizeResult =
   | { ok: true; questions: BulkQuestion[] }
@@ -62,6 +68,11 @@ export async function finalizeGenerated(opts: {
   mode: "single" | "case"
   expectedCount: number
   repair: RepairFn
+  /**
+   * Optionaler unabhängiger Facharzt-Gegencheck. Fehlt er, entfällt die
+   * fachliche Prüfung — die übrigen Schritte laufen unverändert.
+   */
+  medicalReview?: ReviewFn
 }): Promise<FinalizeResult> {
   const { mode, expectedCount, repair } = opts
   let jsonText = extractJsonFromModelText(opts.rawText)
@@ -140,5 +151,43 @@ export async function finalizeGenerated(opts: {
     }
   }
 
+  // 4) Unabhängiger fachlicher Gegencheck.
+  //
+  // Läuft zuletzt, damit er die final formulierte Frage sieht. Findet der
+  // Gutachter etwas, wird gezielt nachgebessert; der Repair darf hier
+  // ausnahmsweise auch Antwortoptionen ändern, weil ein fachlicher Fehler
+  // sonst bestehen bliebe. Schlägt der Check fehl, bleibt die Frage
+  // unverändert — er darf die Generierung nie blockieren.
+  if (opts.medicalReview) {
+    try {
+      const findings = await reviewMedicalAccuracy(check.questions, opts.medicalReview)
+      const hint = buildMedicalRepairHint(findings)
+      if (hint) {
+        const repaired = await repair({
+          hint,
+          previousJson: JSON.stringify({ questions: check.questions }),
+        })
+        const recheck = validateGeneratedQuestions(
+          extractJsonFromModelText(repaired),
+          mode,
+          expectedCount
+        )
+        if (recheck.ok && questionsHaveExplanations(recheck.questions)) {
+          // Korrektur nur übernehmen, wenn sie die Tiefe nicht verschlechtert.
+          const before = hardSevereIssues(checkExplanationDepth(check.questions)).length
+          const after = hardSevereIssues(checkExplanationDepth(recheck.questions)).length
+          if (after <= before) {
+            check = recheck
+          }
+        }
+      }
+    } catch {
+      // best-effort — fachliche Prüfung darf nie zum Fehlschlag führen.
+    }
+  }
+
   return { ok: true, questions: check.questions }
 }
+
+/** Für Tests: meldet, ob eine Beanstandung eine Korrektur auslösen würde. */
+export { hasFindings }

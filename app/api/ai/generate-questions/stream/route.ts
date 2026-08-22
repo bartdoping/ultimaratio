@@ -9,6 +9,7 @@ import {
 } from "@/lib/ai-question-generator-prompt"
 import {
   callGeneratorRepair,
+  callMedicalReviewer,
   streamGeneratorModel,
   GeneratorModelError,
 } from "@/lib/generator-openai"
@@ -208,6 +209,7 @@ export async function POST(req: Request) {
             { instructions, input: userPrompt, maxOutputTokens, signal: abort.signal },
             opts
           ),
+        medicalReview: (input) => callMedicalReviewer(input, abort.signal),
       })
 
       if (!finalized.ok) {
