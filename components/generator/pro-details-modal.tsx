@@ -10,6 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { PriceNote } from "@/components/legal/price-note"
 import { GENERATOR_FREE_DAILY_LIMIT, GENERATOR_PRO_DAILY_LIMIT } from "@/lib/generator-plan-config"
 
 type Props = {
@@ -129,9 +130,14 @@ export function ProDetailsModal({
             </table>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            Monatlich kündbar · Kündigung wirkt zum Periodenende · Keine versteckten Add-ons.
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Pro kostet 9,99 € pro Monat · monatlich kündbar · Kündigung wirkt zum
+              Periodenende · keine versteckten Add-ons.
+            </p>
+            {/* Pflichtangabe nach § 3 PAngV */}
+            <PriceNote />
+          </div>
         </div>
 
         <div className="flex flex-col gap-2 border-t bg-muted/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-end">

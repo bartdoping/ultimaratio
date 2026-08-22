@@ -73,9 +73,9 @@ export default function AgbPage() {
             Generierung).
           </li>
           <li>
-            <strong>Pro:</strong> 9,99 € pro Monat (Bruttopreis, inkl.
-            gesetzlicher Umsatzsteuer, sofern anwendbar). Bis zu einhundert (100)
-            Generierungen pro Kalendertag.
+            <strong>Pro:</strong> 9,99 € pro Monat (Endpreis; gemäß § 19 UStG
+            erheben wir als Kleinunternehmer keine Umsatzsteuer und weisen daher
+            keine aus). Bis zu einhundert (100) Generierungen pro Kalendertag.
           </li>
         </ul>
         <p>
@@ -140,8 +140,11 @@ export default function AgbPage() {
         <p>
           (1) Der Free-Tarif ist kostenlos. Für den Pro-Tarif gilt der zum
           Zeitpunkt der Bestellung auf der Plattform angegebene Preis,
-          gegenwärtig <strong>9,99 € pro Monat</strong> (Bruttopreis, inkl. der
-          jeweils geltenden gesetzlichen Umsatzsteuer, sofern anwendbar).
+          gegenwärtig <strong>9,99 € pro Monat</strong>. Es handelt sich um einen
+          Endpreis im Sinne der Preisangabenverordnung; weitere Kosten fallen
+          nicht an. Die Anbieterin macht von der Kleinunternehmer­regelung nach
+          § 19 UStG Gebrauch und erhebt daher keine Umsatzsteuer; ein
+          Umsatzsteuer­ausweis erfolgt nicht.
         </p>
         <p>
           (2) Die Zahlung wird im Voraus jeweils zu Beginn der Abrechnungs­periode
@@ -194,12 +197,20 @@ export default function AgbPage() {
         </p>
         <p>
           (3) Die Kündigung des Pro-Abonnements ist jederzeit über die hierfür
-          eingerichtete{" "}
-          <strong>Kündigungsschaltfläche („Abo kündigen")</strong> auf der
-          Account- bzw. Abo-Verwaltungsseite des angemeldeten Nutzers möglich.
-          Die Schaltfläche ist deutlich beschriftet und nach einer einfachen
-          Bestätigung erreichbar. Damit wird den Anforderungen des § 312k BGB
-          Rechnung getragen.
+          eingerichtete Kündigungs­schaltfläche{" "}
+          <strong>„Verträge hier kündigen"</strong> möglich. Diese ist auf jeder
+          Seite im Fußbereich verlinkt, ständig verfügbar sowie unmittelbar und
+          leicht zugänglich; eine Anmeldung ist dafür{" "}
+          <strong>nicht erforderlich</strong> (
+          <a href="/kuendigung">fragenkreuzen.de/kuendigung</a>). Auf der
+          Bestätigungs­seite kann der Nutzer Art der Kündigung, Vertrag, seine
+          Person und den gewünschten Beendigungs­zeitpunkt angeben und die
+          Kündigung über die Schaltfläche „Jetzt kündigen" abgeben. Der Zugang der
+          Kündigungs­erklärung wird dem Nutzer unverzüglich unter Angabe von Datum
+          und Uhrzeit in Textform bestätigt; der Inhalt der Erklärung ist
+          zusätzlich als Datei speicherbar. Damit werden die Anforderungen des
+          § 312k BGB erfüllt. Angemeldete Nutzer können ihr Abonnement daneben
+          weiterhin in der Abo-Verwaltung kündigen.
         </p>
         <p>
           (4) Eine Kündigung ist zusätzlich in Textform (z. B. per E-Mail an{" "}
@@ -443,8 +454,10 @@ export default function AgbPage() {
           per E-Mail (Vertrags­bestätigung in Textform gemäß § 312f Abs. 2 BGB).
         </p>
         <p>
-          (2) Hinweis zur Online-Streit­beilegung und zur Verbraucher­streit­beilegung
-          siehe <a href="/impressum">Impressum</a>.
+          (2) Die Anbieterin ist nicht bereit und nicht verpflichtet, an
+          Streit­beilegungs­verfahren vor einer Verbraucher­schlichtungsstelle
+          teilzunehmen (§ 36 Abs. 1 Nr. 1 VSBG). Siehe auch{" "}
+          <a href="/impressum">Impressum</a>.
         </p>
       </LegalSection>
 

@@ -4,6 +4,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { PriceNote } from "@/components/legal/price-note"
 
 interface SubscriptionLimitPopupProps {
   isOpen: boolean
@@ -57,11 +58,13 @@ export function SubscriptionLimitPopup({
           
           <div className="text-center">
             <p className="text-lg font-semibold text-primary">
-              Nur 9,99€ pro Monat
+              Nur 9,99 € pro Monat
             </p>
             <p className="text-xs text-muted-foreground">
-              Jederzeit kündbar
+              Monatlich kündbar
             </p>
+            {/* Pflichtangabe nach § 3 PAngV */}
+            <PriceNote className="mt-1" />
           </div>
         </div>
         

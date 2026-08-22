@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Check, Sparkles } from "lucide-react"
 import { ProDetailsModal } from "@/components/generator/pro-details-modal"
 import { TrialStartButton } from "@/components/subscription/trial-start-button"
+import { PriceNote } from "@/components/legal/price-note"
 
 type Variant = "generator" | "account"
 
@@ -71,9 +72,10 @@ export function ProUpgradeCard({
                 alltagstauglich.
               </p>
             </div>
-            <div className="hidden sm:block text-right shrink-0">
+            <div className="hidden shrink-0 text-right sm:block">
               <div className="text-2xl font-semibold tabular-nums">9,99&nbsp;€</div>
               <div className="text-xs text-muted-foreground">pro Monat · monatlich kündbar</div>
+              <PriceNote variant="short" className="mt-0.5" />
             </div>
           </div>
         </div>
@@ -93,8 +95,14 @@ export function ProUpgradeCard({
         </ul>
 
         <div className="flex flex-col gap-3 border-t bg-muted/20 px-6 py-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs text-muted-foreground">
-            Kein Tracking ungewünschter Daten · Kündigung jederzeit zum Periodenende · Admin-Pro für interne Tests.
+          <div className="space-y-1 text-xs text-muted-foreground">
+            <p>
+              <span className="sm:hidden">9,99 € pro Monat · </span>
+              Kündigung jederzeit zum Periodenende · keine Mindestlaufzeit über den
+              Monat hinaus.
+            </p>
+            {/* Pflichtangabe nach § 3 PAngV – auf Mobile ist der Preisblock ausgeblendet. */}
+            <PriceNote className="sm:hidden" />
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
             {variant === "generator" ? (

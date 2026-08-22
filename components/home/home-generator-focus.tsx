@@ -2,6 +2,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { buildLoginHref, buildRegisterHref } from "@/lib/auth-redirect"
+import { PriceNote } from "@/components/legal/price-note"
 import {
   ArrowRight,
   BookOpenCheck,
@@ -163,9 +164,14 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             </tbody>
           </table>
           <div className="flex flex-col gap-2 border-t bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">
-              Monatlich kündbar · Pro bleibt bis Periodenende aktiv
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                Pro: 9,99 € pro Monat · monatlich kündbar · Pro bleibt bis
+                Periodenende aktiv
+              </p>
+              {/* Pflichtangabe nach § 3 PAngV */}
+              <PriceNote />
+            </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="ghost" size="sm">
                 <Link href="/generator">Erst mal Free testen</Link>

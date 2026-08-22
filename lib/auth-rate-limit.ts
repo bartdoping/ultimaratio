@@ -22,6 +22,10 @@ export const AUTH_BUCKETS = {
   codeVerify: { windowMs: 15 * 60_000, max: 10 },
   // Passwort-Reset anfordern.
   resetRequest: { windowMs: 60 * 60_000, max: 5 },
+  // Kündigungserklärung nach § 312k BGB (ohne Login erreichbar) — gedrosselt
+  // gegen Missbrauch, aber großzügig genug, dass eine echte Kündigung nie
+  // blockiert wird (gesetzliche Pflicht zur leichten Zugänglichkeit).
+  cancellation: { windowMs: 60 * 60_000, max: 8 },
 } as const
 
 type BucketId = keyof typeof AUTH_BUCKETS

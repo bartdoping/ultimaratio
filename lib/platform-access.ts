@@ -15,6 +15,10 @@ const EXACT_PATHS = new Set([
   "/datenschutz",
   "/agb",
   "/widerruf",
+  // § 312k BGB: Kündigungsseite muss ständig verfügbar und ohne Anmeldung
+  // erreichbar sein — darf daher niemals auf /coming-soon umgeleitet werden.
+  "/kuendigung",
+  "/faq",
   "/account",
   "/subscription",
   "/feedback",
@@ -34,6 +38,7 @@ const PREFIX_PATHS = [
   "/api/subscription/",
   "/api/streak",
   "/api/feedback",
+  "/api/kuendigung",
   "/api/onboarding",
   "/api/presets",
   "/blog",

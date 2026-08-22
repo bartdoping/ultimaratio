@@ -6,6 +6,7 @@ import prisma from "@/lib/db"
 import { Check, X, Sparkles, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { TrialStartButton } from "@/components/subscription/trial-start-button"
+import { PriceNote } from "@/components/legal/price-note"
 import {
   GENERATOR_FREE_DAILY_LIMIT,
   GENERATOR_PRO_DAILY_LIMIT,
@@ -320,6 +321,8 @@ function PlanCard({
         {priceSuffix && <span className="text-sm text-muted-foreground">{priceSuffix}</span>}
       </div>
       <p className="mt-0.5 text-sm text-muted-foreground">{subtitle}</p>
+      {/* Pflichtangabe nach § 3 PAngV */}
+      <PriceNote className="mt-1" />
       <ul className="mt-5 space-y-2 text-sm">
         {bullets.map((b) => (
           <li key={b} className="flex items-start gap-2">

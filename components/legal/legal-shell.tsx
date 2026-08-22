@@ -12,6 +12,8 @@ const LEGAL_LINKS = [
   { href: "/agb", label: "AGB" },
   { href: "/widerruf", label: "Widerrufsbelehrung" },
   { href: "/datenschutz", label: "Datenschutzerklärung" },
+  { href: "/kuendigung", label: "Verträge hier kündigen" },
+  { href: "/faq", label: "FAQ" },
 ] as const
 
 export function LegalShell({

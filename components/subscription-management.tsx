@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { PriceNote } from "@/components/legal/price-note"
 import { toast } from "sonner"
 
 interface SubscriptionData {
@@ -262,6 +263,8 @@ export function SubscriptionManagement() {
             <div className="shrink-0">
               <div className="text-2xl font-bold text-primary sm:text-3xl">9,99 €</div>
               <div className="text-xs text-muted-foreground">pro Monat · monatlich kündbar</div>
+              {/* Pflichtangabe nach § 3 PAngV */}
+              <PriceNote className="mt-0.5 max-w-[22ch]" />
             </div>
           )}
         </div>

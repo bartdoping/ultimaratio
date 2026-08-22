@@ -445,10 +445,17 @@ export function AuthClient({ providers, turnstileSiteKey }: Props) {
                 {busy ? "Erstelle Account…" : "Account erstellen"}
               </Button>
 
-              <p className="text-xs text-muted-foreground">
-                Mit dem Erstellen akzeptierst du unsere{" "}
-                <Link href="/agb" className="underline">AGB</Link> und{" "}
-                <Link href="/datenschutz" className="underline">Datenschutz</Link>.
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Mit der Registrierung akzeptierst du unsere{" "}
+                <Link href="/agb" className="underline underline-offset-2">
+                  Allgemeinen Geschäftsbedingungen
+                </Link>
+                . Informationen zur Verarbeitung deiner Daten findest du in unserer{" "}
+                <Link href="/datenschutz" className="underline underline-offset-2">
+                  Datenschutzerklärung
+                </Link>
+                . Die Registrierung ist kostenlos; ein kostenpflichtiges Abonnement
+                kommt erst durch eine gesonderte Bestellung zustande.
               </p>
             </form>
           )}
@@ -506,8 +513,10 @@ export function AuthClient({ providers, turnstileSiteKey }: Props) {
         </div>
 
         <p className="mt-6 text-center text-xs text-muted-foreground">
-          Geschützt durch Cookies und Rate-Limits.{" "}
+          Geschützt durch technisch notwendige Cookies und Rate-Limits.{" "}
           <Link href="/impressum" className="underline-offset-4 hover:underline">Impressum</Link>
+          {" · "}
+          <Link href="/agb" className="underline-offset-4 hover:underline">AGB</Link>
           {" · "}
           <Link href="/datenschutz" className="underline-offset-4 hover:underline">Datenschutz</Link>
         </p>

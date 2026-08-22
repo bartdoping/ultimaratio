@@ -12,6 +12,7 @@ import {
   fontScaleHtmlSize,
   isFontScale,
 } from "@/lib/font-scale"
+import { consentModeBootstrapScript } from "@/lib/consent"
 
 const inter = Inter({ subsets: ["latin"], display: "swap" })
 
@@ -124,8 +125,22 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const rootFontSize = fontScaleHtmlSize(scale)
 
   return (
-    <html lang="de" style={{ fontSize: rootFontSize }} data-font-scale={scale}>
+    // suppressHydrationWarning: Das Theme-Init-Script im <head> setzt bewusst
+    // class/color-scheme auf <html>, bevor React hydratisiert (Standardmuster
+    // von next-themes zur Vermeidung eines Farb-Flashs).
+    <html
+      lang="de"
+      suppressHydrationWarning
+      style={{ fontSize: rootFontSize }}
+      data-font-scale={scale}
+    >
       <head>
+        {/*
+          Google Consent Mode v2 — MUSS vor jedem Google-Tag laufen.
+          Setzt alle einwilligungspflichtigen Signale auf "denied" und wendet
+          erst danach eine ggf. gespeicherte Einwilligung an (§ 25 Abs. 1 TDDDG).
+        */}
+        <script dangerouslySetInnerHTML={{ __html: consentModeBootstrapScript() }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
         <script
           type="application/ld+json"

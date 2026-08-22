@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
 import { PresetBar, type PresetData } from "@/components/generator/presets/preset-bar"
+import { AiDisclaimer } from "@/components/legal/ai-disclaimer"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
@@ -731,6 +732,9 @@ export function GeneratorPageClient({
           />
         </div>
       )}
+
+      {/* Transparenzhinweis für KI-Inhalte (Art. 50 KI-VO) */}
+      <AiDisclaimer variant="card" className="mt-6" />
 
       {/* Aktiv laufendes Trial: Dezenter Hinweis am Ende */}
       {isPro && trialEndsAt && (

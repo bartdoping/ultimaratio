@@ -18,12 +18,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/probieren", priority: 0.95, changeFrequency: "weekly" },
     { path: "/generator", priority: 0.95, changeFrequency: "weekly" },
     { path: "/pricing", priority: 0.9, changeFrequency: "monthly" },
+    { path: "/faq", priority: 0.8, changeFrequency: "monthly" },
     { path: "/login", priority: 0.4, changeFrequency: "yearly" },
     { path: "/register", priority: 0.5, changeFrequency: "yearly" },
     { path: "/impressum", priority: 0.3, changeFrequency: "yearly" },
     { path: "/datenschutz", priority: 0.3, changeFrequency: "yearly" },
     { path: "/agb", priority: 0.3, changeFrequency: "yearly" },
     { path: "/widerruf", priority: 0.3, changeFrequency: "yearly" },
+    { path: "/kuendigung", priority: 0.4, changeFrequency: "yearly" },
     { path: "/blog", priority: 0.7, changeFrequency: "weekly" },
   ]
 

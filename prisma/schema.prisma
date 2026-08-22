@@ -583,6 +583,50 @@ model UserFeedback {
 }
 
 /**
+ * ============ Kündigungen nach § 312k BGB ============
+ *
+ * § 312k BGB verlangt eine ohne Anmeldung erreichbare Kündigungsmöglichkeit
+ * und eine Bestätigung der Kündigungserklärung in Textform unter Angabe von
+ * Datum und Uhrzeit des Zugangs. Jede über /kuendigung abgegebene Erklärung
+ * wird daher revisionssicher protokolliert — unabhängig davon, ob zur
+ * angegebenen E-Mail-Adresse ein Abo gefunden wurde.
+ */
+model CancellationRequest {
+  id String @id @default(cuid())
+
+  /// Vom Erklärenden angegebene E-Mail-Adresse (Vertragszuordnung).
+  email         String
+  /// Optionale Selbstbezeichnung des Erklärenden.
+  name          String?
+  /// Eindeutige Bezeichnung des Vertrags (§ 312k Abs. 2 S. 3 Nr. 2 BGB).
+  contractLabel String  @default("Pro-Abonnement fragenkreuzen.de")
+  /// "ordentlich" | "ausserordentlich"
+  kind          String  @default("ordentlich")
+  /// Grund — bei außerordentlicher Kündigung erforderlich.
+  reason        String?
+  /// Gewünschter Beendigungszeitpunkt als Freitext.
+  desiredDate   String?
+
+  /// Verknüpftes Konto, sofern zur E-Mail eines gefunden wurde.
+  userId String?
+
+  /// Zugangszeitpunkt der Erklärung — maßgeblich für die Frist.
+  receivedAt DateTime @default(now())
+  /// Gehashte IP + User-Agent als Nachweis, ohne Klartext-PII zu speichern.
+  ipHash     String?
+  userAgent  String?
+
+  /// "received" | "applied" | "no_subscription" | "failed"
+  status      String    @default("received")
+  processedAt DateTime?
+  note        String?
+
+  @@index([email])
+  @@index([receivedAt])
+  @@index([status])
+}
+
+/**
  * Idempotenz-Log für Stripe-Webhook-Events. Vor dem Anwenden eines Events
  * wird hier per `eventId` geprüft, ob das Event schon verarbeitet wurde.
  */

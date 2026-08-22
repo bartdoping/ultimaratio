@@ -26,6 +26,7 @@ import {
   isMustKnowWorthShowing,
   isNearDuplicate,
 } from "@/lib/insight-quality"
+import { AiDisclaimer } from "@/components/legal/ai-disclaimer"
 
 export type GeneratorQuickAction =
   | "same_again"
@@ -431,6 +432,9 @@ export function GeneratorRunner({
           />
         )
       })()}
+
+      {/* Transparenzhinweis für KI-Inhalte (Art. 50 KI-VO) – dauerhaft sichtbar. */}
+      <AiDisclaimer className="mx-auto max-w-prose" />
 
       <p className="text-center text-xs text-muted-foreground">
         Keine Speicherung · keine Decks · Markierungen nur in dieser Session
