@@ -54,20 +54,39 @@ export function isReasoningModel(model: string): boolean {
   )
 }
 
-export type ReasoningEffort = "minimal" | "low" | "medium" | "high"
+/**
+ * Von der GPT-5-Familie akzeptierte Werte. ACHTUNG: "minimal" gehört NICHT
+ * dazu — gpt-5.4 lehnt es mit `unsupported_value` ab und die Generierung
+ * schlägt komplett fehl. Der korrekte Wert für "gar kein Reasoning" ist "none".
+ */
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh"
+
+const VALID_EFFORTS: readonly string[] = ["none", "low", "medium", "high", "xhigh"]
 
 /**
- * Reasoning-Effort für die Generierung. Default "low": spürbar schneller als
- * "medium"/"high", ohne dass die Antwortqualität für strukturierte
- * Fragengenerierung leidet. Per Env `OPENAI_GENERATOR_REASONING_EFFORT`
- * überschreibbar (z. B. "minimal" für maximale Geschwindigkeit).
+ * Reasoning-Effort für die Generierung. Default "none".
+ *
+ * Gemessen an gpt-5.4 mit unserem Prompt (Thema Schlaganfall, Einzelfrage):
+ *   effort=low   → 49,8 s, davon 1056 Reasoning-Tokens, 2231 sichtbare Tokens
+ *   effort=none  → 35,1 s, 0 Reasoning-Tokens,          2236 sichtbare Tokens
+ * Die sichtbare Ausgabe ist praktisch identisch und besteht die Tiefenprüfung
+ * in beiden Fällen — das Reasoning kostete also 30 % Zeit ohne Gegenwert.
+ * Grund: Unser System-Prompt gibt Struktur, Schwierigkeitsanker und
+ * Selbst-Check bereits vollständig vor; das Modell muss sich den Lösungsweg
+ * nicht erst selbst erarbeiten.
+ *
+ * Per `OPENAI_GENERATOR_REASONING_EFFORT` überschreibbar. Ungültige Werte
+ * fallen auf "none" zurück, statt einen Request-Fehler zu provozieren.
  */
 export function generatorReasoningEffort(): ReasoningEffort {
   const raw = process.env.OPENAI_GENERATOR_REASONING_EFFORT?.trim().toLowerCase()
-  if (raw === "minimal" || raw === "low" || raw === "medium" || raw === "high") {
-    return raw
+  if (raw && VALID_EFFORTS.includes(raw)) return raw as ReasoningEffort
+  if (raw) {
+    console.warn(
+      `[generator] Ungültiger OPENAI_GENERATOR_REASONING_EFFORT="${raw}" — erlaubt: ${VALID_EFFORTS.join(", ")}. Nutze "none".`
+    )
   }
-  return "low"
+  return "none"
 }
 
 /** Text-Verbosity für die Responses-API. Default "medium". */

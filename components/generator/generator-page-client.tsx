@@ -15,9 +15,10 @@ import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
 import { difficultyLabel } from "@/lib/generator-difficulty"
 import {
-  extractLivePreview,
-  PREVIEW_PHASE_LABEL,
-  type LivePreview,
+  detectGenerationPhase,
+  estimateProgress,
+  PHASE_LABEL,
+  type GenerationPhase,
 } from "@/lib/stream-preview"
 import { toast } from "sonner"
 
@@ -84,11 +85,33 @@ export function GeneratorPageClient({
   const [trialEndsAt, setTrialEndsAt] = useState<string | null>(initialTrialEndsAt)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
-  const [livePreview, setLivePreview] = useState<LivePreview | null>(null)
+  const [phase, setPhase] = useState<GenerationPhase | null>(null)
+  /**
+   * Schwierigkeit je Teilfrage einer Fallfrage. Index 0 = Teilfrage 1.
+   * Wird auf `caseCount` zugeschnitten; neue Teilfragen erben die
+   * Gesamtschwierigkeit. `perQuestionDifficulty` schaltet den Modus frei.
+   */
+  const [perQuestionDifficulty, setPerQuestionDifficulty] = useState(false)
+  const [caseDifficulties, setCaseDifficulties] = useState<number[]>([])
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
   const units = mode === "case" ? caseCount : 1
+
+  // Länge der Teilfragen-Schwierigkeiten an caseCount angleichen; fehlende
+  // Einträge erben die aktuell eingestellte Gesamtschwierigkeit.
+  useEffect(() => {
+    setCaseDifficulties((prev) => {
+      if (prev.length === caseCount) return prev
+      return Array.from({ length: caseCount }, (_, i) => prev[i] ?? difficulty)
+    })
+  }, [caseCount, difficulty])
+
+  /** Effektive Schwierigkeiten, die an die API gehen. */
+  const effectiveDifficulties =
+    mode === "case" && perQuestionDifficulty
+      ? Array.from({ length: caseCount }, (_, i) => caseDifficulties[i] ?? difficulty)
+      : undefined
 
   const remainingSufficient = quota.unlimited || quota.remaining >= units
 
@@ -358,14 +381,15 @@ export function GeneratorPageClient({
     setLoading(true)
     setError(null)
     setLimitState(null)
-    setLivePreview(null)
+    setPhase(null)
     setLoadStage(0)
 
-    const payload = {
+    const payload: GeneratePayload = {
       topic: effTopic,
       difficulty: effDifficulty,
       mode: effMode,
       caseQuestionCount: effMode === "case" ? (effCaseCount ?? undefined) : undefined,
+      difficulties: effMode === "case" ? effectiveDifficulties : undefined,
     }
 
     const onFatal = (msg: string, counted: boolean) => {
@@ -380,9 +404,13 @@ export function GeneratorPageClient({
     }
 
     try {
-      // Zuerst Streaming (Live-Preview); fällt automatisch auf den klassischen
-      // Endpoint zurück, wenn Streaming am Verbindungsaufbau scheitert.
-      let result = await runStreamingGeneration(payload, (p) => setLivePreview(p))
+      // Streaming dient ausschließlich dem Fortschritts-Signal — es wird KEIN
+      // Frageninhalt vorab angezeigt (siehe lib/stream-preview.ts). Fällt der
+      // Verbindungsaufbau aus, greift der klassische Endpoint.
+      let result = await runStreamingGeneration(payload, (p, pct) => {
+        setPhase(p)
+        if (pct > 0) setLoadProgress((prev) => Math.max(prev, pct))
+      })
       if (result.kind === "unsupported") {
         result = await runClassicGeneration(payload)
       }
@@ -441,7 +469,7 @@ export function GeneratorPageClient({
     } finally {
       setLoading(false)
       setLoadProgress(0)
-      setLivePreview(null)
+      setPhase(null)
     }
   }
 
@@ -617,7 +645,26 @@ export function GeneratorPageClient({
                 ))}
               </div>
             )}
-            <DifficultyPill level={difficulty} onChange={setDifficulty} />
+            {!(mode === "case" && perQuestionDifficulty) && (
+              <DifficultyPill level={difficulty} onChange={setDifficulty} />
+            )}
+            {mode === "case" && (
+              <button
+                type="button"
+                onClick={() => setPerQuestionDifficulty((v) => !v)}
+                aria-pressed={perQuestionDifficulty}
+                className={cn(
+                  "inline-flex h-7 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+                  perQuestionDifficulty
+                    ? "border-primary/50 bg-primary/10 text-foreground"
+                    : "bg-background/80 text-muted-foreground hover:bg-muted"
+                )}
+                title="Für jede Teilfrage eine eigene Schwierigkeit festlegen"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Stufe je Teilfrage
+              </button>
+            )}
           </div>
 
           {/* Generate-Button: Desktop in der Toolbar; Mobile sticky bottom */}
@@ -634,6 +681,41 @@ export function GeneratorPageClient({
           </Button>
         </div>
 
+        {/* Schwierigkeit je Teilfrage (nur Fallfrage + aktivierter Modus) */}
+        {mode === "case" && perQuestionDifficulty && !loading && (
+          <div className="space-y-2 border-t bg-muted/10 px-4 py-3 sm:px-5">
+            <p className="text-xs text-muted-foreground">
+              Jede Teilfrage bekommt ihre eigene Stufe — z. B. leichter Einstieg,
+              dann ansteigender Anspruch. Der Falltext bleibt für alle gleich.
+            </p>
+            <div className="space-y-1.5">
+              {Array.from({ length: caseCount }, (_, i) => (
+                <div key={i} className="flex flex-wrap items-center gap-2">
+                  <span className="w-[9.5rem] shrink-0 text-xs font-medium text-foreground">
+                    Teilfrage {i + 1}
+                  </span>
+                  <DifficultyPill
+                    level={caseDifficulties[i] ?? difficulty}
+                    onChange={(lvl) =>
+                      setCaseDifficulties((prev) => {
+                        const next = Array.from(
+                          { length: caseCount },
+                          (_, k) => prev[k] ?? difficulty
+                        )
+                        next[i] = lvl
+                        return next
+                      })
+                    }
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    {difficultyLabel(caseDifficulties[i] ?? difficulty)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Live Status / Microcopy */}
         <div className="border-t px-4 py-3 text-xs text-muted-foreground sm:px-5">
           {loading ? (
@@ -648,9 +730,7 @@ export function GeneratorPageClient({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium text-foreground">
-                      {livePreview
-                        ? PREVIEW_PHASE_LABEL[livePreview.phase]
-                        : LOAD_STAGES[loadStage]}
+                      {phase ? PHASE_LABEL[phase] : LOAD_STAGES[loadStage]}
                     </span>
                     <span className="shrink-0 text-xs tabular-nums">
                       {Math.round(loadProgress)}%
@@ -660,28 +740,28 @@ export function GeneratorPageClient({
                 </div>
               </div>
 
-              {/* Live-Preview: die entstehende Frage in Echtzeit */}
-              {livePreview && (livePreview.stem || livePreview.options.length > 0) ? (
-                <LiveQuestionPreview preview={livePreview} />
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {LOAD_STAGES.map((stage, i) => (
-                    <span
-                      key={stage}
-                      className={cn(
-                        "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
-                        i < loadStage
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-                          : i === loadStage
-                            ? "border-primary/40 bg-primary/10 text-foreground"
-                            : "border-border bg-muted/30 text-muted-foreground"
-                      )}
-                    >
-                      {stage.replace("…", "")}
-                    </span>
-                  ))}
-                </div>
-              )}
+              {/*
+                Bewusst KEINE Inhalts-Vorschau: Nach dem Stream können noch
+                Qualitäts-Repairs laufen, die Texte verändern. Eine Vorschau
+                würde daher von der fertigen Frage abweichen.
+              */}
+              <div className="flex flex-wrap gap-1.5">
+                {LOAD_STAGES.map((stage, i) => (
+                  <span
+                    key={stage}
+                    className={cn(
+                      "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                      i < loadStage
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                        : i === loadStage
+                          ? "border-primary/40 bg-primary/10 text-foreground"
+                          : "border-border bg-muted/30 text-muted-foreground"
+                    )}
+                  >
+                    {stage.replace("…", "")}
+                  </span>
+                ))}
+              </div>
             </div>
           ) : error ? (
             <p className="text-red-500" role="alert" aria-live="polite">
@@ -830,43 +910,9 @@ function humanizeError(code: string): string {
   return code
 }
 
-function LiveQuestionPreview({ preview }: { preview: LivePreview }) {
-  return (
-    <div className="rounded-xl border bg-background/60 p-3 sm:p-4">
-      {preview.stem ? (
-        <p className="text-sm leading-relaxed text-foreground">
-          {preview.stem}
-          <span className="ml-0.5 inline-block h-4 w-[2px] translate-y-0.5 animate-pulse bg-primary align-middle" />
-        </p>
-      ) : (
-        <div className="space-y-1.5">
-          <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-3 w-1/2 animate-pulse rounded bg-muted" />
-        </div>
-      )}
-
-      {preview.options.length > 0 && (
-        <ul className="mt-3 space-y-1.5">
-          {preview.options.slice(0, 5).map((opt, i) => (
-            <li
-              key={i}
-              className="flex items-start gap-2 text-sm text-muted-foreground"
-              style={{ animation: "fadeIn 240ms ease-out" }}
-            >
-              <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full border bg-muted text-[11px] font-semibold text-muted-foreground">
-                {String.fromCharCode(65 + i)}
-              </span>
-              <span className="leading-snug">{opt}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
 
 // ============================================================================
-// Generierung: Streaming (mit Live-Preview) + klassischer Fallback.
+// Generierung: Streaming (nur Fortschritt) + klassischer Fallback.
 // ============================================================================
 
 type GeneratePayload = {
@@ -874,6 +920,8 @@ type GeneratePayload = {
   difficulty: number
   mode: "single" | "case"
   caseQuestionCount?: number
+  /** Optional: Schwierigkeit je Teilfrage einer Fallfrage. */
+  difficulties?: number[]
 }
 
 type GenResult =
@@ -945,9 +993,14 @@ async function runClassicGeneration(payload: GeneratePayload): Promise<GenResult
   return mapJsonToResult(res.status, res.ok, data)
 }
 
+/**
+ * Konsumiert den SSE-Stream. Der Callback liefert ausschließlich Phase und
+ * Fortschritt in Prozent — bewusst KEINEN Frageninhalt, damit nichts angezeigt
+ * wird, was ein nachgelagerter Repair noch verändern könnte.
+ */
 async function runStreamingGeneration(
   payload: GeneratePayload,
-  onPreview: (p: LivePreview) => void
+  onProgress: (phase: GenerationPhase, percent: number) => void
 ): Promise<GenResult> {
   let res: Response
   try {
@@ -972,11 +1025,16 @@ async function runStreamingGeneration(
     return { kind: "unsupported" }
   }
 
+  // Erwartete Ausgabegröße als Referenz für den Fortschrittsbalken. Gemessen:
+  // Einzelfrage ≈ 9.000 Zeichen, Fallfrage ≈ 8.300 Zeichen je Teilfrage.
+  const expectedChars =
+    payload.mode === "case" ? 8300 * (payload.caseQuestionCount ?? 3) : 9000
+
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ""
   let full = ""
-  let lastPreview = 0
+  let lastTick = 0
 
   try {
     for (;;) {
@@ -1000,12 +1058,13 @@ async function runStreamingGeneration(
         if (evt.type === "delta") {
           full += typeof evt.text === "string" ? evt.text : ""
           const now = Date.now()
-          if (now - lastPreview > 90) {
-            lastPreview = now
-            onPreview(extractLivePreview(full))
+          if (now - lastTick > 120) {
+            lastTick = now
+            onProgress(detectGenerationPhase(full), estimateProgress(full.length, expectedChars))
           }
+        } else if (evt.type === "verifying") {
+          onProgress("verifying", 96)
         } else if (evt.type === "final") {
-          onPreview(extractLivePreview(full))
           if (!Array.isArray(evt.questions)) {
             return { kind: "error", message: "Unerwartete Server-Antwort.", counted: false }
           }

@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server"
 import { assertSameOrigin } from "@/lib/security"
 import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
-import {
-  generatorMaxOutputTokens,
-  GENERATOR_TOPIC_MAX,
-} from "@/lib/generator-ai-config"
+import { generatorMaxOutputTokens } from "@/lib/generator-ai-config"
+import { parseGenerateRequest } from "@/lib/generator-request"
 import {
   buildSystemInstructions,
   buildUserPrompt,
 } from "@/lib/ai-question-generator-prompt"
 import {
-  callGeneratorModel,
+  callGeneratorRepair,
   streamGeneratorModel,
   GeneratorModelError,
 } from "@/lib/generator-openai"
@@ -30,18 +28,18 @@ import {
 } from "@/lib/generator-rate-limit"
 
 export const runtime = "nodejs"
+// Muss über GENERATOR_TIMEOUT_MS liegen, sonst kappt die Plattform vorher.
+export const maxDuration = 300
 export const dynamic = "force-dynamic"
 
-const GENERATOR_TIMEOUT_MS = 90_000
-
-function parseGenerateBody(body: unknown) {
-  const b = body as Record<string, unknown>
-  const topic = String(b?.topic ?? "").trim().slice(0, GENERATOR_TOPIC_MAX)
-  const difficulty = Number(b?.difficulty)
-  const mode = b?.mode === "case" ? ("case" as const) : ("single" as const)
-  const caseQuestionCount = Number(b?.caseQuestionCount)
-  return { topic, difficulty, mode, caseQuestionCount }
-}
+/**
+ * Abbruch-Timeout. Bewusst großzügig: Gemessene Antwortzeiten von gpt-5.4
+ * schwanken bei identischem Prompt zwischen 27 s und 145 s — die Streuung
+ * kommt von der Auslastung der API, nicht von unserem Code. Mit 90 s wurden
+ * langsame Zeitfenster fälschlich als Fehler abgebrochen, obwohl die Antwort
+ * noch unterwegs war. Der Client zeigt währenddessen den Streaming-Fortschritt.
+ */
+const GENERATOR_TIMEOUT_MS = Number(process.env.GENERATOR_TIMEOUT_MS) || 170_000
 
 function serializeVisitorCookie(value: string): string {
   const opts = visitorCookieOptions()
@@ -64,7 +62,8 @@ function serializeVisitorCookie(value: string): string {
  *    kommen als klassische JSON-Antwort zurück (kein Stream).
  *  - Die eigentliche Generierung wird als SSE gestreamt:
  *      { type: "start" }
- *      { type: "delta", text }         ← viele, für die Live-Preview
+ *      { type: "delta", text }      ← nur zur Fortschrittsmessung im Client
+ *      { type: "verifying" }        ← Validierung/Repairs laufen
  *      { type: "final", ok, questions, quota, meta, streak }
  *      { type: "error", error }
  *  - Serverseitige Validierung + konservative Repair-Pässe laufen NACH dem
@@ -83,30 +82,12 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}))
-  const { topic, difficulty, mode, caseQuestionCount } = parseGenerateBody(body)
-
-  if (!topic || topic.length < 3) {
-    return NextResponse.json(
-      { ok: false, error: "Bitte ein Thema mit mindestens 3 Zeichen angeben." },
-      { status: 400 }
-    )
+  const parsed = parseGenerateRequest(body)
+  if (!parsed.ok) {
+    return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 })
   }
-  if (!Number.isFinite(difficulty) || difficulty < 1 || difficulty > 5) {
-    return NextResponse.json(
-      { ok: false, error: "Schwierigkeitsgrad muss zwischen 1 und 5 liegen." },
-      { status: 400 }
-    )
-  }
-
-  const expectedCount = mode === "case" ? caseQuestionCount : 1
-  if (mode === "case") {
-    if (!Number.isInteger(caseQuestionCount) || caseQuestionCount < 2 || caseQuestionCount > 5) {
-      return NextResponse.json(
-        { ok: false, error: "Bei Fallfragen sind 2 bis 5 Teilfragen erforderlich." },
-        { status: 400 }
-      )
-    }
-  }
+  const { topic, difficulty, mode, caseQuestionCount, difficulties } = parsed.value
+  const expectedCount = parsed.expectedCount
 
   const access = await resolveGeneratorAccess(req)
   const quotaSubject = quotaSubjectFromAccess(access)
@@ -152,6 +133,7 @@ export async function POST(req: Request) {
     difficulty: Math.round(difficulty),
     mode,
     caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
+    difficulties: mode === "case" ? difficulties : undefined,
   })
   const maxOutputTokens = generatorMaxOutputTokens(mode, expectedCount)
 
@@ -213,14 +195,18 @@ export async function POST(req: Request) {
         return
       }
 
+      // Ab hier laufen Validierung und ggf. Repairs. Der Client zeigt dafür
+      // "Qualitätsprüfung…", damit die Wartezeit erklärt ist.
+      send({ type: "verifying" })
+
       const finalized = await finalizeGenerated({
         rawText: full,
         mode,
         expectedCount,
-        repair: (hint) =>
-          callGeneratorModel(
+        repair: (opts) =>
+          callGeneratorRepair(
             { instructions, input: userPrompt, maxOutputTokens, signal: abort.signal },
-            hint
+            opts
           ),
       })
 

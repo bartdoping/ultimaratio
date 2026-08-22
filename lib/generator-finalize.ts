@@ -13,8 +13,15 @@ export type FinalizeResult =
   | { ok: true; questions: BulkQuestion[] }
   | { ok: false; error: string; status: number }
 
-/** Repair-Aufruf: liefert neuen Rohtext des Modells zurück. */
-export type RepairFn = (repairHint: string) => Promise<string>
+/**
+ * Repair-Aufruf: bekommt den Mangel-Hinweis UND die zuvor erzeugte JSON-Antwort.
+ * Nur so kann das Modell dieselbe Frage überarbeiten, statt eine neue zu
+ * erfinden (siehe `callGeneratorRepair`).
+ */
+export type RepairFn = (opts: {
+  hint: string
+  previousJson: string
+}) => Promise<string>
 
 /**
  * Issues, die für sich allein einen (teuren) zusätzlichen Modell-Roundtrip
@@ -65,9 +72,7 @@ export async function finalizeGenerated(opts: {
     const hint = !check.ok
       ? `VALIDIERUNGSFEHLER: ${check.error}`
       : "VALIDIERUNGSFEHLER: Erklärungen fehlen. Alle explanation-Felder müssen ausgefüllt sein."
-    const repaired = await repair(
-      `${hint} Korrigiere und antworte ausschließlich mit gültigem JSON.`
-    )
+    const repaired = await repair({ hint, previousJson: jsonText })
     jsonText = extractJsonFromModelText(repaired)
     check = validateGeneratedQuestions(jsonText, mode, expectedCount)
   }
@@ -93,7 +98,10 @@ export async function finalizeGenerated(opts: {
     const hard = hardSevereIssues(depthIssues)
     if (hard.length > 0) {
       try {
-        const repaired = await repair(buildDepthRepairHint(repairableIssues(depthIssues)))
+        const repaired = await repair({
+          hint: buildDepthRepairHint(repairableIssues(depthIssues)),
+          previousJson: JSON.stringify({ questions: check.questions }),
+        })
         const repairedJson = extractJsonFromModelText(repaired)
         const recheck = validateGeneratedQuestions(repairedJson, mode, expectedCount)
         if (recheck.ok && questionsHaveExplanations(recheck.questions)) {
@@ -113,7 +121,10 @@ export async function finalizeGenerated(opts: {
     const hits = detectSpoilers(check.questions)
     if (hits.length > 0) {
       try {
-        const repaired = await repair(buildSpoilerRepairHint(hits))
+        const repaired = await repair({
+          hint: buildSpoilerRepairHint(hits),
+          previousJson: JSON.stringify({ questions: check.questions }),
+        })
         const repairedJson = extractJsonFromModelText(repaired)
         const recheck = validateGeneratedQuestions(repairedJson, mode, expectedCount)
         if (

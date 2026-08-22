@@ -23,27 +23,37 @@ describe("isReasoningModel", () => {
 })
 
 describe("generatorReasoningEffort", () => {
-  it("liefert per Default 'low' (Latenzoptimierung)", () => {
+  function withEnv(value: string | undefined, fn: () => void) {
     const prev = process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    delete process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    expect(generatorReasoningEffort()).toBe("low")
-    if (prev !== undefined) process.env.OPENAI_GENERATOR_REASONING_EFFORT = prev
+    if (value === undefined) delete process.env.OPENAI_GENERATOR_REASONING_EFFORT
+    else process.env.OPENAI_GENERATOR_REASONING_EFFORT = value
+    try {
+      fn()
+    } finally {
+      if (prev === undefined) delete process.env.OPENAI_GENERATOR_REASONING_EFFORT
+      else process.env.OPENAI_GENERATOR_REASONING_EFFORT = prev
+    }
+  }
+
+  it("liefert per Default 'none' – gemessen 30 % schneller ohne Qualitätsverlust", () => {
+    withEnv(undefined, () => expect(generatorReasoningEffort()).toBe("none"))
   })
 
-  it("respektiert eine gültige Env-Override", () => {
-    const prev = process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    process.env.OPENAI_GENERATOR_REASONING_EFFORT = "minimal"
-    expect(generatorReasoningEffort()).toBe("minimal")
-    if (prev === undefined) delete process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    else process.env.OPENAI_GENERATOR_REASONING_EFFORT = prev
+  it("respektiert gültige Overrides", () => {
+    withEnv("low", () => expect(generatorReasoningEffort()).toBe("low"))
+    withEnv("high", () => expect(generatorReasoningEffort()).toBe("high"))
+    withEnv("xhigh", () => expect(generatorReasoningEffort()).toBe("xhigh"))
   })
 
-  it("fällt bei ungültiger Env auf 'low' zurück", () => {
-    const prev = process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    process.env.OPENAI_GENERATOR_REASONING_EFFORT = "turbo"
-    expect(generatorReasoningEffort()).toBe("low")
-    if (prev === undefined) delete process.env.OPENAI_GENERATOR_REASONING_EFFORT
-    else process.env.OPENAI_GENERATOR_REASONING_EFFORT = prev
+  it("akzeptiert 'minimal' NICHT – gpt-5.4 lehnt den Wert ab", () => {
+    // Regression: Früher war "minimal" erlaubt. Die Responses-API von gpt-5.4
+    // antwortet darauf mit `unsupported_value`, wodurch jede Generierung
+    // fehlgeschlagen wäre. Zulässig ist stattdessen "none".
+    withEnv("minimal", () => expect(generatorReasoningEffort()).toBe("none"))
+  })
+
+  it("fällt bei ungültiger Env sicher auf 'none' zurück", () => {
+    withEnv("turbo", () => expect(generatorReasoningEffort()).toBe("none"))
   })
 })
 

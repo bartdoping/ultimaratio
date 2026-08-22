@@ -43,7 +43,15 @@ function buildRequestBody(
   }
 
   if (reasoning) {
-    body.reasoning = { effort: generatorReasoningEffort() }
+    // Cast nötig: Die Typen des openai-SDK (5.16) kennen "none" und "xhigh"
+    // noch nicht, die Responses-API von gpt-5.4 akzeptiert sie aber
+    // (bestätigt durch die Fehlermeldung des Servers, der genau diese Werte
+    // als zulässig auflistet). `generatorReasoningEffort()` validiert bereits.
+    body.reasoning = {
+      effort: generatorReasoningEffort() as unknown as NonNullable<
+        NonNullable<OpenAI.Responses.ResponseCreateParamsNonStreaming["reasoning"]>["effort"]
+      >,
+    }
   }
 
   return body
@@ -190,6 +198,57 @@ export async function callGeneratorModel(
   repairHint?: string
 ): Promise<string> {
   return createResponse(params, repairHint)
+}
+
+/**
+ * Chirurgischer Repair-Aufruf.
+ *
+ * WICHTIG — das war lange ein Konstruktionsfehler: Früher wurde für einen
+ * Repair einfach der ursprüngliche User-Prompt plus ein Hinweis erneut
+ * gesendet. Das Modell sah seine eigene vorherige Antwort NICHT und erzeugte
+ * daher jedes Mal eine **komplett neue Frage**. Folgen: die fertige Frage wich
+ * von der zuvor gestreamten ab, die erste Generierung war vollständig
+ * verschwendet, und jede Reparatur kostete einen weiteren vollen Roundtrip.
+ *
+ * Jetzt bekommt das Modell seine vorherige Antwort als Kontext und darf
+ * ausschließlich die beanstandeten Felder überarbeiten. Stem, Vignette und
+ * Antwortoptionen bleiben identisch — die Frage behält also ihre Identität.
+ */
+export async function callGeneratorRepair(
+  params: GeneratorCallParams,
+  opts: { hint: string; previousJson: string }
+): Promise<string> {
+  const repairInput = [
+    "ÜBERARBEITUNG EINER BEREITS ERZEUGTEN FRAGE",
+    "",
+    "Unten steht die JSON-Antwort, die du soeben erzeugt hast. Sie weist die",
+    "aufgeführten Mängel auf.",
+    "",
+    "AUFGABE: Gib GENAU DIESE Frage erneut aus und behebe ausschließlich die",
+    "genannten Mängel.",
+    "",
+    "ZWINGEND UNVERÄNDERT übernehmen (Zeichen für Zeichen):",
+    '  - "stem" jeder Frage',
+    '  - "caseVignette"',
+    '  - jeder "options[].text"',
+    '  - jeder "options[].isCorrect"',
+    "",
+    "Du erfindest KEINE neue Frage, KEIN neues Thema und KEINE neuen",
+    "Antwortoptionen. Verändert werden ausschließlich die beanstandeten",
+    "Erklärungs- und Zusatztexte.",
+    "",
+    "DEINE BISHERIGE ANTWORT:",
+    opts.previousJson,
+    "",
+    "ZU BEHEBEN:",
+    opts.hint,
+    "",
+    "Antworte ausschließlich mit dem vollständigen, korrigierten JSON-Objekt.",
+  ].join("\n")
+
+  // Der ursprüngliche User-Prompt entfällt bewusst: Der Repair-Kontext ist
+  // vollständig und kürzer, die System-Instructions bleiben erhalten.
+  return createResponseWithModel(GENERATOR_MODEL, { ...params, input: repairInput })
 }
 
 export async function callGeneratorModelWithRetry(
