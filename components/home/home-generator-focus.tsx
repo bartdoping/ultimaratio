@@ -70,9 +70,13 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             <Sparkles className="mr-1 h-3 w-3" />
             KI-Generator für medizinische Prüfungsfragen
           </Badge>
-          <h1 className="text-4xl font-bold tracking-tight md:text-5xl text-balance">
+          {/*
+            Typografische Signatur von ultima-rat.io: ein kursives Akzentwort
+            im Marken-Petrol innerhalb der ansonsten dunklen Überschrift.
+          */}
+          <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl">
             Prüfungsfragen generieren. <br className="hidden sm:inline" />
-            Direkt kreuzen.
+            <span className="accent-word">Direkt kreuzen.</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed text-pretty">
             Anspruchsvolle Single-Choice-Fragen und Fallvignetten – mit tiefer Erklärung,

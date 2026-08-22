@@ -11,8 +11,19 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Inter wird in app/layout.tsx als --font-inter bereitgestellt. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Marken-Farben aus ultima-rat.io – direkt als Utilities nutzbar
+     (bg-brand, text-brand-dark, bg-brand-tint, text-gold …). */
+  --color-brand: var(--brand);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-tint: var(--brand-tint);
+  --color-brand-tint-strong: var(--brand-tint-strong);
+  --color-gold: var(--gold);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -68,77 +79,131 @@
 }
 
 .exam-option-selected {
-  @apply border-blue-500 bg-blue-50 dark:bg-blue-950/20;
+  @apply border-primary bg-accent;
 }
 
 /* ===== Tokens (dein bestehender Block) ===== */
+/*
+ * Markenpalette – abgeleitet aus https://www.ultima-rat.io
+ *
+ * Leitgedanke: Petrol/Teal als Marke, dazu KEIN neutrales Grau, sondern
+ * durchgehend teal-getönte Tinten und Flächen. Das erzeugt den ruhigen,
+ * medizinisch-seriösen Eindruck der Schwesterseite.
+ *
+ * Zwei Brand-Stufen, wie auf der Referenz:
+ *  - --brand      #0395a6  große Hero-CTAs, Akzente, Illustrationen
+ *  - --brand-dark #02707e  Flächen mit Text darauf (Buttons, Badges)
+ * Für --primary nutzen wir bewusst brand-dark: Weiß auf #0395a6 erreicht bei
+ * kleinen Schriftgraden keine 4,5:1; auf #02707e sind es ~5,4:1. Die Referenz
+ * verfährt bei ihrem 13-px-Header-Button genauso.
+ */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Radius-Skala der Referenz: 10 / 14 / 20 / 28 px – Basis ist radius-md. */
+  --radius: 0.875rem;
+
+  /* Marken-Rohwerte */
+  --brand: #0395a6;
+  --brand-dark: #02707e;
+  --brand-deep: #015662;
+  --brand-tint: #eaf6f7;
+  --brand-tint-strong: #cfe9ed;
+  --gold: #c08a2d;
+
+  /* Semantische Tokens */
+  --background: #ffffff;
+  --foreground: #0a1e24;
+  --card: #ffffff;
+  --card-foreground: #0a1e24;
+  --popover: #ffffff;
+  --popover-foreground: #0a1e24;
+  --primary: #02707e;
+  --primary-foreground: #ffffff;
+  --secondary: #e9f0f0;
+  --secondary-foreground: #12333b;
+  --muted: #f4f8f8;
+  --muted-foreground: #5c7076;
+  --accent: #eaf6f7;
+  --accent-foreground: #02707e;
+  --destructive: #b42318;
+  --border: #e0e8e9;
+  --input: #ccd8d9;
+  --ring: #0395a6;
+
+  /* Diagramme: Marken-Familie + Gold als Kontrastfarbe */
+  --chart-1: #0395a6;
+  --chart-2: #02707e;
+  --chart-3: #015662;
+  --chart-4: #c08a2d;
+  --chart-5: #6b7c82;
+
+  --sidebar: #f4f8f8;
+  --sidebar-foreground: #0a1e24;
+  --sidebar-primary: #02707e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eaf6f7;
+  --sidebar-accent-foreground: #02707e;
+  --sidebar-border: #e0e8e9;
+  --sidebar-ring: #0395a6;
+
+  /* Teal-getönte Schatten statt neutralem Schwarz */
+  --shadow-sm: 0 1px 2px 0 #0a1e240a, 0 1px 3px 0 #0a1e240f;
+  --shadow-md: 0 6px 18px -6px #0a1e241a;
+  --shadow-lg: 0 18px 40px -14px #0a1e2429;
+  --shadow-xl: 0 30px 60px -20px #0a1e2438;
 }
 
+/*
+ * Dark Mode – auf ultima-rat.io nicht vorhanden, daher aus derselben
+ * Teal-Achse abgeleitet: der Grundton bleibt petrol (#0a1e24), nicht
+ * neutralschwarz. Der Marken-Teal wird aufgehellt, damit er auf dunklem
+ * Grund trägt (#22b8c8 auf #071619 ≈ 7,3:1).
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --brand: #22b8c8;
+  --brand-dark: #0e97a8;
+  --brand-deep: #0a7d8c;
+  --brand-tint: #10333a;
+  --brand-tint-strong: #16454e;
+  --gold: #dCA94a;
+
+  --background: #071619;
+  --foreground: #e8f1f2;
+  --card: #0d2429;
+  --card-foreground: #e8f1f2;
+  --popover: #0d2429;
+  --popover-foreground: #e8f1f2;
+  --primary: #22b8c8;
+  --primary-foreground: #04222a;
+  --secondary: #14343b;
+  --secondary-foreground: #e8f1f2;
+  --muted: #14343b;
+  --muted-foreground: #9db5ba;
+  --accent: #163e46;
+  --accent-foreground: #7fd8e3;
+  --destructive: #f0685c;
+  --border: color-mix(in oklab, #a0cdd4 16%, transparent);
+  --input: color-mix(in oklab, #a0cdd4 24%, transparent);
+  --ring: #22b8c8;
+
+  --chart-1: #22b8c8;
+  --chart-2: #0e97a8;
+  --chart-3: #7fd8e3;
+  --chart-4: #dCA94a;
+  --chart-5: #9db5ba;
+
+  --sidebar: #0d2429;
+  --sidebar-foreground: #e8f1f2;
+  --sidebar-primary: #22b8c8;
+  --sidebar-primary-foreground: #04222a;
+  --sidebar-accent: #163e46;
+  --sidebar-accent-foreground: #7fd8e3;
+  --sidebar-border: color-mix(in oklab, #a0cdd4 16%, transparent);
+  --sidebar-ring: #22b8c8;
+
+  --shadow-sm: 0 1px 2px 0 #0003, 0 1px 3px 0 #00000040;
+  --shadow-md: 0 6px 18px -6px #00000059;
+  --shadow-lg: 0 18px 40px -14px #00000073;
+  --shadow-xl: 0 30px 60px -20px #0000008c;
 }
 
 /* ===== Base (dein bestehender + optische Tweaks) ===== */
@@ -154,7 +219,7 @@
   }
 }
 
-/* Softes Hintergrunddekor (rein visuell, keine Funktionsänderung) */
+/* Softes Hintergrunddekor im Marken-Petrol (rein visuell). */
 body::before {
   content: "";
   position: fixed;
@@ -163,9 +228,32 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(40% 30% at 20% 10%, color-mix(in oklab, var(--primary) 15%, transparent) 0%, transparent 60%),
-    radial-gradient(30% 25% at 85% 0%, color-mix(in oklab, var(--chart-2) 22%, transparent) 0%, transparent 60%);
-  filter: blur(30px) saturate(1.1);
+    radial-gradient(42% 32% at 18% 8%, color-mix(in oklab, var(--brand) 16%, transparent) 0%, transparent 62%),
+    radial-gradient(32% 26% at 84% 0%, color-mix(in oklab, var(--brand-tint-strong) 55%, transparent) 0%, transparent 60%);
+  filter: blur(34px) saturate(1.05);
+}
+
+.dark body::before {
+  background:
+    radial-gradient(42% 32% at 18% 8%, color-mix(in oklab, var(--brand) 12%, transparent) 0%, transparent 62%),
+    radial-gradient(32% 26% at 84% 0%, color-mix(in oklab, var(--brand-deep) 26%, transparent) 0%, transparent 60%);
+}
+
+/* Überschriften: enge Laufweite wie auf ultima-rat.io (dort -1,7px bei 68px). */
+h1, h2, h3 {
+  letter-spacing: -0.025em;
+}
+
+/*
+ * Akzent-Wort in Überschriften: kursiv im Marken-Petrol – die typografische
+ * Signatur der Schwesterseite ("Schluss mit *Prüfungsangst*").
+ */
+.accent-word {
+  font-style: italic;
+  color: var(--brand-dark);
+}
+.dark .accent-word {
+  color: var(--brand);
 }
 
 /* Auswahl / Fokus */
@@ -184,8 +272,8 @@ body::before {
 
   /* Card */
   .card {
-    @apply rounded-xl border bg-card text-card-foreground
-           shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur;
+    @apply rounded-xl border bg-card text-card-foreground backdrop-blur;
+    box-shadow: var(--shadow-md);
   }
   .card-body { @apply p-5 sm:p-6; }
   .card-title { @apply text-lg sm:text-xl font-semibold tracking-tight; }
@@ -209,22 +297,25 @@ body::before {
            transition-shadow;
   }
 
-  /* Buttons – nutzbar mit class="btn", "btn-outline", ... */
+  /* Buttons – Pill-Form mit Marken-Schatten wie auf ultima-rat.io. */
   .btn {
-    @apply inline-flex items-center justify-center rounded-md px-3.5 py-2.5
-           font-medium tracking-tight
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2.5
+           font-semibold tracking-tight
            bg-primary text-primary-foreground
-           hover:opacity-95
+           hover:brightness-110
            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring
            disabled:opacity-60 disabled:cursor-not-allowed
            transition;
+    box-shadow: 0 6px 16px -8px color-mix(in oklab, var(--brand) 60%, transparent);
   }
   .btn-outline {
     @apply bg-transparent text-foreground border border-border
-           hover:bg-foreground/5 dark:hover:bg-foreground/10;
+           hover:border-primary/40 hover:bg-accent;
+    box-shadow: none;
   }
   .btn-ghost {
-    @apply bg-transparent hover:bg-foreground/5 dark:hover:bg-foreground/10;
+    @apply bg-transparent text-foreground hover:bg-accent;
+    box-shadow: none;
   }
   .btn-danger {
     @apply bg-destructive text-white hover:brightness-110;

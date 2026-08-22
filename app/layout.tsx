@@ -1,7 +1,7 @@
 import "./globals.css"
 import "./screenshot-protection.css"
 import type { Metadata, Viewport } from "next"
-import { Inter } from "next/font/google"
+import { Inter, Fraunces } from "next/font/google"
 import { cookies } from "next/headers"
 import { Providers } from "@/components/providers"
 import { ScreenshotProtection } from "@/components/screenshot-protection"
@@ -14,7 +14,23 @@ import {
 } from "@/lib/font-scale"
 import { consentModeBootstrapScript } from "@/lib/consent"
 
-const inter = Inter({ subsets: ["latin"], display: "swap" })
+/*
+ * Schriften wie auf ultima-rat.io: Inter als Fließtext-/UI-Schrift, Fraunces
+ * als Display-Serif für Akzente. Beide werden von Next.js selbst gehostet —
+ * es geht keine Anfrage an Google-Server (siehe Datenschutzerklärung § 15).
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+})
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-fraunces",
+  axes: ["SOFT", "WONK"],
+})
 
 const metadataBase =
   typeof process !== "undefined" && process.env.NEXT_PUBLIC_APP_URL
@@ -63,7 +79,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0b0b0b" },
+    { media: "(prefers-color-scheme: dark)", color: "#071619" },
   ],
 }
 
@@ -151,7 +167,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
       </head>
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${fraunces.variable} font-sans antialiased`}>
         <noscript>
           <div
             style={{
