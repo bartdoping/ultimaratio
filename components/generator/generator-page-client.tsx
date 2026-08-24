@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowUp, Layers, Sparkles, Wand2 } from "lucide-react"
+import { ArrowUp, CalendarDays, Layers, Sparkles, Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
 import { ProUpgradeCard } from "@/components/generator/pro-upgrade-card"
 import { PresetBar, type PresetData } from "@/components/generator/presets/preset-bar"
 import { AiDisclaimer } from "@/components/legal/ai-disclaimer"
+import { LearnPlanPicker } from "@/components/generator/learn-plan-picker"
+import {
+  LEARN_PLAN_LABEL,
+  generatableTopics,
+  getLearnPlanDay,
+  pickRandomTopic,
+} from "@/lib/learn-plan-m2"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
@@ -39,7 +46,13 @@ type Props = {
 
 type SessionState = {
   questions: BulkQuestion[]
-  meta: { topic: string; difficulty: number; mode: "single" | "case" }
+  meta: {
+    topic: string
+    difficulty: number
+    mode: "single" | "case"
+    /** Herkunft, wenn die Frage aus einem Lernplan-Tag stammt. */
+    sourceLabel?: string
+  }
 }
 
 type LimitState = {
@@ -93,6 +106,12 @@ export function GeneratorPageClient({
    */
   const [perQuestionDifficulty, setPerQuestionDifficulty] = useState(false)
   const [caseDifficulties, setCaseDifficulties] = useState<number[]>([])
+  /**
+   * Themenquelle: freies Thema oder ein Tag aus dem M2-Lernplan. Im
+   * Lernplan-Modus wird beim Generieren zufällig ein Thema des Tages gezogen.
+   */
+  const [source, setSource] = useState<"free" | "plan">("free")
+  const [planDay, setPlanDay] = useState(1)
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
@@ -329,7 +348,15 @@ export function GeneratorPageClient({
       overrides = eventOrOverrides
     }
 
-    const effTopic = (overrides.topic ?? topic).trim()
+    // Themenquelle auflösen. Im Lernplan-Modus wird bei JEDER Generierung neu
+    // gewürfelt — auch bei "Gleiches Thema" auf der Done-Card, damit man einen
+    // Tag durchmischen kann, ohne jedes Mal zurück ins Formular zu müssen.
+    // Ein ausdrücklicher Topic-Override (Preset, Share-Link) hat Vorrang.
+    const planTopic =
+      source === "plan" && overrides.topic === undefined
+        ? pickRandomTopic(planDay)
+        : null
+    const effTopic = (overrides.topic ?? planTopic ?? topic).trim()
     const effDifficulty = overrides.difficulty ?? difficulty
     const effMode = overrides.mode ?? mode
     const effCaseCount =
@@ -457,6 +484,9 @@ export function GeneratorPageClient({
               topic: result.meta?.topic ?? effTopic,
               difficulty: result.meta?.difficulty ?? effDifficulty,
               mode: result.meta?.mode === "case" ? "case" : "single",
+              sourceLabel: planTopic
+                ? `Tag ${planDay} · ${getLearnPlanDay(planDay)?.subject ?? LEARN_PLAN_LABEL}`
+                : undefined,
             },
           })
           break
@@ -525,7 +555,11 @@ export function GeneratorPageClient({
   const effectiveLimitState = limitState
 
   const onCooldown = cooldownRemaining > 0
-  const submitDisabled = loading || atLimit || !remainingSufficient || onCooldown
+  // Im Lernplan-Modus liefert der gewählte Tag das Thema — das Freitextfeld
+  // darf dann leer sein.
+  const planHasTopics = source !== "plan" || generatableTopics(planDay).length > 0
+  const submitDisabled =
+    loading || atLimit || !remainingSufficient || onCooldown || !planHasTopics
   const submitLabel = loading
     ? "Generiere…"
     : onCooldown
@@ -534,9 +568,13 @@ export function GeneratorPageClient({
         ? "Tageslimit erreicht"
         : !remainingSufficient
           ? `Reicht nicht für ${units} Fragen`
-          : mode === "case"
-            ? `${units} Fallfragen generieren`
-            : "Frage generieren"
+          : source === "plan"
+            ? mode === "case"
+              ? `${units} Fallfragen aus Tag ${planDay}`
+              : `Frage aus Tag ${planDay} generieren`
+            : mode === "case"
+              ? `${units} Fallfragen generieren`
+              : "Frage generieren"
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-10 lg:pb-14 lg:pt-14">
@@ -590,29 +628,47 @@ export function GeneratorPageClient({
         onSubmit={handleGenerate}
         className="rounded-3xl border bg-card/70 shadow-xl backdrop-blur-sm"
       >
-        {/* Topic-Eingabe */}
-        <div className="p-4 sm:p-6">
-          <label htmlFor="topic" className="sr-only">
-            Thema
-          </label>
-          <textarea
-            id="topic"
-            value={topic}
-            maxLength={GENERATOR_TOPIC_MAX}
-            placeholder="z. B. Akutes Koronarsyndrom – Risikostratifizierung…"
-            onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault()
-                if (!submitDisabled) {
-                  void handleGenerate(e as unknown as React.FormEvent)
-                }
-              }
-            }}
-            rows={2}
-            disabled={loading}
-            className="min-h-[80px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:min-h-[96px] sm:text-lg"
+        {/* Themenquelle: freies Thema oder Lernplan-Tag */}
+        <div className="px-4 pt-4 sm:px-6 sm:pt-5">
+          <SegmentedControl
+            value={source}
+            onChange={(v) => setSource(v)}
+            options={[
+              { value: "free" as const, label: "Freies Thema", icon: Wand2 },
+              { value: "plan" as const, label: LEARN_PLAN_LABEL, icon: CalendarDays },
+            ]}
           />
+        </div>
+
+        {/* Eingabe */}
+        <div className="p-4 sm:p-6">
+          {source === "free" ? (
+            <>
+              <label htmlFor="topic" className="sr-only">
+                Thema
+              </label>
+              <textarea
+                id="topic"
+                value={topic}
+                maxLength={GENERATOR_TOPIC_MAX}
+                placeholder="z. B. Akutes Koronarsyndrom – Risikostratifizierung…"
+                onChange={(e) => setTopic(e.target.value.slice(0, GENERATOR_TOPIC_MAX))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    if (!submitDisabled) {
+                      void handleGenerate(e as unknown as React.FormEvent)
+                    }
+                  }
+                }}
+                rows={2}
+                disabled={loading}
+                className="min-h-[80px] w-full resize-none bg-transparent text-base leading-snug placeholder:text-muted-foreground/70 focus:outline-none sm:min-h-[96px] sm:text-lg"
+              />
+            </>
+          ) : (
+            <LearnPlanPicker day={planDay} onDayChange={setPlanDay} disabled={loading} />
+          )}
         </div>
 
         {/* Toolbar: Mobile gestapelt, Desktop in einer Reihe */}

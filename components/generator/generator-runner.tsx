@@ -37,7 +37,13 @@ export type GeneratorQuickAction =
 
 type Props = {
   questions: BulkQuestion[]
-  meta: { topic: string; difficulty: number; mode: "single" | "case" }
+  meta: {
+    topic: string
+    difficulty: number
+    mode: "single" | "case"
+    /** Herkunft, z. B. "Tag 25 · Infektiologie und Hygiene". */
+    sourceLabel?: string
+  }
   onNewGeneration: () => void
   /** Optional: schnelle Folgeaktionen am Ende eines Durchlaufs. */
   onQuickAction?: (action: GeneratorQuickAction) => void
@@ -217,6 +223,11 @@ export function GeneratorRunner({
             {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
           </span>
           <DifficultyBadge level={meta.difficulty} />
+          {meta.sourceLabel && (
+            <span className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-foreground">
+              {meta.sourceLabel}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="inline-flex items-center gap-1 rounded-full border bg-card/60 px-2.5 py-0.5 text-xs font-medium tabular-nums">
