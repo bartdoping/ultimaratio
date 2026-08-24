@@ -12,11 +12,13 @@ import { PresetBar, type PresetData } from "@/components/generator/presets/prese
 import { AiDisclaimer } from "@/components/legal/ai-disclaimer"
 import { LearnPlanPicker } from "@/components/generator/learn-plan-picker"
 import {
-  LEARN_PLAN_LABEL,
+  LEARN_PLANS,
   generatableTopics,
   getLearnPlanDay,
   pickRandomTopic,
-} from "@/lib/learn-plan-m2"
+  planLastDay,
+  type LearnPlanId,
+} from "@/lib/learn-plans"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
@@ -111,6 +113,7 @@ export function GeneratorPageClient({
    * Lernplan-Modus wird beim Generieren zufällig ein Thema des Tages gezogen.
    */
   const [source, setSource] = useState<"free" | "plan">("free")
+  const [planId, setPlanId] = useState<LearnPlanId>("m2")
   const [planDay, setPlanDay] = useState(1)
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
@@ -354,7 +357,7 @@ export function GeneratorPageClient({
     // Ein ausdrücklicher Topic-Override (Preset, Share-Link) hat Vorrang.
     const planTopic =
       source === "plan" && overrides.topic === undefined
-        ? pickRandomTopic(planDay)
+        ? pickRandomTopic(planId, planDay)
         : null
     const effTopic = (overrides.topic ?? planTopic ?? topic).trim()
     const effDifficulty = overrides.difficulty ?? difficulty
@@ -485,7 +488,7 @@ export function GeneratorPageClient({
               difficulty: result.meta?.difficulty ?? effDifficulty,
               mode: result.meta?.mode === "case" ? "case" : "single",
               sourceLabel: planTopic
-                ? `Tag ${planDay} · ${getLearnPlanDay(planDay)?.subject ?? LEARN_PLAN_LABEL}`
+                ? `Tag ${planDay} · ${getLearnPlanDay(planId, planDay)?.subject ?? LEARN_PLANS[planId].shortLabel}`
                 : undefined,
             },
           })
@@ -557,7 +560,7 @@ export function GeneratorPageClient({
   const onCooldown = cooldownRemaining > 0
   // Im Lernplan-Modus liefert der gewählte Tag das Thema — das Freitextfeld
   // darf dann leer sein.
-  const planHasTopics = source !== "plan" || generatableTopics(planDay).length > 0
+  const planHasTopics = source !== "plan" || generatableTopics(planId, planDay).length > 0
   const submitDisabled =
     loading || atLimit || !remainingSufficient || onCooldown || !planHasTopics
   const submitLabel = loading
@@ -635,7 +638,7 @@ export function GeneratorPageClient({
             onChange={(v) => setSource(v)}
             options={[
               { value: "free" as const, label: "Freies Thema", icon: Wand2 },
-              { value: "plan" as const, label: LEARN_PLAN_LABEL, icon: CalendarDays },
+              { value: "plan" as const, label: "Lernplan", icon: CalendarDays },
             ]}
           />
         </div>
@@ -667,7 +670,17 @@ export function GeneratorPageClient({
               />
             </>
           ) : (
-            <LearnPlanPicker day={planDay} onDayChange={setPlanDay} disabled={loading} />
+            <LearnPlanPicker
+              planId={planId}
+              onPlanChange={(id) => {
+                setPlanId(id)
+                // Tag auf den gültigen Bereich des neuen Plans begrenzen.
+                setPlanDay((d) => Math.min(d, planLastDay(id)))
+              }}
+              day={planDay}
+              onDayChange={setPlanDay}
+              disabled={loading}
+            />
           )}
         </div>
 

@@ -4,34 +4,69 @@ import { useMemo } from "react"
 import { CalendarDays, Minus, Plus, Shuffle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
-  LEARN_PLAN_FIRST_DAY,
-  LEARN_PLAN_LAST_DAY,
+  LEARN_PLANS,
+  LEARN_PLAN_IDS,
   generatableTopics,
   getLearnPlanDay,
-} from "@/lib/learn-plan-m2"
+  planFirstDay,
+  planLastDay,
+  type LearnPlanId,
+} from "@/lib/learn-plans"
 
 type Props = {
+  planId: LearnPlanId
+  onPlanChange: (planId: LearnPlanId) => void
   day: number
   onDayChange: (day: number) => void
   disabled?: boolean
 }
 
 /**
- * Tagesauswahl für den M2-Lernplan.
+ * Auswahl von Lernplan und Tag.
  *
- * Der Nutzer wählt einen Tag; daraus wird beim Generieren zufällig eines der
- * Themen dieses Tages gezogen. Die Themen werden vollständig angezeigt, damit
- * transparent ist, worauf sich die Auswahl bezieht.
+ * Der Nutzer wählt Plan und Tag; daraus wird beim Generieren zufällig eines
+ * der Themen dieses Tages gezogen. Die Themen werden vollständig angezeigt,
+ * damit transparent ist, worauf sich die Auswahl bezieht.
  */
-export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
-  const entry = useMemo(() => getLearnPlanDay(day), [day])
-  const topics = useMemo(() => generatableTopics(day), [day])
+export function LearnPlanPicker({
+  planId,
+  onPlanChange,
+  day,
+  onDayChange,
+  disabled = false,
+}: Props) {
+  const lastDay = planLastDay(planId)
+  const entry = useMemo(() => getLearnPlanDay(planId, day), [planId, day])
+  const topics = useMemo(() => generatableTopics(planId, day), [planId, day])
 
-  const clamp = (n: number) =>
-    Math.min(LEARN_PLAN_LAST_DAY, Math.max(LEARN_PLAN_FIRST_DAY, n))
+  const clamp = (n: number) => Math.min(lastDay, Math.max(planFirstDay(), n))
 
   return (
     <div className="space-y-3">
+      {/* Plan-Auswahl */}
+      <div className="inline-flex items-center rounded-full border bg-background/80 p-0.5 text-xs">
+        {LEARN_PLAN_IDS.map((id) => {
+          const active = id === planId
+          return (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onPlanChange(id)}
+              disabled={disabled}
+              aria-pressed={active}
+              className={cn(
+                "rounded-full px-3 py-1.5 font-medium transition-colors",
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {LEARN_PLANS[id].label}
+            </button>
+          )
+        })}
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5 text-sm font-medium text-foreground">
           <CalendarDays className="h-4 w-4 text-primary" aria-hidden="true" />
@@ -42,7 +77,7 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
           <button
             type="button"
             onClick={() => onDayChange(clamp(day - 1))}
-            disabled={disabled || day <= LEARN_PLAN_FIRST_DAY}
+            disabled={disabled || day <= planFirstDay()}
             aria-label="Vorheriger Tag"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
@@ -52,8 +87,8 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
             id="learnplan-day"
             type="number"
             inputMode="numeric"
-            min={LEARN_PLAN_FIRST_DAY}
-            max={LEARN_PLAN_LAST_DAY}
+            min={planFirstDay()}
+            max={lastDay}
             value={day}
             disabled={disabled}
             onChange={(e) => {
@@ -65,7 +100,7 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
           <button
             type="button"
             onClick={() => onDayChange(clamp(day + 1))}
-            disabled={disabled || day >= LEARN_PLAN_LAST_DAY}
+            disabled={disabled || day >= lastDay}
             aria-label="Nächster Tag"
             className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
@@ -73,7 +108,7 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
           </button>
         </div>
 
-        <span className="text-xs text-muted-foreground">von {LEARN_PLAN_LAST_DAY}</span>
+        <span className="text-xs text-muted-foreground">von {lastDay}</span>
 
         {entry && (
           <span className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-foreground">
@@ -85,12 +120,12 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
       {/* Schnellsprung über den Tagesbereich */}
       <input
         type="range"
-        min={LEARN_PLAN_FIRST_DAY}
-        max={LEARN_PLAN_LAST_DAY}
+        min={planFirstDay()}
+        max={lastDay}
         value={day}
         disabled={disabled}
         onChange={(e) => onDayChange(clamp(Number(e.target.value)))}
-        aria-label={`Tag ${day} von ${LEARN_PLAN_LAST_DAY}`}
+        aria-label={`Tag ${day} von ${lastDay}`}
         className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-muted accent-[var(--primary)]"
       />
 
@@ -103,9 +138,7 @@ export function LearnPlanPicker({ day, onDayChange, disabled = false }: Props) {
           {topics.map((t) => (
             <li
               key={t}
-              className={cn(
-                "rounded-full border bg-card px-2 py-0.5 text-[11px] leading-relaxed text-muted-foreground"
-              )}
+              className="rounded-full border bg-card px-2 py-0.5 text-[11px] leading-relaxed text-muted-foreground"
             >
               {t}
             </li>

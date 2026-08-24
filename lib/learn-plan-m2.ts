@@ -1,48 +1,12 @@
+import type { LearnPlanDay } from "@/lib/learn-plans"
+
 /**
  * Lernplan für das Zweite Staatsexamen (M2), Durchgang Herbst 2026.
  *
- * Statische Referenzdaten: bewusst im Code und nicht in der Datenbank, weil
- * der Plan sich pro Durchgang ändert, versioniert werden soll und ohne
- * Migration auskommen muss.
- *
- * Die Einträge sind Themenbezeichnungen (Fachbegriffe/Krankheitsbilder). Nicht
- * jeder Eintrag eignet sich zur Fragengenerierung — Handbuch-, Wiederholungs-
- * und Sammelsurium-Einträge sind Navigationshilfen ohne klar abgrenzbaren
- * Lernstoff. Diese werden über `isGeneratableTopic` von der Zufallsauswahl
- * ausgenommen, bleiben in der Anzeige aber sichtbar, damit der Plan
- * vollständig abgebildet ist.
+ * Reine Daten — Typen und Logik liegen in `lib/learn-plans.ts`.
+ * Neue Durchgänge werden durch Austausch dieses Arrays gepflegt.
  */
-
-export type LearnPlanDay = {
-  day: number
-  /** Fachgebiet(e) des Tages, wie im Plan ausgewiesen. */
-  subject: string
-  topics: string[]
-}
-
-export const LEARN_PLAN_LABEL = "M2-Lernplan · Herbst 2026"
-
-/**
- * Einträge, die keine generierbaren Fachthemen sind (Meta-/Navigationsposten).
- * "Sammelsurium"-Einträge sind bewusst ausgenommen: Sie bündeln Restwissen
- * ohne klaren Fokus und führen zu beliebigen Fragen.
- */
-const NON_TOPIC_PATTERNS: readonly RegExp[] = [
-  /^Handbuch\b/i,
-  /^Kreuztipps\b/i,
-  /^Sammelsurium\b/i,
-  /M2-Lernplan/i,
-  /^Zweites Staatsexamen$/i,
-  /^Tag \d+/i,
-]
-
-export function isGeneratableTopic(topic: string): boolean {
-  const t = topic.trim()
-  if (t.length < 3) return false
-  return !NON_TOPIC_PATTERNS.some((re) => re.test(t))
-}
-
-export const LEARN_PLAN_M2: readonly LearnPlanDay[] = [
+export const LEARN_PLAN_M2_DAYS: readonly LearnPlanDay[] = [
   { day: 1, subject: "Kardiologie und Angiologie", topics: ["Handbuch – Vorbereitung auf das Zweite Staatsexamen", "Kreuztipps zum Zweiten Staatsexamen", "Untersuchungsmethoden in der Kardiologie", "EKG", "Herzrhythmusstörungen", "Supraventrikuläre Extrasystolen", "Vorhofflimmern", "Sick-Sinus-Syndrom", "AV-Block", "AV-Knoten-Reentrytachykardie", "Atrioventrikuläre Reentrytachykardie"] },
   { day: 2, subject: "Kardiologie und Angiologie", topics: ["Ventrikuläre Extrasystolen", "Ventrikuläre Tachykardie", "Kammerflattern und -flimmern", "Herzschrittmacher", "Synkope", "Subclavian-Steal-Syndrom"] },
   { day: 3, subject: "Kardiologie und Angiologie", topics: ["Dyslipidämien", "Atherosklerose und kardiovaskuläre Prävention", "Koronare Herzkrankheit", "Thoraxschmerz", "Akutes Koronarsyndrom", "Myokardinfarkt", "Herzkatheteruntersuchung"] },
@@ -129,31 +93,3 @@ export const LEARN_PLAN_M2: readonly LearnPlanDay[] = [
   { day: 84, subject: "Epidemiologie", topics: ["Grundbegriffe medizinischer Forschung", "Angewandte Statistik", "Epidemiologie und Wahrscheinlichkeiten", "Studientypen der medizinischen Forschung", "Sammelsurium der Epidemiologie", "Diagnose- und Klassifikationssysteme", "Qualitätsmanagement", "Prävention"] },
   { day: 85, subject: "Sozialmedizin, Rehabilitation & Alternative Heilverfahren", topics: ["Soziale Sicherung", "Gesetzliche Unfallversicherung", "Gesetzliche Krankenversicherung", "Ökonomische Aspekte von Gesundheit und Krankheit", "Behinderung und Einschränkung der Arbeitsfähigkeit", "Grundlagen der allgemeinmedizinischen Versorgung", "Übersicht Geriatrie", "Palliativmedizin", "Rehabilitation", "Physikalische Therapie", "Phytotherapeutika", "Komplementärmedizin einschließlich Naturheilkunde", "Ernährungsmedizin", "Zweites Staatsexamen"] },
 ]
-
-export const LEARN_PLAN_FIRST_DAY = 1
-export const LEARN_PLAN_LAST_DAY = LEARN_PLAN_M2.length
-
-/** Tag aus dem Plan holen. `null`, wenn die Nummer außerhalb liegt. */
-export function getLearnPlanDay(day: number): LearnPlanDay | null {
-  if (!Number.isInteger(day)) return null
-  return LEARN_PLAN_M2.find((d) => d.day === day) ?? null
-}
-
-/** Nur die Themen eines Tages, die sich zur Fragengenerierung eignen. */
-export function generatableTopics(day: number): string[] {
-  return getLearnPlanDay(day)?.topics.filter(isGeneratableTopic) ?? []
-}
-
-/**
- * Wählt zufällig ein Thema des Tages. `rand` ist injizierbar, damit die
- * Auswahl in Tests deterministisch ist.
- */
-export function pickRandomTopic(
-  day: number,
-  rand: () => number = Math.random
-): string | null {
-  const topics = generatableTopics(day)
-  if (topics.length === 0) return null
-  const idx = Math.min(topics.length - 1, Math.floor(rand() * topics.length))
-  return topics[idx]
-}

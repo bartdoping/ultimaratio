@@ -56,23 +56,31 @@ export function isReasoningModel(model: string): boolean {
 
 /**
  * Von der GPT-5-Familie akzeptierte Werte. ACHTUNG: "minimal" gehört NICHT
- * dazu — gpt-5.4 lehnt es mit `unsupported_value` ab und die Generierung
- * schlägt komplett fehl. Der korrekte Wert für "gar kein Reasoning" ist "none".
+ * dazu — sowohl gpt-5.4 als auch gpt-5.6-terra lehnen es mit
+ * `unsupported_value` ab und die Generierung schlägt komplett fehl. Der
+ * korrekte Wert für "gar kein Reasoning" ist "none".
+ *
+ * "max" wird von gpt-5.6-terra unterstützt, von gpt-5.4 nicht — beim Wechsel
+ * des Primärmodells also prüfen, ob ein gesetzter Wert dort noch gilt.
  */
-export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh"
+export type ReasoningEffort = "none" | "low" | "medium" | "high" | "xhigh" | "max"
 
-const VALID_EFFORTS: readonly string[] = ["none", "low", "medium", "high", "xhigh"]
+const VALID_EFFORTS: readonly string[] = ["none", "low", "medium", "high", "xhigh", "max"]
 
 /**
  * Reasoning-Effort für die Generierung. Default "none".
  *
- * Gemessen an gpt-5.4 mit unserem Prompt (Thema Schlaganfall, Einzelfrage):
- *   effort=low   → 49,8 s, davon 1056 Reasoning-Tokens, 2231 sichtbare Tokens
- *   effort=none  → 35,1 s, 0 Reasoning-Tokens,          2236 sichtbare Tokens
- * Die sichtbare Ausgabe ist praktisch identisch und besteht die Tiefenprüfung
- * in beiden Fällen — das Reasoning kostete also 30 % Zeit ohne Gegenwert.
- * Grund: Unser System-Prompt gibt Struktur, Schwierigkeitsanker und
- * Selbst-Check bereits vollständig vor; das Modell muss sich den Lösungsweg
+ * Gemessen mit gpt-5.6-terra und unserem echten Prompt über 6 Fachthemen der
+ * Stufen 3–5, fachlich begutachtet durch ein unabhängiges Modell:
+ *   effort=none   → Ø 31,4 s | 0 Reasoning-Tok | Ø 2024 out | 0 ungültig | 5/6 ohne Beanstandung
+ *   effort=low    → Ø 43,7 s | 899            | Ø 2880     | 0 ungültig | 4/6
+ *   effort=medium → Ø 56,7 s | 1542           | Ø 4085     | 1 ungültig | 3/6
+ * In KEINER Stufe trat ein echter Fachfehler auf (falsche Antwort,
+ * Mehrdeutigkeit, erfundener Begriff) — nur sprachliche Kleinigkeiten, die der
+ * Facharzt-Gegencheck ohnehin korrigiert. Fachlich sind "none" und "low"
+ * ununterscheidbar, die Latenz unterscheidet sich aber konsistent um ~12 s.
+ * Deshalb "none". Grund: Unser System-Prompt gibt Struktur, Schwierigkeitsanker
+ * und Selbst-Check bereits vollständig vor; das Modell muss sich den Lösungsweg
  * nicht erst selbst erarbeiten.
  *
  * Per `OPENAI_GENERATOR_REASONING_EFFORT` überschreibbar. Ungültige Werte
