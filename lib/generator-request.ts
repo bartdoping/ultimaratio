@@ -1,4 +1,5 @@
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
+import { isGeneratorSection, type GeneratorSection } from "@/lib/generator-section"
 
 /**
  * Gemeinsames Parsen und Validieren des Generator-Request-Bodys für den
@@ -13,6 +14,11 @@ export type ParsedGenerateRequest = {
   caseQuestionCount: number
   /** Schwierigkeit je Teilfrage (Fallfragen). Für Einzelfragen leer. */
   difficulties: number[]
+  /**
+   * Prüfungsabschnitt. "auto" überlässt die Zuordnung dem Modell — das ist
+   * die Vorgabe für frei eingegebene Themen. Lernpläne setzen den Wert fest.
+   */
+  section: GeneratorSection
 }
 
 export type ParseResult =
@@ -40,11 +46,16 @@ export function parseGenerateRequest(body: unknown): ParseResult {
 
   const mode = b.mode === "case" ? ("case" as const) : ("single" as const)
 
+  // Unbekannte Werte fallen still auf "auto" zurück: Ein Tippfehler im Client
+  // soll die Generierung nicht scheitern lassen, sondern nur die Zuordnung
+  // wieder dem Modell überlassen.
+  const section: GeneratorSection = isGeneratorSection(b.section) ? b.section : "auto"
+
   if (mode === "single") {
     return {
       ok: true,
       expectedCount: 1,
-      value: { topic, difficulty, mode, caseQuestionCount: 1, difficulties: [] },
+      value: { topic, difficulty, mode, caseQuestionCount: 1, difficulties: [], section },
     }
   }
 
@@ -68,6 +79,6 @@ export function parseGenerateRequest(body: unknown): ParseResult {
   return {
     ok: true,
     expectedCount: caseQuestionCount,
-    value: { topic, difficulty, mode, caseQuestionCount, difficulties },
+    value: { topic, difficulty, mode, caseQuestionCount, difficulties, section },
   }
 }

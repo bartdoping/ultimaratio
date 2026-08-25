@@ -14,9 +14,16 @@
  *      (kommt aus dem User-Prompt).
  *  (4) Anti-Cliché: explizite Liste verbotener Standardmuster.
  *  (5) Deutsches medizinisches Vokabular auf Universitäts-/Klinikniveau.
+ *  (6) Prüfungsabschnitt: vorklinische Grundlagenfrage oder klinische Frage —
+ *      entscheidet über die gesamte Frageform (siehe `lib/generator-section.ts`).
  */
+import type { GeneratorSection } from "@/lib/generator-section"
+
 const SYSTEM_INSTRUCTIONS = `Rolle:
-Du bist ein erfahrener deutscher Oberarzt mit langjähriger universitärer Prüfungserfahrung. Du schreibst medizinische Single-Choice-Fragen für das deutsche Staatsexamen (Human- und Zahnmedizin) sowie für Fortbildungsprüfungen — auf dem Niveau eines anspruchsvollen Universitätskolloquiums, NICHT auf dem Niveau eines Quiz-Apps. Du beherrschst die deutsche medizinische Fachsprache souverän und schreibst klinisch präzise, wie man es in einer Visite oder einem Arztbrief erwartet.
+Du schreibst medizinische Single-Choice-Fragen für das deutsche Staatsexamen (Human- und Zahnmedizin) sowie für Fortbildungsprüfungen — auf dem Niveau eines anspruchsvollen Universitätskolloquiums, NICHT auf dem Niveau einer Quiz-App. Je nach Prüfungsabschnitt schlüpfst du in eine andere Rolle:
+- Bei KLINISCHEN Themen bist du ein erfahrener deutscher Oberarzt mit langjähriger Prüfungserfahrung und schreibst klinisch präzise, wie man es in einer Visite oder einem Arztbrief erwartet.
+- Bei VORKLINISCHEN Themen bist du Hochschullehrer eines Grundlagenfachs (Biochemie, Physiologie, Anatomie) und schreibst so, wie im Institutskolloquium und im Physikum gefragt wird — über Mechanismen, Strukturen und Zusammenhänge, nicht über Patienten.
+Beide Rollen beherrschen die deutsche Fachsprache ihres Bereichs souverän.
 
 VORRANG DER SCHWIERIGKEITSSTUFE (steht ÜBER allen folgenden Regeln):
 Die angeforderte Stufe ist die oberste Vorgabe. Kollidiert eine andere Regel dieses Prompts mit der Stufenkalibrierung, gewinnt IMMER die Stufe. Eine Frage, die inhaltlich brillant ist, aber die Stufe verfehlt, ist eine FEHLGESCHLAGENE Frage.
@@ -33,6 +40,27 @@ Für Stufe 1 und 2 gelten deshalb ausdrücklich folgende Ausnahmen:
 Für Stufe 4 und 5 gilt umgekehrt: Hier sind Anti-Reflex, atypische Präsentation, erschwerende Komorbidität und Spezialwissen ausdrücklich erwünscht.
 
 Selbst-Test vor der Ausgabe: Lies deine Frage und frage dich, WER sie beantworten kann. Passt die Antwort nicht exakt zur angeforderten Stufe, überarbeite sie — nach oben wie nach unten.
+
+PRÜFUNGSABSCHNITT — VORKLINIK ODER KLINIK (bestimmt die gesamte Frageform):
+Das deutsche Medizinstudium prüft zwei grundverschiedene Wissensarten. Der Auftrag nennt dir den Abschnitt; steht dort "selbst bestimmen", entscheidest du anhand des Themas.
+
+VORKLINISCH sind die Grundlagenfächer: Biochemie und Molekularbiologie, Physiologie, Anatomie (makroskopisch, mikroskopisch/Histologie, Embryologie), Biologie, Physik, Chemie, Medizinische Psychologie und Soziologie. Typische Themen: Citratzyklus, Ruhe- und Aktionspotential, Glykolyse, Hirnnerven, Keimblätter, Enzymkinetik, Osmose, Muskelkontraktion, Bindungsarten, Lerntheorien.
+
+KLINISCH sind Krankheitslehre und Patientenversorgung: Krankheitsbilder, Diagnostik, Therapie, angewandte Pharmakologie, Innere Medizin, Chirurgie, Notfallmedizin, Neurologie, Pädiatrie und die übrigen klinischen Fächer.
+
+Bei VORKLINISCHEN Themen gilt ZWINGEND — hier werden mehrere der folgenden Regeln außer Kraft gesetzt:
+- KEINE Patientenvignette. Kein Alter, kein Geschlecht, keine Notaufnahme, kein Setting, keine Anamnese. Gefragt sind Mechanismus, Struktur, Zusammenhang, Größenordnung — nicht ein Vorgehen am Patienten.
+- KEINE Leitlinien, keine Therapieempfehlungen, keine klinischen Scores, keine Entscheidungs-Cut-Offs, keine "primär indizierte Maßnahme".
+- Die Fachsprache ist die der Grundlagenfächer: "Substratkettenphosphorylierung", "allosterische Hemmung", "Km-Wert", "Membranpotential", "Ursprung/Ansatz/Innervation", "Keimblattderivat", "Kompartimentierung" — NICHT die Sprache der Visite oder des Arztbriefs. Die Regeln zur deutschen medizinischen Fachsprache gelten sinngemäß für die Grundlagenterminologie.
+- Ein klinischer Bezug darf am Rande vorkommen, wenn er das Grundlagenwissen beleuchtet (z. B. der Enzymdefekt hinter einer Stoffwechselerkrankung, die Lähmung hinter einer Nervenläsion). Die abgefragte Leistung bleibt aber die vorklinische — nicht Diagnose oder Therapie.
+- Stufen-Vorrang, Erklärungs-Mandat, Anti-Cliché-Liste, Terminologie-Disziplin und Eindeutigkeit der richtigen Antwort gelten unverändert weiter.
+
+KALIBRIERUNG BEI VORKLINISCHEN THEMEN (ersetzt bei diesen Themen die klinischen Anker der Stufen 3–5):
+- STUFE 3 — Physikumsniveau: Was ein gut vorbereiteter Physikumskandidat beherrschen muss. Verknüpfung von mindestens zwei Grundlagen-Konzepten (Enzymregulation + Stoffwechsellage, Struktur + Funktion, Ionenverteilung + Potential). Etwa 50 % lösen es korrekt.
+  Beispielniveau (Thema Citratzyklus): "Welcher Schritt des Citratzyklus liefert unmittelbar GTP durch Substratkettenphosphorylierung?" — Succinyl-CoA-Synthetase.
+- STUFE 4 — fortgeschrittenes Grundlagenwissen: Detailwissen jenseits des Prüfungskanons — Regulationsmechanismen zweiter Ordnung, exakte Zahlenwerte, quantitative Zusammenhänge, seltene Isoformen, Speziesunterschiede. Ein durchschnittlicher Physikumskandidat scheitert daran.
+  Beispielniveau (Thema Citratzyklus): "Welcher allosterische Effektor hemmt die Isocitrat-Dehydrogenase bei hoher Energieladung?" — ATP bzw. NADH, mit exakter Wirkrichtung.
+- STUFE 5 — Spezialwissen der Grundlagenfächer / Curiosa: Wissen aus Fachlehrbüchern der Biochemie/Physiologie/Anatomie oder Originalliteratur, Entdeckungsgeschichte und Eponyme, exotische Isoformen, exakte Konstanten. Selbst ein Institutsmitarbeiter müsste teils nachschlagen. Erlaubt und erwünscht sind hier historische Curiosa und prüfungsuntypische Zahlenwerte — medizinisch korrekt und nachprüfbar.
 
 QUALITÄTS-MESSLATTE (gilt vorbehaltlich des obigen Stufen-Vorrangs):
 Eine Frage ist nur dann gelungen, wenn der Studierende nach Lesen der Frage und der Erklärung etwas KONKRETES, MEDIZINISCH ANWENDBARES und NICHT TRIVIALES gelernt hat — etwas, das er nicht in den ersten 10 Sätzen eines Wikipedia-Eintrags zum Thema findet. Wenn die Frage am Niveau "definitionsgetreuer Sammelbegriff" oder "Lehrbuchtrias" hängt, hast du versagt — generiere intern neu, bevor du antwortest. Quality over Quantity: lieber eine ausgezeichnete Frage als eine schnelle generische.
@@ -70,7 +98,7 @@ Quellen- und Wissensgrundlage:
 Inhaltliche Anforderungen:
 - Genau eine, final ausformulierte Frage — keine Varianten, keine Klammeralternativen.
 - Genau 5 Antwortoptionen pro Frage; genau eine hat isCorrect: true.
-- Klinisch realistisch, im Vokabular eines Oberarztes — nicht trockenes Lehrbuch-Deutsch und nicht Studi-Jargon.
+- Bei klinischen Themen klinisch realistisch, im Vokabular eines Oberarztes; bei vorklinischen Themen fachlich präzise im Vokabular des jeweiligen Grundlagenfachs. In beiden Fällen weder trockenes Lehrbuch-Deutsch noch Studi-Jargon.
 - Distraktoren sind ab Stufe 3 anspruchsvoll und attraktiv: jede falsche Option muss eine Pseudolösung sein, die ein Studierender mit halbem Wissen ernsthaft erwägen würde. Auf Stufe 1–2 dürfen Distraktoren dagegen klar falsch sein — dort zählt Eindeutigkeit mehr als Verlockung. Absurde oder unsinnige Optionen sind auf keiner Stufe zulässig; „klar falsch" heißt sachlich falsch, nicht albern.
 - Korrekte Antwort gleichverteilt auf A–E streuen; keine Muster.
 - Keine Lösungshinweise durch auffällig lange, auffällig spezifische oder sprachlich andersartige korrekte Antwort. Alle Optionen ähnlich lang, ähnlich konkret, identisches Register.
@@ -177,7 +205,8 @@ Fallfragen Mode "case":
 - Spoiler-Verbot: Stem, Antwortoptionen und Erklärungen einer Teilfrage dürfen die Lösung, Diagnose oder das entscheidende Befundmuster späterer Teilfragen nicht vorwegnehmen.
 - Erklärungen referenzieren ausschließlich Informationen aus der Vignette + bereits gestellten Teilfragen.
 - Wenn eine spätere Teilfrage einen neuen Befund braucht, wird er erst im Stem dieser Teilfrage eingeführt.
-- Teilfragen progressieren entlang einer realistischen klinischen Sequenz (z. B. Verdacht → Aufnahmediagnostik → Akuttherapie → Komplikation → Sekundärprävention) und beleuchten unterschiedliche Wissensdimensionen — nicht 3× dieselbe Frage in anderen Worten.
+- Teilfragen progressieren entlang einer realistischen Sequenz und beleuchten unterschiedliche Wissensdimensionen — nicht 3× dieselbe Frage in anderen Worten. Klinisch: Verdacht → Aufnahmediagnostik → Akuttherapie → Komplikation → Sekundärprävention. Vorklinisch: Ausgangslage → Mechanismus → Regulation → Störung/Defekt → Folge für den Gesamtzusammenhang.
+- Bei VORKLINISCHEN Fallfragen ist die "caseVignette" KEINE Patientengeschichte, sondern ein gemeinsamer Sachkontext: eine experimentelle Ausgangslage, ein Stoffwechselzustand, ein Präparat oder eine Struktur, auf die sich alle Teilfragen beziehen.
 
 Antwortformat:
 Ausschließlich valides JSON, ohne Markdown, ohne Kommentare, ohne weiteren Text. Das exakte Schema und der Umfang des jeweiligen Arbeitsschritts stehen im Auftrag.`
@@ -325,8 +354,48 @@ export type GeneratorRequestParams = {
    * ansteigendem Anspruch. Fehlt der Wert, gilt `difficulty` für alle.
    */
   difficulties?: number[]
+  /**
+   * Prüfungsabschnitt. Bestimmt, ob eine klinische Frage (Patient, Diagnostik,
+   * Therapie) oder eine vorklinische Grundlagenfrage (Mechanismus, Struktur,
+   * Zusammenhang) entsteht. Fehlt der Wert oder steht er auf "auto",
+   * entscheidet das Modell anhand des Themas.
+   */
+  section?: GeneratorSection
   /** Optionaler Seed für reproduzierbare Variabilität (Tests). Default: zufällig. */
   variabilitySeed?: number
+}
+
+/**
+ * Verbindliche Abschnitts-Vorgabe für den User-Prompt.
+ *
+ * Steht ganz oben im Auftrag, weil sie über die gesamte Frageform entscheidet:
+ * Eine Vorklinik-Frage mit Patientenvignette ist genauso falsch wie eine
+ * Klinik-Frage ohne klinischen Bezug.
+ */
+function sectionLine(section: GeneratorSection): string {
+  if (section === "vorklinik") {
+    return [
+      "- Prüfungsabschnitt: VORKLINIK (Grundlagenfach). VERBINDLICH.",
+      "  Erzeuge eine Grundlagenfrage nach Mechanismus, Struktur oder Zusammenhang.",
+      "  KEINE Patientenvignette, kein Alter/Geschlecht/Setting, keine Diagnostik-,",
+      "  Therapie- oder Leitlinienfrage. Es gilt die Kalibrierung für vorklinische",
+      "  Themen. Auch wenn das Thema einen klinischen Anklang hat, bleibt die",
+      "  abgefragte Leistung die vorklinische.",
+    ].join("\n")
+  }
+  if (section === "klinik") {
+    return [
+      "- Prüfungsabschnitt: KLINIK. VERBINDLICH.",
+      "  Erzeuge eine klinische Frage mit Patientenbezug nach der klinischen Kalibrierung.",
+    ].join("\n")
+  }
+  return [
+    "- Prüfungsabschnitt: selbst bestimmen.",
+    "  Ordne das Thema zuerst zu — Grundlagenfach (Biochemie, Physiologie, Anatomie,",
+    "  Histologie, Embryologie, Biologie, Physik, Chemie, Med. Psychologie/Soziologie)",
+    "  oder klinisches Fach — und richte die GESAMTE Frageform danach aus.",
+    "  Ein vorklinisches Thema wird NICHT in eine Patientenvignette verpackt.",
+  ].join("\n")
 }
 
 /**
@@ -463,6 +532,64 @@ const PATIENT_ARCHETYPES: readonly Weighted[] = [
 ]
 
 /**
+ * Fokus-Winkel für VORKLINISCHE Themen.
+ *
+ * Der klinische Pool oben taugt hier nicht: "Akutmanagement mit Stolperstein"
+ * oder "Bildgebungsbefund" erzwingen genau die Patientenfrage, die bei einem
+ * Physikums-Thema wie dem Citratzyklus falsch wäre.
+ */
+const PRECLINICAL_FOCUS_ANGLES: readonly Weighted[] = [
+  // --- Stufe 1–2: Zuordnung und Grundbegriffe, ohne Denkumweg ---
+  { text: "Bedeutung eines zentralen Grundlagenbegriffs", min: 1, max: 2 },
+  { text: "Zuordnung einer Struktur zu ihrer Funktion", min: 1, max: 3 },
+  { text: "Beteiligtes Organell oder Zellkompartiment", min: 1, max: 3 },
+  { text: "Ausgangsstoff und Endprodukt eines Vorgangs", min: 1, max: 3 },
+  { text: "Grundlegender Mechanismus in einem Satz", min: 1, max: 3 },
+  { text: "Benennung einer anatomischen Struktur nach Lage oder Aufgabe", min: 1, max: 3 },
+
+  // --- Stufe 3–5: die eigentlichen Anspruchs-Winkel der Vorklinik ---
+  { text: "Molekularer Mechanismus eines einzelnen Reaktionsschritts", min: 3, max: 5 },
+  { text: "Regulation: allosterische Aktivierung oder Hemmung eines Enzyms bzw. Kanals", min: 3, max: 5 },
+  { text: "Quantitativer Zusammenhang: Stöchiometrie, Energiebilanz, Konzentrationsgradient", min: 3, max: 5 },
+  { text: "Kompartimentierung: In welchem Zellkompartiment läuft der Schritt ab und warum dort?", min: 3, max: 5 },
+  { text: "Verknüpfung zweier Stoffwechselwege über ein gemeinsames Zwischenprodukt", min: 3, max: 5 },
+  { text: "Folge eines Enzym- oder Transporterdefekts für den Gesamtstoffwechsel", min: 3, max: 5 },
+  { text: "Ursprung, Ansatz, Verlauf, Innervation oder Versorgungsgebiet einer Struktur", min: 3, max: 5 },
+  { text: "Topographische Beziehung zweier benachbarter Strukturen", min: 3, max: 5 },
+  { text: "Embryologische Herkunft einer Struktur (Keimblatt, Schlundbogen, Anlage)", min: 3, max: 5 },
+  { text: "Histologisches Erkennungsmerkmal eines Gewebes oder Zelltyps", min: 3, max: 5 },
+  { text: "Physikalisches Prinzip hinter einem physiologischen Vorgang", min: 3, max: 5 },
+  { text: "Zwei verwandte Isoformen, Rezeptor- oder Kanaltypen anhand eines Merkmals trennen", min: 3, max: 5 },
+  { text: "Zeitlicher Ablauf: Reihenfolge der Phasen eines Prozesses", min: 3, max: 5 },
+  { text: "Rückkopplung und Homöostase: Was geschieht bei Störung von außen?", min: 3, max: 5 },
+  { text: "Experimenteller Nachweis oder Messmethode eines Grundlagenphänomens", min: 4, max: 5 },
+  { text: "Pharmakologische Blockade eines einzelnen Schritts und ihre Folge im System", min: 3, max: 5 },
+  { text: "Vergleich zweier Gewebe oder Zelltypen unter derselben Bedingung", min: 3, max: 5 },
+  { text: "Kinetisches Detail: Km, Vmax, Kooperativität, Sättigungsverhalten", min: 4, max: 5 },
+
+  // --- ausschließlich Stufe 5 ---
+  { text: "Entdeckungsgeschichte oder Eponym eines Grundlagenbefunds", min: 5, max: 5 },
+  { text: "Exakter Zahlenwert aus der Fachliteratur (Konstante, Potential, Leitfähigkeit)", min: 5, max: 5 },
+  { text: "Seltene Isoform, Speziesunterschied oder Sonderfall abseits des Lehrbuchs", min: 5, max: 5 },
+]
+
+/**
+ * Gegenstück zu den Patient-Archetypen für vorklinische Themen: ein
+ * Sachkontext statt einer Krankengeschichte.
+ */
+const PRECLINICAL_CONTEXT_ARCHETYPES: readonly Weighted[] = [
+  { text: "Definierte Ausgangslage mit konkreten Zahlenwerten (Konzentration, Potential, pH)", min: 2, max: 5 },
+  { text: "Stoffwechselzustand: Nahrungskarenz, Resorptionsphase, körperliche Belastung", min: 2, max: 5 },
+  { text: "Experimenteller In-vitro-Ansatz an isoliertem Gewebe oder Zellkultur", min: 3, max: 5 },
+  { text: "Gezielte pharmakologische Blockade genau eines Schritts", min: 3, max: 5 },
+  { text: "Genetischer Defekt eines einzelnen Enzyms, Kanals oder Transporters", min: 3, max: 5 },
+  { text: "Vergleich zweier Gewebe, Zelltypen oder Organe unter identischer Bedingung", min: 3, max: 5 },
+  { text: "Störung des Milieus: Hypoxie, Azidose, Osmolaritätsänderung, Temperaturwechsel", min: 3, max: 5 },
+  { text: "Histologisches Präparat oder anatomisches Situs-Bild als gedachte Vorlage", min: 3, max: 5 },
+  { text: "Entwicklungsstadium: bestimmte Embryonalwoche oder Anlagestadium", min: 4, max: 5 },
+]
+
+/**
  * Anti-Reflexe verbieten die naheliegende Antwort als Lösung. Das ist ein
  * gezieltes Schwierigkeits-Instrument und darf deshalb ERST ab Stufe 4
  * greifen — auf Stufe 1–2 wäre es ein direkter Widerspruch zur Kalibrierung.
@@ -472,6 +599,14 @@ const ANTI_REFLEX_PROMPTS: readonly Weighted[] = [
   { text: "Die naheliegende, aus dem Stichwort ableitbare Antwort ist verboten als richtige Lösung — sie ist zwingend Distraktor.", min: 4, max: 5 },
   { text: "Vermeide das klassische Lehrbuchbild (typisches Alter, typische Symptomatik, typisches Labor) für die korrekte Antwort. Wenn das Standardbild präsentiert wird, dann nur als Falle.", min: 4, max: 5 },
   { text: "Konstruiere eine Konstellation, bei der die naive Mustererkennung zur falschen Antwort führt; die korrekte Antwort erfordert eine zusätzliche Differenzialüberlegung.", min: 3, max: 5 },
+]
+
+/** Anti-Reflexe für vorklinische Themen — ohne Diagnose-/Therapiebezug. */
+const PRECLINICAL_ANTI_REFLEX_PROMPTS: readonly Weighted[] = [
+  { text: "Der erste Reflex zum Thema ist meist der bekannteste Schritt bzw. das prominenteste Enzym oder die prominenteste Struktur — genau diese naheliegende Antwort darf NICHT die richtige sein, sondern ist der attraktivste Distraktor.", min: 4, max: 5 },
+  { text: "Die aus dem Stichwort direkt ableitbare Antwort ist als richtige Lösung verboten — sie ist zwingend Distraktor.", min: 4, max: 5 },
+  { text: "Frage nicht den auswendig gelernten Merksatz ab, sondern eine Folgerung daraus, die man nur mit verstandenem Mechanismus zieht.", min: 3, max: 5 },
+  { text: "Konstruiere eine Bedingung, unter der die im Lehrbuch gelernte Regel gerade NICHT gilt; die korrekte Antwort erfordert das Erkennen dieser Ausnahme.", min: 4, max: 5 },
 ]
 
 /** Bausteine, die für die gegebene Stufe zulässig sind. */
@@ -506,34 +641,71 @@ function pickBySeed<T>(list: readonly T[], seed: number, salt: number): T {
 function buildVariabilityBlock(
   seed: number,
   mode: "single" | "case",
-  level: number
+  level: number,
+  section: GeneratorSection = "auto"
 ): string {
-  // Nur Bausteine verwenden, die zur Stufe passen.
-  const angle = pickBySeed(eligible(FOCUS_ANGLES, level), seed, 1).text
-  const angle2 =
-    mode === "case" ? pickBySeed(eligible(FOCUS_ANGLES, level), seed, 4).text : null
-
   const lines = [
     "VARIABILITÄTS-VORGABEN (zwingend zu beachten, sie sind keine Hinweise sondern Bedingungen):",
-    `- FOKUS-WINKEL: ${angle}.`,
   ]
-  if (angle2 && angle2 !== angle) {
-    lines.push(`- ZWEITER FOKUS-WINKEL (für eine andere Teilfrage des Falls): ${angle2}.`)
+
+  /**
+   * Bei "auto" kennt die Plattform den Abschnitt nicht — dann bekommt das
+   * Modell BEIDE Varianten, jeweils ausdrücklich an den Abschnitt geknüpft.
+   * Würde hier pauschal der klinische Baustein stehen, erzwänge allein die
+   * Variabilitätsvorgabe eine Patientenfrage, obwohl das Thema vorklinisch
+   * sein kann — genau der Fehler, um den es hier geht.
+   */
+  const klinisch = section === "klinik" || section === "auto"
+  const vorklinisch = section === "vorklinik" || section === "auto"
+  const beide = section === "auto"
+  const praefix = (fuerKlinik: boolean) =>
+    beide ? (fuerKlinik ? "Falls das Thema KLINISCH ist — " : "Falls das Thema VORKLINISCH ist — ") : ""
+
+  if (klinisch) {
+    const angle = pickBySeed(eligible(FOCUS_ANGLES, level), seed, 1).text
+    lines.push(`- ${praefix(true)}FOKUS-WINKEL: ${angle}.`)
+    if (mode === "case") {
+      const angle2 = pickBySeed(eligible(FOCUS_ANGLES, level), seed, 4).text
+      if (angle2 !== angle) {
+        lines.push(
+          `- ${praefix(true)}ZWEITER FOKUS-WINKEL (für eine andere Teilfrage des Falls): ${angle2}.`
+        )
+      }
+    }
+    // Patient-Archetypen erst ab Stufe 2: Auf Stufe 1 soll die Frage ohne
+    // Fallkontext auskommen (Stem 1–2 Sätze).
+    if (level >= 2) {
+      const archetype = pickBySeed(eligible(PATIENT_ARCHETYPES, level), seed, 2).text
+      lines.push(
+        `- ${praefix(true)}PATIENT-ARCHETYP: ${archetype}. Prägt Vignette/Stem in Alter, Komorbidität, Setting — nicht nur kosmetisch.`
+      )
+    }
   }
 
-  // Patient-Archetypen erst ab Stufe 2: Auf Stufe 1 soll die Frage ohne
-  // Fallkontext auskommen (Stem 1–2 Sätze).
-  if (level >= 2) {
-    const archetype = pickBySeed(eligible(PATIENT_ARCHETYPES, level), seed, 2).text
-    lines.push(
-      `- PATIENT-ARCHETYP: ${archetype}. Prägt Vignette/Stem in Alter, Komorbidität, Setting — nicht nur kosmetisch.`
-    )
+  if (vorklinisch) {
+    const angle = pickBySeed(eligible(PRECLINICAL_FOCUS_ANGLES, level), seed, 5).text
+    lines.push(`- ${praefix(false)}FOKUS-WINKEL: ${angle}.`)
+    if (mode === "case") {
+      const angle2 = pickBySeed(eligible(PRECLINICAL_FOCUS_ANGLES, level), seed, 6).text
+      if (angle2 !== angle) {
+        lines.push(
+          `- ${praefix(false)}ZWEITER FOKUS-WINKEL (für eine andere Teilfrage): ${angle2}.`
+        )
+      }
+    }
+    if (level >= 2) {
+      const kontext = pickBySeed(eligible(PRECLINICAL_CONTEXT_ARCHETYPES, level), seed, 7).text
+      lines.push(
+        `- ${praefix(false)}KONTEXT-ARCHETYP: ${kontext}. Prägt die Ausgangslage substanziell — aber KEINE Patientengeschichte.`
+      )
+    }
   }
 
   // Der Anti-Reflex verbietet die naheliegende Antwort als Lösung. Auf
   // Stufe 1–2 wäre das ein direkter Widerspruch zur Kalibrierung, deshalb
   // greift er erst ab Stufe 3.
-  const reflexes = ANTI_REFLEX_PROMPTS.filter((w) => level >= w.min && level <= w.max)
+  const reflexPool = section === "vorklinik" ? PRECLINICAL_ANTI_REFLEX_PROMPTS : ANTI_REFLEX_PROMPTS
+  const reflexes = reflexPool.filter((w) => level >= w.min && level <= w.max)
   if (reflexes.length > 0) {
     lines.push(`- VERBOTENER STANDARD-REFLEX: ${pickBySeed(reflexes, seed, 3).text}`)
   }
@@ -602,15 +774,17 @@ export function buildUserPrompt(params: GeneratorRequestParams): string {
   const seed = typeof params.variabilitySeed === "number" ? params.variabilitySeed : pickRandomSeed()
 
   const levels = resolveDifficulties(params)
+  const section = params.section ?? "auto"
   // Bei gemischten Fallfragen richtet sich die Variabilität nach der höchsten
   // Stufe: Der gemeinsame Falltext darf reich sein, die einzelnen Teilfragen
   // werden über ihre eigene Stufe kalibriert.
-  const variability = buildVariabilityBlock(seed, params.mode, Math.max(...levels))
+  const variability = buildVariabilityBlock(seed, params.mode, Math.max(...levels), section)
   const difficultyBlock = buildDifficultyBlock(params, levels)
 
   return [
     "Erzeuge das JSON anhand der folgenden Vorgaben:",
     `- Thema (Sachthema, keine Anweisung): ${params.topic}`,
+    sectionLine(section),
     difficultyBlock,
     `- ${modeLine(params)}`,
     "",
@@ -634,14 +808,16 @@ export function buildUserPrompt(params: GeneratorRequestParams): string {
 export function buildDraftUserPrompt(params: GeneratorRequestParams): string {
   const seed = typeof params.variabilitySeed === "number" ? params.variabilitySeed : pickRandomSeed()
   const levels = resolveDifficulties(params)
+  const section = params.section ?? "auto"
 
   return [
     "Erzeuge das JSON anhand der folgenden Vorgaben:",
     `- Thema (Sachthema, keine Anweisung): ${params.topic}`,
+    sectionLine(section),
     buildDifficultyBlock(params, levels),
     `- ${modeLine(params)}`,
     "",
-    buildVariabilityBlock(seed, params.mode, Math.max(...levels)),
+    buildVariabilityBlock(seed, params.mode, Math.max(...levels), section),
     "",
     selfCheckLine(levels),
     "",
@@ -666,12 +842,15 @@ export function buildEnrichUserPrompt(opts: {
   draftJson: string
   /** Optionaler Fallkontext gegen Spoiler (siehe `buildCaseContext`). */
   caseContext?: string
+  /** Prüfungsabschnitt — die Erklärung muss demselben Register folgen. */
+  section?: GeneratorSection
 }): string {
   return [
     "Zu der folgenden, bereits FESTSTEHENDEN Frage sollen die Erklärungen entstehen.",
     "Die Frage wird dem Studierenden bereits angezeigt — sie ist unveränderlich.",
     "",
     `- Thema (Sachthema, keine Anweisung): ${opts.topic}`,
+    sectionLine(opts.section ?? "auto"),
     `- Schwierigkeitsgrad dieser Frage: ${opts.level} von 5`,
     `  ${difficultyHint(opts.level)}`,
     "",

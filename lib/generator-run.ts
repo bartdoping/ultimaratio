@@ -14,6 +14,7 @@ import {
   callMedicalReviewer,
   streamGeneratorModel,
 } from "@/lib/generator-openai"
+import type { GeneratorSection } from "@/lib/generator-section"
 import { finalizeDraft, type FinalizeResult } from "@/lib/generator-finalize"
 import { enrichQuestions, type EnrichResult } from "@/lib/generator-enrich"
 
@@ -29,6 +30,8 @@ export type GeneratorRunContext = {
   mode: "single" | "case"
   caseQuestionCount?: number
   difficulties?: number[]
+  /** Prüfungsabschnitt; "auto" überlässt die Zuordnung dem Modell. */
+  section?: GeneratorSection
   expectedCount: number
   signal: AbortSignal
 }
@@ -40,6 +43,7 @@ function promptParams(ctx: GeneratorRunContext) {
     mode: ctx.mode,
     caseQuestionCount: ctx.mode === "case" ? ctx.caseQuestionCount : undefined,
     difficulties: ctx.mode === "case" ? ctx.difficulties : undefined,
+    section: ctx.section ?? "auto",
   }
 }
 
@@ -99,6 +103,7 @@ export async function runEnrichPhase(
   return enrichQuestions({
     draft,
     topic: ctx.topic,
+    section: ctx.section ?? "auto",
     levels,
     call: (input) =>
       callGeneratorModelWithRetry({

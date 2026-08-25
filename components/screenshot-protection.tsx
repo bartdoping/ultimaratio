@@ -61,8 +61,12 @@ export function ScreenshotProtection({ children }: ScreenshotProtectionProps) {
         user-select: none !important;
       }
       
-      /* Erlaube Textauswahl für TextHighlighter */
-      [data-text-highlighter], .select-text {
+      /* Erlaube Textauswahl für TextHighlighter.
+         Die Nachfahren MÜSSEN mitgenannt werden: Der Markierer rendert den Text
+         in <span>/<mark>-Blöcken, und die Regel oben würde diese sonst auf
+         user-select:none setzen — das Markieren durch Ziehen wäre tot. */
+      [data-text-highlighter], [data-text-highlighter] *,
+      .select-text, .select-text * {
         -webkit-user-select: text !important;
         -moz-user-select: text !important;
         -ms-user-select: text !important;

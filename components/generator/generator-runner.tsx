@@ -318,7 +318,8 @@ export function GeneratorRunner({
           onChange={setStemHighlights}
         />
         <p className="text-xs text-muted-foreground">
-          Tippe Wörter im Fragentext an, um sie zu markieren · erneut tippen entfernt die Markierung.
+          Ziehe über eine Textstelle, um sie zu markieren · erneut darüberziehen oder
+          antippen entfernt die Markierung.
         </p>
 
         <AnswerOptions

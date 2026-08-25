@@ -20,6 +20,7 @@ import {
   type LearnPlanId,
 } from "@/lib/learn-plans"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
+import type { GeneratorSection } from "@/lib/generator-section"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
 import { difficultyLabel } from "@/lib/generator-difficulty"
@@ -157,12 +158,20 @@ export function GeneratorPageClient({
       : undefined
 
   /**
+   * Prüfungsabschnitt der aktuellen Auswahl. Beim Lernplan ist er gesetzt —
+   * ein Physikums-Tag darf keine Patientenvignette erzeugen. Bei freiem Thema
+   * entscheidet das Modell anhand des Themas.
+   */
+  const section: GeneratorSection = source === "plan" ? LEARN_PLANS[planId].section : "auto"
+
+  /**
    * Identität der aktuellen Einstellungen. Eine vorab erzeugte Frage darf nur
    * verwendet werden, wenn sie exakt dazu passt.
    *
    * Im Lernplan-Modus gehört das Thema NICHT zum Schlüssel: Dort wird bei
    * jeder Generierung neu gewürfelt, ein vorab gezogenes Thema desselben Tages
-   * ist also genauso gültig wie ein frisch gezogenes.
+   * ist also genauso gültig wie ein frisch gezogenes. Der Abschnitt ergibt sich
+   * aus `source`/`planId` und ist damit bereits abgedeckt.
    */
   const settingsKey = JSON.stringify(
     source === "plan"
@@ -190,6 +199,7 @@ export function GeneratorPageClient({
       mode,
       caseQuestionCount: mode === "case" ? caseCount : undefined,
       difficulties: mode === "case" ? effectiveDifficulties : undefined,
+      section,
     }
 
     prefetchRef.current = {
@@ -213,6 +223,7 @@ export function GeneratorPageClient({
     mode,
     caseCount,
     effectiveDifficulties,
+    section,
   ])
 
   const remainingSufficient = quota.unlimited || quota.remaining >= units
@@ -554,6 +565,7 @@ export function GeneratorPageClient({
       mode: effMode,
       caseQuestionCount: effMode === "case" ? (effCaseCount ?? undefined) : undefined,
       difficulties: effMode === "case" ? effectiveDifficulties : undefined,
+      section,
     }
 
     const onFatal = (msg: string, counted: boolean) => {
@@ -1182,6 +1194,12 @@ type GeneratePayload = {
   caseQuestionCount?: number
   /** Optional: Schwierigkeit je Teilfrage einer Fallfrage. */
   difficulties?: number[]
+  /**
+   * Prüfungsabschnitt. Aus einem Lernplan übernommen (Physikum = vorklinisch,
+   * M2 = klinisch); bei frei eingegebenem Thema "auto" — dann ordnet das
+   * Modell das Thema selbst zu.
+   */
+  section?: GeneratorSection
 }
 
 type GenResult =

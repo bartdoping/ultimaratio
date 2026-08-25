@@ -1,8 +1,21 @@
 "use client"
 
-import { useCallback, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  applyRange as applyRangeToSet,
+  buildRuns,
+  removeRunAt as removeRunAtInSet,
+  type HighlightSet,
+} from "@/lib/text-highlight"
 
-export type HighlightSet = Set<number>
+/**
+ * Markierte Stellen eines Textes, als Menge von ZEICHEN-Indizes.
+ * Die Logik dazu steht in `lib/text-highlight.ts` — hier bleibt nur die
+ * Übersetzung von Browser-Auswahl zu Zeichenpositionen.
+ *
+ * Der Zustand gilt nur für die laufende Sitzung und wird nie gespeichert.
+ */
+export type { HighlightSet }
 
 interface TextHighlighterProps {
   text: string
@@ -16,31 +29,22 @@ interface TextHighlighterProps {
   onChange?: (next: HighlightSet) => void
 }
 
-type Token =
-  | { type: "word"; index: number; text: string }
-  | { type: "space"; text: string }
-  | { type: "break" }
-
-const WORD_PATTERN = /(\s+|\n)/
-
-function tokenize(text: string): Token[] {
-  const tokens: Token[] = []
-  let wordIdx = 0
-  const parts = text.split(WORD_PATTERN)
-  for (const part of parts) {
-    if (!part) continue
-    if (part === "\n") {
-      tokens.push({ type: "break" })
-      continue
-    }
-    if (/^\s+$/.test(part)) {
-      tokens.push({ type: "space", text: part })
-      continue
-    }
-    tokens.push({ type: "word", index: wordIdx, text: part })
-    wordIdx += 1
+/**
+ * Zeichen-Position eines DOM-Punkts innerhalb des Containers.
+ *
+ * Funktioniert, weil der Container exakt `text` rendert — keine zusätzlichen
+ * Zeichen, keine <br>-Elemente. Zeilenumbrüche kommen über `white-space:
+ * pre-wrap` aus dem Text selbst und werden von `Range.toString()` mitgezählt.
+ */
+function offsetInContainer(container: HTMLElement, node: Node, offset: number): number {
+  const range = document.createRange()
+  range.setStart(container, 0)
+  try {
+    range.setEnd(node, offset)
+  } catch {
+    return -1
   }
-  return tokens
+  return range.toString().length
 }
 
 export function TextHighlighter({
@@ -50,6 +54,7 @@ export function TextHighlighter({
   onChange,
 }: TextHighlighterProps) {
   const [internal, setInternal] = useState<HighlightSet>(() => new Set())
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const isControlled = value !== undefined
   const active = isControlled ? value : internal
 
@@ -64,55 +69,109 @@ export function TextHighlighter({
     [isControlled, onChange, value]
   )
 
-  const tokens = useMemo(() => tokenize(text), [text])
+  const runs = useMemo(() => buildRuns(text, active), [text, active])
 
-  const toggle = useCallback(
-    (idx: number) => {
-      setActive((prev) => {
-        const next = new Set(prev)
-        if (next.has(idx)) next.delete(idx)
-        else next.add(idx)
-        return next
-      })
+  const applyRange = useCallback(
+    (start: number, end: number) => {
+      setActive((prev) => applyRangeToSet(text, prev, start, end))
     },
-    [setActive]
+    [setActive, text]
   )
+
+  /** Klick ohne Ziehen auf eine Markierung entfernt den ganzen Block. */
+  const removeRunAt = useCallback(
+    (pos: number) => {
+      setActive((prev) => removeRunAtInSet(text, prev, pos))
+    },
+    [setActive, text]
+  )
+
+  /** Liest die aktuelle Auswahl aus und wendet sie an. */
+  const consumeSelection = useCallback(() => {
+    const container = containerRef.current
+    if (!container) return
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    if (!container.contains(range.startContainer) || !container.contains(range.endContainer)) {
+      return
+    }
+
+    const from = offsetInContainer(container, range.startContainer, range.startOffset)
+    const to = offsetInContainer(container, range.endContainer, range.endOffset)
+    if (from < 0 || to < 0) return
+
+    const start = Math.min(from, to)
+    const end = Math.max(from, to)
+
+    if (start === end) {
+      // Reiner Klick: auf einer Markierung entfernt er sie, sonst passiert nichts.
+      removeRunAt(Math.min(start, Math.max(0, text.length - 1)))
+      return
+    }
+
+    applyRange(start, end)
+    // Blaue Systemauswahl wegnehmen, damit die gelbe Markierung sichtbar wird.
+    selection.removeAllRanges()
+  }, [applyRange, removeRunAt, text.length])
+
+  /**
+   * Der Zeiger wird oft außerhalb des Textes losgelassen (z. B. unterhalb des
+   * letzten Absatzes). Deshalb hört der Abschluss der Geste am Dokument mit,
+   * sobald sie im Container begonnen hat.
+   */
+  const handlePointerDown = useCallback(() => {
+    const finish = () => {
+      document.removeEventListener("pointerup", finish)
+      // Erst im nächsten Tick lesen: Der Browser aktualisiert die Auswahl
+      // teilweise erst nach dem pointerup-Ereignis.
+      window.setTimeout(consumeSelection, 0)
+    }
+    document.addEventListener("pointerup", finish)
+  }, [consumeSelection])
+
+  // Auswahl per Tastatur (Umschalt + Pfeiltasten, Caret-Browsing) ebenfalls
+  // übernehmen — sonst wäre die Funktion ohne Maus nicht bedienbar.
+  const handleKeyUp = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Shift" || (e.shiftKey && e.key.startsWith("Arrow"))) {
+        consumeSelection()
+      }
+    },
+    [consumeSelection]
+  )
+
+  // Frage gewechselt → hängengebliebene Systemauswahl aufräumen.
+  useEffect(() => {
+    return () => {
+      const sel = typeof window !== "undefined" ? window.getSelection() : null
+      sel?.removeAllRanges()
+    }
+  }, [questionId])
 
   return (
     <div
+      ref={containerRef}
       data-text-highlighter="true"
       data-question-id={questionId}
-      className="text-base leading-relaxed select-text"
+      onPointerDown={handlePointerDown}
+      onKeyUp={handleKeyUp}
+      tabIndex={0}
+      className="whitespace-pre-wrap text-base leading-relaxed select-text outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm"
     >
-      {tokens.map((tok, i) => {
-        if (tok.type === "break") {
-          return <br key={`br-${i}`} />
-        }
-        if (tok.type === "space") {
-          return <span key={`sp-${i}`}>{tok.text}</span>
-        }
-        const isOn = active.has(tok.index)
-        return (
-          <button
-            key={`w-${tok.index}`}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              toggle(tok.index)
-            }}
-            aria-pressed={isOn}
-            title={isOn ? "Markierung entfernen" : "Markieren"}
-            className={
-              "inline rounded-sm px-0.5 py-0 align-baseline transition-colors " +
-              (isOn
-                ? "bg-yellow-200 text-foreground dark:bg-yellow-500/40"
-                : "hover:bg-muted/60")
-            }
+      {runs.map((run) =>
+        run.on ? (
+          <mark
+            key={run.start}
+            className="rounded-sm bg-yellow-200 text-foreground dark:bg-yellow-500/40"
           >
-            {tok.text}
-          </button>
+            {text.slice(run.start, run.end)}
+          </mark>
+        ) : (
+          <span key={run.start}>{text.slice(run.start, run.end)}</span>
         )
-      })}
+      )}
     </div>
   )
 }

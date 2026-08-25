@@ -87,7 +87,7 @@ export async function POST(req: Request) {
   if (!parsed.ok) {
     return NextResponse.json({ ok: false, error: parsed.error }, { status: 400 })
   }
-  const { topic, difficulty, mode, caseQuestionCount, difficulties } = parsed.value
+  const { topic, difficulty, mode, caseQuestionCount, difficulties, section } = parsed.value
   const expectedCount = parsed.expectedCount
 
   const access = await resolveGeneratorAccess(req)
@@ -173,6 +173,7 @@ export async function POST(req: Request) {
         mode,
         caseQuestionCount,
         difficulties,
+        section,
         expectedCount,
         signal: abort.signal,
       }

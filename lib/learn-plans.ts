@@ -9,6 +9,8 @@ import { LEARN_PLAN_M2_DAYS } from "@/lib/learn-plan-m2"
  * Neue Durchgänge werden durch Austausch der jeweiligen Datendatei gepflegt.
  */
 
+import type { GeneratorSection } from "@/lib/generator-section"
+
 export type LearnPlanDay = {
   day: number
   /** Fachgebiet(e) des Tages, wie im Plan ausgewiesen. */
@@ -24,6 +26,15 @@ export type LearnPlan = {
   label: string
   /** Kurzform für enge Schaltflächen. */
   shortLabel: string
+  /**
+   * Prüfungsabschnitt des Plans. Bestimmt, ob der Generator vorklinische
+   * Grundlagenfragen (Biochemie, Physiologie, Anatomie …) oder klinische
+   * Fragen erzeugt.
+   *
+   * Beim Physikum ist das keine Vermutung, sondern gesetzt: Ein Tag über den
+   * Citratzyklus darf keine Patientenvignette hervorbringen.
+   */
+  section: GeneratorSection
   days: readonly LearnPlanDay[]
 }
 
@@ -32,12 +43,14 @@ export const LEARN_PLANS: Record<LearnPlanId, LearnPlan> = {
     id: "m2",
     label: "M2-Lernplan · Herbst 2026",
     shortLabel: "M2",
+    section: "klinik",
     days: LEARN_PLAN_M2_DAYS,
   },
   m1: {
     id: "m1",
     label: "Physikum · Herbst 2026",
     shortLabel: "Physikum",
+    section: "vorklinik",
     days: LEARN_PLAN_M1_DAYS,
   },
 }

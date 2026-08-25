@@ -5,6 +5,7 @@ import {
   checkExplanationDepth,
 } from "@/lib/generator-validate"
 import { hardSevereIssues } from "@/lib/generator-finalize"
+import type { GeneratorSection } from "@/lib/generator-section"
 import {
   buildCaseContext,
   graftExplanations,
@@ -38,6 +39,7 @@ async function enrichOne(opts: {
   index: number
   topic: string
   level: number
+  section: GeneratorSection
   call: EnrichCallFn
 }): Promise<BulkQuestion | null> {
   const question = opts.draft[opts.index]
@@ -53,6 +55,7 @@ async function enrichOne(opts: {
   const basePrompt = buildEnrichUserPrompt({
     topic: opts.topic,
     level: opts.level,
+    section: opts.section,
     draftJson,
     caseContext: buildCaseContext(opts.draft, opts.index) || undefined,
   })
@@ -109,6 +112,8 @@ async function enrichOne(opts: {
 export async function enrichQuestions(opts: {
   draft: BulkQuestion[]
   topic: string
+  /** Prüfungsabschnitt — die Erklärung folgt demselben Register wie die Frage. */
+  section?: GeneratorSection
   /** Effektive Stufe je Frage, gleiche Reihenfolge wie `draft`. */
   levels: number[]
   call: EnrichCallFn
@@ -119,6 +124,7 @@ export async function enrichQuestions(opts: {
         draft: opts.draft,
         index: i,
         topic: opts.topic,
+        section: opts.section ?? "auto",
         level: opts.levels[i] ?? opts.levels[0] ?? 3,
         call: opts.call,
       }).catch(() => null)
