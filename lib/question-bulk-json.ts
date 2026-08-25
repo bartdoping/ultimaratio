@@ -46,7 +46,28 @@ export type ValidateBulkJsonResult =
   | { ok: true; payload: BulkQuestionsPayload; questionCount: number; caseCount: number; imageCount: number }
   | { ok: false; error: string }
 
-export function validateBulkJson(raw: string): ValidateBulkJsonResult {
+export type ValidateBulkJsonOptions = {
+  /**
+   * Fehlt "allowImmediate", wird dieser Wert eingesetzt statt die Frage
+   * abzulehnen.
+   *
+   * Nur für den KI-Generator gedacht. "allowImmediate" steuert, ob der
+   * Studierende die Auflösung sofort sehen darf — eine reine UI-Entscheidung,
+   * die im Generator immer `true` ist und die das Modell gar nicht treffen
+   * soll. Gemessen ließ das Modell das Feld bei Fallfragen gelegentlich weg;
+   * das kostete einen kompletten Reparatur-Durchlauf von ~40 s für eine
+   * inhaltlich einwandfreie Frage.
+   *
+   * Beim Admin-Import bleibt es bewusst PFLICHT: Dort tippt ein Mensch das
+   * JSON, und ein stillschweigend gesetzter Standard wäre eine Überraschung.
+   */
+  defaultAllowImmediate?: boolean
+}
+
+export function validateBulkJson(
+  raw: string,
+  opts: ValidateBulkJsonOptions = {}
+): ValidateBulkJsonResult {
   let data: unknown
   try {
     data = JSON.parse(raw)
@@ -74,7 +95,9 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
     if (typeof q.stem !== "string" || !q.stem.trim()) {
       return { ok: false, error: `Ungültige Frage ${i + 1}: "stem" fehlt oder ist leer.` }
     }
-    if (typeof q.allowImmediate !== "boolean") {
+    const allowImmediate =
+      typeof q.allowImmediate === "boolean" ? q.allowImmediate : opts.defaultAllowImmediate
+    if (typeof allowImmediate !== "boolean") {
       return { ok: false, error: `Ungültige Frage ${i + 1}: "allowImmediate" muss boolean sein.` }
     }
     if (q.explanation != null && typeof q.explanation !== "string") {
@@ -160,7 +183,7 @@ export function validateBulkJson(raw: string): ValidateBulkJsonResult {
     normalized.push({
       stem: q.stem.trim(),
       explanation: typeof q.explanation === "string" ? q.explanation : null,
-      allowImmediate: q.allowImmediate,
+      allowImmediate,
       caseVignette: typeof q.caseVignette === "string" ? q.caseVignette : null,
       options: normalizedOptions,
       keyTakeaway: keyTakeawayRaw ? keyTakeawayRaw.trim() || null : null,

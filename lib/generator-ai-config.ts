@@ -120,3 +120,27 @@ export function generatorMaxOutputTokens(mode: "single" | "case", caseQuestionCo
   if (mode === "single") return 5200
   return 2200 + caseQuestionCount * 3200
 }
+
+/**
+ * Token-Limit für Stufe 1 (Frage + Optionen + keyTakeaway, keine Erklärungen).
+ *
+ * Gemessen an echten Fragen: Fragestellung und die fünf Optionen zusammen sind
+ * 160 Tokens — 8 % der Gesamtausgabe von ~2100. Mit keyTakeaway und
+ * JSON-Gerüst landen wir bei ~280 pro Frage. Das Limit liegt bewusst um ein
+ * Vielfaches darüber, damit ein ausführlicher Falltext nicht abgeschnitten wird.
+ */
+export function draftMaxOutputTokens(mode: "single" | "case", caseQuestionCount: number): number {
+  if (mode === "single") return 1400
+  return 900 + caseQuestionCount * 800
+}
+
+/**
+ * Token-Limit für Stufe 2 (Erklärungen zu GENAU EINER feststehenden Frage).
+ *
+ * Gemessen: 1813 Tokens für Gesamterklärung, mustKnow, highYield, mnemonic und
+ * die fünf Options-Erklärungen. 3800 gibt reichlich Puffer, damit das Modell
+ * sich bei tiefen Themen nicht selbst kürzt.
+ */
+export function enrichMaxOutputTokens(): number {
+  return 3800
+}

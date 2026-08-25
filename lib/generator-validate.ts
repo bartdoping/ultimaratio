@@ -42,12 +42,26 @@ function tooGenericMustKnow(value: string): boolean {
   return ANTI_GENERIC_MUST_KNOW_PHRASES.some((re) => re.test(v))
 }
 
+/**
+ * Umfang der Prüfung.
+ *
+ * "draft" prüft die erste Stufe der zweistufigen Generierung: Fragestellung,
+ * Antwortoptionen und Falltext stehen fest, die Erklärungen entstehen erst im
+ * zweiten Schritt. Alle strukturellen Regeln gelten unverändert — es entfällt
+ * ausschließlich die Prüfung der Erklärungsfelder.
+ */
+export type ValidationPhase = "draft" | "full"
+
 export function validateGeneratedQuestions(
   rawText: string,
   mode: "single" | "case",
-  expectedCount: number
+  expectedCount: number,
+  phase: ValidationPhase = "full"
 ): { ok: true; questions: BulkQuestion[] } | { ok: false; error: string } {
-  const validated = validateBulkJson(rawText)
+  // "allowImmediate" ist im Generator immer true — eine UI-Entscheidung, keine
+  // Modellaufgabe. Fehlt es, setzen wir es, statt eine sonst einwandfreie
+  // Frage in einen teuren Reparatur-Durchlauf zu schicken.
+  const validated = validateBulkJson(rawText, { defaultAllowImmediate: true })
   if (!validated.ok) {
     return { ok: false, error: validated.error }
   }
@@ -74,6 +88,18 @@ export function validateGeneratedQuestions(
         ok: false,
         error: `${where} muss genau eine richtige Antwort haben (erhalten: ${correctCount}).`,
       }
+    }
+    if (phase === "draft") {
+      // In der Entwurfsstufe ersetzt keyTakeaway das mustKnow als inhaltlicher
+      // Substanznachweis: ein Satz, der die richtige Antwort begründet und dem
+      // fachlichen Gegencheck als Kontext dient.
+      if (!q.keyTakeaway || q.keyTakeaway.trim().length < QUESTION_QUALITY.MIN_KEY_TAKEAWAY_CHARS) {
+        return {
+          ok: false,
+          error: `${where}: "keyTakeaway" fehlt oder ist zu knapp (mindestens ${QUESTION_QUALITY.MIN_KEY_TAKEAWAY_CHARS} Zeichen).`,
+        }
+      }
+      continue
     }
     if (!q.mustKnow || !q.mustKnow.trim()) {
       return { ok: false, error: `${where}: "mustKnow" fehlt.` }

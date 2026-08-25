@@ -146,9 +146,25 @@ export type SpoilerHit = {
 /**
  * Untersucht eine Fallfrage auf Spoiler. Gibt eine Liste der gefundenen
  * Treffer zurück (leer = sauber).
+ *
+ * `minSharedTerms` steuert, wie viel Übereinstimmung als Verdacht zählt.
+ *
+ * Auf dem vollen Text (mit Erklärungen) reicht ein geteilter Fachbegriff:
+ * Dort stammt die Vergleichsmenge aus Erklärungen und Musterlösung, ein
+ * Treffer ist also aussagekräftig.
+ *
+ * Auf dem ENTWURF (nur Stems und Optionstexte, noch ohne Erklärungen) ist ein
+ * einzelnes Wort dagegen schwaches Indiz — Teilfragen desselben Falls teilen
+ * naturgemäß Vokabular. Gemessen löste ein einziges geteiltes Allerweltswort
+ * ("resektion") einen vollen Reparatur-Durchlauf von ~40 s aus, ohne dass ein
+ * echter Spoiler vorlag. Dort gilt deshalb eine höhere Schwelle.
  */
-export function detectSpoilers(questions: BulkQuestion[]): SpoilerHit[] {
+export function detectSpoilers(
+  questions: BulkQuestion[],
+  opts: { minSharedTerms?: number } = {}
+): SpoilerHit[] {
   if (questions.length < 2) return []
+  const minShared = Math.max(1, opts.minSharedTerms ?? 1)
 
   const hits: SpoilerHit[] = []
   for (let later = 1; later < questions.length; later++) {
@@ -160,7 +176,7 @@ export function detectSpoilers(questions: BulkQuestion[]): SpoilerHit[] {
       for (const term of future) {
         if (visible.has(term)) shared.push(term)
       }
-      if (shared.length > 0) {
+      if (shared.length >= minShared) {
         hits.push({
           earlierQuestion: earlier + 1,
           laterQuestion: later + 1,

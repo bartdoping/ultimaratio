@@ -15,6 +15,18 @@ import {
   type ReviewFn,
 } from "@/lib/generator-medical-review"
 
+/**
+ * Wie viele geteilte Begriffe zwischen zwei Teilfragen als Spoiler-Verdacht
+ * gelten, solange nur der Entwurf vorliegt (siehe `detectSpoilers`).
+ *
+ * Empirisch bestimmt an vier echten Fallentwürfen: Jeder dort gefundene
+ * Treffer bestand aus GENAU EINEM generischen Wort — "allein", "verabreichen",
+ * "unverzüglich", "elektive". Kein einziger war ein Fachbegriff und keiner ein
+ * echter Spoiler. Jeder hätte einen Reparatur-Durchlauf von ~40 s ausgelöst.
+ * Zwei unabhängig geteilte Begriffe sind dagegen ein belastbares Signal.
+ */
+const DRAFT_MIN_SHARED_SPOILER_TERMS = 2
+
 export type FinalizeResult =
   | { ok: true; questions: BulkQuestion[] }
   | { ok: false; error: string; status: number }
@@ -35,7 +47,7 @@ export type RepairFn = (opts: {
  * fehlende Kernaussage) triggern KEINEN Repair — die UI degradiert graceful.
  * Das ist der zentrale Latenz-Hebel: der Happy Path bleibt bei einem Aufruf.
  */
-function hardSevereIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
+export function hardSevereIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
   const distractorShort = issues.filter((d) => d.kind === "distractor_short")
   return issues.filter((d) => {
     if (d.kind === "total_explanation_short") return true
@@ -52,6 +64,136 @@ function hardSevereIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
 function repairableIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
   // mnemonic ist bewusst optional — nie in den Repair-Hint.
   return issues.filter((d) => d.kind !== "mnemonic_missing")
+}
+
+/**
+ * Nachbearbeitung der ERSTEN Stufe (Frage + Optionen, noch ohne Erklärungen).
+ *
+ * Diese Stufe entscheidet über alles, was der Studierende gleich zu sehen
+ * bekommt — Fragestellung, Antwortoptionen, Falltext. Sie muss deshalb
+ * vollständig abgeschlossen sein, BEVOR die Frage ausgeliefert wird:
+ *
+ *  1) Struktur-Validierung (+ 1 Repair bei ungültigem JSON)
+ *  2) Spoiler-Prüfung der Teilfragen-Stems bei Fallfragen — ein Stem, der eine
+ *     spätere Lösung verrät, ließe sich später nicht mehr korrigieren, ohne
+ *     dem Nutzer die Frage unter den Händen wegzuändern.
+ *  3) Unabhängiger fachlicher Gegencheck. Läuft bewusst VOR der Anzeige: Wird
+ *     die als richtig markierte Antwort beanstandet, muss das korrigiert sein,
+ *     bevor jemand die Frage liest.
+ *
+ * Die Erklärungs-Tiefenprüfung entfällt hier — es gibt noch keine Erklärungen.
+ * Sie findet in Stufe 2 statt (siehe `lib/generator-enrich.ts`).
+ */
+export async function finalizeDraft(opts: {
+  rawText: string
+  mode: "single" | "case"
+  expectedCount: number
+  repair: RepairFn
+  medicalReview?: ReviewFn
+}): Promise<FinalizeResult> {
+  const { mode, expectedCount, repair } = opts
+  let jsonText = extractJsonFromModelText(opts.rawText)
+  let check = validateGeneratedQuestions(jsonText, mode, expectedCount, "draft")
+
+  if (!check.ok) {
+    const repaired = await repair({
+      hint: `VALIDIERUNGSFEHLER: ${check.error}`,
+      previousJson: jsonText,
+    })
+    jsonText = extractJsonFromModelText(repaired)
+    check = validateGeneratedQuestions(jsonText, mode, expectedCount, "draft")
+  }
+
+  if (!check.ok) {
+    return {
+      ok: false,
+      error: `KI-Antwort ungültig: ${check.error} Bitte erneut generieren.`,
+      status: 502,
+    }
+  }
+
+  // Spoiler zwischen den Teilfragen-Stems. Höhere Schwelle als beim vollen
+  // Text: Ohne Erklärungen ist ein einzelnes geteiltes Wort kein Beleg, und
+  // ein Reparatur-Durchlauf kostet hier ~40 s.
+  if (mode === "case") {
+    const hits = detectSpoilers(check.questions, { minSharedTerms: DRAFT_MIN_SHARED_SPOILER_TERMS })
+    if (hits.length > 0) {
+      try {
+        const repaired = await repair({
+          hint: buildSpoilerRepairHint(hits),
+          previousJson: JSON.stringify({ questions: check.questions }),
+        })
+        const recheck = validateGeneratedQuestions(
+          extractJsonFromModelText(repaired),
+          mode,
+          expectedCount,
+          "draft"
+        )
+        const after = recheck.ok
+          ? detectSpoilers(recheck.questions, { minSharedTerms: DRAFT_MIN_SHARED_SPOILER_TERMS })
+          : []
+        if (recheck.ok && after.length <= hits.length / 2) {
+          check = recheck
+        }
+      } catch {
+        // best-effort
+      }
+    }
+  }
+
+  // Fachlicher Gegencheck vor der Anzeige.
+  if (opts.medicalReview) {
+    try {
+      const findings = await reviewMedicalAccuracy(check.questions, opts.medicalReview)
+      const flagged = findings.filter(hasFindings)
+
+      if (flagged.length > 0) {
+        // Gezielt NUR die beanstandeten Teilfragen neu erzeugen, und diese
+        // parallel. Der Gutachter beanstandet je Frage unabhängig; einen
+        // ganzen Fall mit fünf Teilfragen neu zu schreiben, weil eine davon
+        // auffiel, kostete ~35 s statt ~8 s.
+        const questions = [...check.questions]
+        const results = await Promise.all(
+          flagged.map(async (finding) => {
+            const idx = finding.questionIndex
+            const original = questions[idx]
+            if (!original) return null
+
+            // Der Hint nummeriert 1-basiert; hier ist es immer "Frage 1".
+            const hint = buildMedicalRepairHint([{ ...finding, questionIndex: 0 }])
+            if (!hint) return null
+
+            const repaired = await repair({
+              hint,
+              previousJson: JSON.stringify({ questions: [original] }),
+            })
+            const rc = validateGeneratedQuestions(
+              extractJsonFromModelText(repaired),
+              mode,
+              1,
+              "draft"
+            )
+            if (!rc.ok || !rc.questions[0]) return null
+            return {
+              idx,
+              // Der Falltext ist allen Teilfragen gemeinsam und darf durch die
+              // Einzelreparatur nicht auseinanderlaufen.
+              question: { ...rc.questions[0], caseVignette: original.caseVignette ?? null },
+            }
+          }).map((p) => p.catch(() => null))
+        )
+
+        for (const r of results) {
+          if (r) questions[r.idx] = r.question
+        }
+        check = { ok: true, questions }
+      }
+    } catch {
+      // best-effort — die fachliche Prüfung darf nie zum Fehlschlag führen.
+    }
+  }
+
+  return { ok: true, questions: check.questions }
 }
 
 /**

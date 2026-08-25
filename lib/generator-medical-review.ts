@@ -56,9 +56,14 @@ export function buildReviewInput(questions: BulkQuestion[]): string {
       `Fragestellung: ${q.stem}`,
       "Antwortoptionen:",
       opts,
+      // In der Entwurfsstufe gibt es noch keine Options-Erklärung; dann dient
+      // die Kernaussage als Begründung. Ohne jede Begründung müsste der
+      // Gutachter raten, warum genau diese Antwort markiert wurde.
       correct?.explanation
         ? `Begründung der markierten Antwort: ${correct.explanation.slice(0, 700)}`
-        : "",
+        : q.keyTakeaway?.trim()
+          ? `Kernaussage der Frage: ${q.keyTakeaway.trim().slice(0, 700)}`
+          : "",
     ]
       .filter(Boolean)
       .join("\n")

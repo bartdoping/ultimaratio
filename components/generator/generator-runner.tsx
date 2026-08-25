@@ -45,6 +45,19 @@ type Props = {
     sourceLabel?: string
   }
   onNewGeneration: () => void
+  /**
+   * Die Erklärungen entstehen noch (zweite Stufe der Generierung). Die Frage
+   * selbst ist vollständig und endgültig — nur die Auflösung ist noch
+   * unterwegs. Wer schneller antwortet als das Modell schreibt, bekommt so
+   * einen erklärten Zwischenzustand statt einer leeren Fläche.
+   */
+  explanationsPending?: boolean
+  /**
+   * Feuert genau einmal, wenn die letzte offene Frage aufgelöst wurde. Der
+   * Nutzer liest ab jetzt die Erklärung — das ist das Zeitfenster, in dem die
+   * nächste Frage vorab erzeugt werden kann.
+   */
+  onLastAnswerConfirmed?: () => void
   /** Optional: schnelle Folgeaktionen am Ende eines Durchlaufs. */
   onQuickAction?: (action: GeneratorQuickAction) => void
   isPro?: boolean
@@ -56,6 +69,8 @@ type Props = {
 export function GeneratorRunner({
   questions,
   meta,
+  explanationsPending = false,
+  onLastAnswerConfirmed,
   onNewGeneration,
   onQuickAction,
   isPro = false,
@@ -172,6 +187,13 @@ export function GeneratorRunner({
     // Inline-Pro-Nudge nur beim ersten bestätigten Frage-Beleg dieser Session.
     if (!isPro && inlineNudgeForQId == null) {
       setInlineNudgeForQId(q.id)
+    }
+    // Letzte Frage aufgelöst: Der Nutzer liest jetzt die Erklärung — ein
+    // Zeitfenster von typischerweise 30–60 s, in dem die nächste Frage im
+    // Hintergrund entstehen kann. Die Bestätigung des letzten offenen Items
+    // ist der Auslöser, nicht die Done-Card: Dort wäre das Fenster zu kurz.
+    if (confirmedCount + 1 === runnerQuestions.length) {
+      onLastAnswerConfirmed?.()
     }
   }
 
@@ -341,6 +363,21 @@ export function GeneratorRunner({
 
         {showFeedback && (
           <div className="space-y-3">
+            {/* Erklärung noch unterwegs: Der Nutzer war schneller als die
+                zweite Generierungsstufe. Richtig/falsch steht bereits fest. */}
+            {explanationsPending && !q.explanation && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-primary/25 bg-primary/5 px-4 py-3">
+                <span
+                  className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-primary/30 border-t-primary"
+                  aria-hidden
+                />
+                <p className="text-sm text-muted-foreground">
+                  Die ausführliche Erklärung wird gerade geschrieben — sie erscheint
+                  gleich hier.
+                </p>
+              </div>
+            )}
+
             {/* Kernaussage — der eine Satz, den man behält */}
             {isKeyTakeawayWorthShowing(q.keyTakeaway) && (
               <div className="animate-fade-in rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card px-4 py-3">

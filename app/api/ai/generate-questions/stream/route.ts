@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server"
 import { assertSameOrigin } from "@/lib/security"
 import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
-import { generatorMaxOutputTokens } from "@/lib/generator-ai-config"
 import { parseGenerateRequest } from "@/lib/generator-request"
-import {
-  buildSystemInstructions,
-  buildUserPrompt,
-} from "@/lib/ai-question-generator-prompt"
-import {
-  callGeneratorRepair,
-  callMedicalReviewer,
-  streamGeneratorModel,
-  GeneratorModelError,
-} from "@/lib/generator-openai"
-import { finalizeGenerated } from "@/lib/generator-finalize"
+import { GeneratorModelError } from "@/lib/generator-openai"
+import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -58,17 +48,27 @@ function serializeVisitorCookie(value: string): string {
 /**
  * Streaming-Variante des Generators (Server-Sent Events).
  *
+ * Zweistufig — das ist der zentrale Latenzhebel. Gemessen macht die
+ * Fragestellung samt Antwortoptionen nur 160 von 2129 Output-Tokens aus (8 %);
+ * die restlichen 92 % sind Erklärungen, die der Studierende erst NACH dem
+ * Antworten sieht. Statt 33 Sekunden auf alles zu warten, bekommt er die
+ * fertige, fachlich geprüfte Frage nach ~8 Sekunden und liest sie, während die
+ * Erklärungen im Hintergrund entstehen.
+ *
  * Ablauf:
  *  - Vorprüfungen (Origin, Body, Rate-Limit, Quota) laufen synchron; Fehler
  *    kommen als klassische JSON-Antwort zurück (kein Stream).
- *  - Die eigentliche Generierung wird als SSE gestreamt:
+ *  - Danach als SSE:
  *      { type: "start" }
- *      { type: "delta", text }      ← nur zur Fortschrittsmessung im Client
- *      { type: "verifying" }        ← Validierung/Repairs laufen
- *      { type: "final", ok, questions, quota, meta, streak }
+ *      { type: "draft", questions, meta, quota }  ← anzeigbar, ohne Erklärungen
+ *      { type: "final", ok, questions, ... }      ← dieselben Fragen + Erklärungen
  *      { type: "error", error }
- *  - Serverseitige Validierung + konservative Repair-Pässe laufen NACH dem
- *    Stream auf dem vollständigen Text, bevor "final" gesendet wird.
+ *
+ * Garantie: Zwischen "draft" und "final" ändern sich Fragestellung,
+ * Antwortoptionen und die richtige Antwort NICHT. Die Erklärungsstufe darf sie
+ * laut Prompt nicht anfassen, und `graftExplanations` pflanzt die
+ * Originalwerte zusätzlich zurück — ein Abweichen ist strukturell unmöglich.
+ * Genau das war der Fehler der früheren Live-Vorschau.
  */
 export async function POST(req: Request) {
   try {
@@ -128,16 +128,6 @@ export async function POST(req: Request) {
     )
   }
 
-  const instructions = buildSystemInstructions()
-  const userPrompt = buildUserPrompt({
-    topic,
-    difficulty: Math.round(difficulty),
-    mode,
-    caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
-    difficulties: mode === "case" ? difficulties : undefined,
-  })
-  const maxOutputTokens = generatorMaxOutputTokens(mode, expectedCount)
-
   // Refund-Guard, den sowohl der Stream-Body als auch cancel() nutzt.
   let refunded = false
   const refundOnce = async () => {
@@ -177,12 +167,39 @@ export async function POST(req: Request) {
 
       send({ type: "start" })
 
-      let full: string
+      const runCtx = {
+        topic,
+        difficulty,
+        mode,
+        caseQuestionCount,
+        difficulties,
+        expectedCount,
+        signal: abort.signal,
+      }
+
+      const quotaPayload = {
+        used: quotaResult.used,
+        remaining: quotaResult.remaining,
+        dailyLimit: quotaResult.dailyLimit,
+        unlimited: quotaResult.unlimited,
+      }
+      const metaPayload = {
+        topic,
+        difficulty: Math.round(difficulty),
+        mode,
+        caseQuestionCount: expectedCount,
+        unitsCharged: expectedCount,
+      }
+
+      // ---- Stufe 1: Frage + Optionen, geprüft und fachlich gegengelesen ----
+      let draft
       try {
-        full = await streamGeneratorModel(
-          { instructions, input: userPrompt, maxOutputTokens, signal: abort.signal },
-          (delta) => send({ type: "delta", text: delta })
-        )
+        draft = await runDraftPhase(runCtx, {
+          onDelta: (delta) => send({ type: "delta", text: delta }),
+          // Struktur-, Spoiler- und Facharztprüfung beginnen; der Client zeigt
+          // dafür "Qualitätsprüfung…".
+          onVerifying: () => send({ type: "verifying" }),
+        })
       } catch (err) {
         await refundOnce()
         const msg =
@@ -196,29 +213,14 @@ export async function POST(req: Request) {
         return
       }
 
-      // Ab hier laufen Validierung und ggf. Repairs. Der Client zeigt dafür
-      // "Qualitätsprüfung…", damit die Wartezeit erklärt ist.
-      send({ type: "verifying" })
-
-      const finalized = await finalizeGenerated({
-        rawText: full,
-        mode,
-        expectedCount,
-        repair: (opts) =>
-          callGeneratorRepair(
-            { instructions, input: userPrompt, maxOutputTokens, signal: abort.signal },
-            opts
-          ),
-        medicalReview: (input) => callMedicalReviewer(input, abort.signal),
-      })
-
-      if (!finalized.ok) {
+      if (!draft.ok) {
         await refundOnce()
-        send({ type: "error", error: finalized.error })
+        send({ type: "error", error: draft.error })
         close()
         return
       }
 
+      // Streak zählt, sobald eine beantwortbare Frage existiert.
       let streakInfo: Awaited<ReturnType<typeof recordStreakActivity>> = null
       if (access.user?.id) {
         try {
@@ -227,31 +229,36 @@ export async function POST(req: Request) {
           streakInfo = null
         }
       }
+      const streakPayload = streakInfo
+        ? {
+            currentStreak: streakInfo.currentStreak,
+            longestStreak: streakInfo.longestStreak,
+            milestoneJustReached: streakInfo.milestoneJustReached,
+          }
+        : null
+
+      // Ab hier kann der Nutzer lesen und antworten.
+      send({
+        type: "draft",
+        questions: draft.questions,
+        quota: quotaPayload,
+        meta: metaPayload,
+        streak: streakPayload,
+      })
+
+      // ---- Stufe 2: Erklärungen, während der Nutzer liest ----
+      const enriched = await runEnrichPhase(runCtx, draft.questions)
 
       send({
         type: "final",
         ok: true,
-        questions: finalized.questions,
-        quota: {
-          used: quotaResult.used,
-          remaining: quotaResult.remaining,
-          dailyLimit: quotaResult.dailyLimit,
-          unlimited: quotaResult.unlimited,
-        },
-        meta: {
-          topic,
-          difficulty: Math.round(difficulty),
-          mode,
-          caseQuestionCount: expectedCount,
-          unitsCharged: expectedCount,
-        },
-        streak: streakInfo
-          ? {
-              currentStreak: streakInfo.currentStreak,
-              longestStreak: streakInfo.longestStreak,
-              milestoneJustReached: streakInfo.milestoneJustReached,
-            }
-          : null,
+        questions: enriched.questions,
+        explanationsFailed: enriched.failedIndices.length > 0,
+        quota: quotaPayload,
+        meta: metaPayload,
+        // Streak wurde bereits mit "draft" gemeldet — nicht doppelt melden,
+        // sonst feuert der Client den Meilenstein-Toast zweimal.
+        streak: null,
       })
       close()
     },

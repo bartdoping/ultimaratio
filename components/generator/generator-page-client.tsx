@@ -55,6 +55,11 @@ type SessionState = {
     /** Herkunft, wenn die Frage aus einem Lernplan-Tag stammt. */
     sourceLabel?: string
   }
+  /**
+   * Die Frage steht, die Erklärungen entstehen noch (zweite Stufe). Nur dann
+   * zeigt der Runner den Hinweis "Erklärung wird geschrieben".
+   */
+  explanationsPending?: boolean
 }
 
 type LimitState = {
@@ -118,6 +123,22 @@ export function GeneratorPageClient({
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
+  /**
+   * Vorab erzeugte nächste Frage.
+   *
+   * Sobald der Nutzer die letzte Frage auflöst, liest er 30–60 s die
+   * Erklärung. In diesem Fenster entsteht die nächste Frage im Hintergrund;
+   * fordert er sie danach an, ist sie sofort da.
+   *
+   * Nur für Pro-Nutzer: Bei begrenztem Tagesbudget würde eine vorab erzeugte,
+   * am Ende nicht abgerufene Frage echtes Kontingent verbrennen.
+   */
+  const prefetchRef = useRef<{
+    key: string
+    topic: string
+    promise: Promise<GenResult>
+  } | null>(null)
+
   const units = mode === "case" ? caseCount : 1
 
   // Länge der Teilfragen-Schwierigkeiten an caseCount angleichen; fehlende
@@ -134,6 +155,65 @@ export function GeneratorPageClient({
     mode === "case" && perQuestionDifficulty
       ? Array.from({ length: caseCount }, (_, i) => caseDifficulties[i] ?? difficulty)
       : undefined
+
+  /**
+   * Identität der aktuellen Einstellungen. Eine vorab erzeugte Frage darf nur
+   * verwendet werden, wenn sie exakt dazu passt.
+   *
+   * Im Lernplan-Modus gehört das Thema NICHT zum Schlüssel: Dort wird bei
+   * jeder Generierung neu gewürfelt, ein vorab gezogenes Thema desselben Tages
+   * ist also genauso gültig wie ein frisch gezogenes.
+   */
+  const settingsKey = JSON.stringify(
+    source === "plan"
+      ? { source, planId, planDay, difficulty, mode, caseCount, effectiveDifficulties }
+      : { source, topic: topic.trim(), difficulty, mode, caseCount, effectiveDifficulties }
+  )
+
+  /**
+   * Startet die Vorabgenerierung, wenn die Bedingungen stimmen. Bewusst
+   * defensiv: höchstens eine offene Vorabgenerierung, niemals parallel zu
+   * einer laufenden Generierung, und nur mit unbegrenztem Kontingent.
+   */
+  const startPrefetch = useCallback(() => {
+    if (!quota.unlimited) return
+    if (loading) return
+    if (prefetchRef.current?.key === settingsKey) return
+
+    const prefetchTopic =
+      source === "plan" ? (pickRandomTopic(planId, planDay) ?? "") : topic.trim()
+    if (prefetchTopic.length < 3) return
+
+    const payload: GeneratePayload = {
+      topic: prefetchTopic,
+      difficulty,
+      mode,
+      caseQuestionCount: mode === "case" ? caseCount : undefined,
+      difficulties: mode === "case" ? effectiveDifficulties : undefined,
+    }
+
+    prefetchRef.current = {
+      key: settingsKey,
+      topic: prefetchTopic,
+      // Klassischer Endpunkt: Für eine Frage, die niemand ansieht, bringt die
+      // zweistufige Auslieferung nichts — sie soll nur fertig werden.
+      promise: runClassicGeneration(payload).catch(
+        () => ({ kind: "error", message: "Vorabgenerierung fehlgeschlagen.", counted: false }) as GenResult
+      ),
+    }
+  }, [
+    quota.unlimited,
+    loading,
+    settingsKey,
+    source,
+    planId,
+    planDay,
+    topic,
+    difficulty,
+    mode,
+    caseCount,
+    effectiveDifficulties,
+  ])
 
   const remainingSufficient = quota.unlimited || quota.remaining >= units
 
@@ -408,6 +488,60 @@ export function GeneratorPageClient({
       })
     }
 
+    // Passt eine vorab erzeugte Frage exakt zu dieser Anforderung?
+    const effKey = JSON.stringify(
+      source === "plan" && overrides.topic === undefined
+        ? {
+            source,
+            planId,
+            planDay,
+            difficulty: effDifficulty,
+            mode: effMode,
+            caseCount: effMode === "case" ? (effCaseCount ?? caseCount) : caseCount,
+            effectiveDifficulties,
+          }
+        : {
+            source,
+            topic: effTopic,
+            difficulty: effDifficulty,
+            mode: effMode,
+            caseCount: effMode === "case" ? (effCaseCount ?? caseCount) : caseCount,
+            effectiveDifficulties,
+          }
+    )
+    const stash = prefetchRef.current
+    if (stash && stash.key === effKey) {
+      prefetchRef.current = null
+      setLoading(true)
+      setError(null)
+      setLimitState(null)
+      const pre = await stash.promise
+      if (pre.kind === "success") {
+        if (pre.quota) setQuota(pre.quota)
+        if (pre.streak && typeof window !== "undefined") {
+          window.dispatchEvent(
+            new CustomEvent("fragenkreuzen:streak-updated", { detail: pre.streak })
+          )
+        }
+        setSession({
+          questions: pre.questions,
+          meta: {
+            topic: pre.meta?.topic ?? stash.topic,
+            difficulty: pre.meta?.difficulty ?? effDifficulty,
+            mode: pre.meta?.mode === "case" ? "case" : "single",
+            sourceLabel:
+              source === "plan"
+                ? `Tag ${planDay} · ${getLearnPlanDay(planId, planDay)?.subject ?? LEARN_PLANS[planId].shortLabel}`
+                : undefined,
+          },
+        })
+        setLoading(false)
+        return
+      }
+      // Vorabgenerierung unbrauchbar → ganz normal neu generieren.
+      setLoading(false)
+    }
+
     setLoading(true)
     setError(null)
     setLimitState(null)
@@ -433,16 +567,75 @@ export function GeneratorPageClient({
       void refreshQuota()
     }
 
+    const sessionMeta = (meta: { topic?: string; difficulty?: number; mode?: string } | undefined) => ({
+      topic: meta?.topic ?? effTopic,
+      difficulty: meta?.difficulty ?? effDifficulty,
+      mode: (meta?.mode === "case" ? "case" : "single") as "single" | "case",
+      sourceLabel: planTopic
+        ? `Tag ${planDay} · ${getLearnPlanDay(planId, planDay)?.subject ?? LEARN_PLANS[planId].shortLabel}`
+        : undefined,
+    })
+
+    // Wurde die Frage bereits aus der ersten Stufe angezeigt? Dann darf das
+    // Endergebnis sie nur noch um die Erklärungen ergänzen — niemals die
+    // Sitzung neu aufsetzen, sonst verlöre der Nutzer seine Antworten.
+    let draftShown = false
+
     try {
-      // Streaming dient ausschließlich dem Fortschritts-Signal — es wird KEIN
-      // Frageninhalt vorab angezeigt (siehe lib/stream-preview.ts). Fällt der
-      // Verbindungsaufbau aus, greift der klassische Endpoint.
-      let result = await runStreamingGeneration(payload, (p, pct) => {
-        setPhase(p)
-        if (pct > 0) setLoadProgress((prev) => Math.max(prev, pct))
-      })
+      // Zweistufig: Die erste Stufe liefert die fertige, fachlich geprüfte
+      // Frage — der Nutzer liest sie, während die Erklärungen entstehen.
+      // Fällt der Verbindungsaufbau aus, greift der klassische Endpoint.
+      let result = await runStreamingGeneration(
+        payload,
+        (p, pct) => {
+          setPhase(p)
+          if (pct > 0) setLoadProgress((prev) => Math.max(prev, pct))
+        },
+        (drafted) => {
+          draftShown = true
+          if (drafted.quota) setQuota(drafted.quota)
+          if (drafted.streak && typeof window !== "undefined") {
+            window.dispatchEvent(
+              new CustomEvent("fragenkreuzen:streak-updated", { detail: drafted.streak })
+            )
+          }
+          setLoading(false)
+          setLoadProgress(0)
+          setPhase(null)
+          setSession({
+            questions: drafted.questions,
+            meta: sessionMeta(drafted.meta),
+            explanationsPending: true,
+          })
+        }
+      )
       if (result.kind === "unsupported") {
         result = await runClassicGeneration(payload)
+      }
+
+      // Erklärungen zu einer bereits sichtbaren Frage: nur ergänzen.
+      if (draftShown) {
+        if (result.kind === "success") {
+          if (result.quota) setQuota(result.quota)
+          setSession((prev) =>
+            prev
+              ? { ...prev, questions: result.questions, explanationsPending: false }
+              : { questions: result.questions, meta: sessionMeta(result.meta) }
+          )
+          if (result.explanationsFailed) {
+            toast.error("Erklärungen unvollständig", {
+              description:
+                "Die Frage ist gültig, aber mindestens eine Erklärung konnte nicht erzeugt werden.",
+            })
+          }
+        } else if (result.kind === "error") {
+          // Die Frage steht und ist beantwortbar — der Nutzer verliert nichts.
+          setSession((prev) => (prev ? { ...prev, explanationsPending: false } : prev))
+          toast.error("Erklärungen konnten nicht geladen werden.", {
+            description: "Die Frage bleibt nutzbar. Dein Tagesbudget wurde nicht zusätzlich belastet.",
+          })
+        }
+        return
       }
 
       switch (result.kind) {
@@ -481,17 +674,13 @@ export function GeneratorPageClient({
               new CustomEvent("fragenkreuzen:streak-updated", { detail: result.streak })
             )
           }
-          setSession({
-            questions: result.questions,
-            meta: {
-              topic: result.meta?.topic ?? effTopic,
-              difficulty: result.meta?.difficulty ?? effDifficulty,
-              mode: result.meta?.mode === "case" ? "case" : "single",
-              sourceLabel: planTopic
-                ? `Tag ${planDay} · ${getLearnPlanDay(planId, planDay)?.subject ?? LEARN_PLANS[planId].shortLabel}`
-                : undefined,
-            },
-          })
+          setSession({ questions: result.questions, meta: sessionMeta(result.meta) })
+          if (result.explanationsFailed) {
+            toast.error("Erklärungen unvollständig", {
+              description:
+                "Die Frage ist gültig, aber mindestens eine Erklärung konnte nicht erzeugt werden.",
+            })
+          }
           break
         }
         default:
@@ -511,6 +700,8 @@ export function GeneratorPageClient({
       <GeneratorRunner
         questions={session.questions}
         meta={session.meta}
+        explanationsPending={session.explanationsPending === true}
+        onLastAnswerConfirmed={startPrefetch}
         isPro={isPro}
         quotaRemaining={quota.unlimited ? null : quota.remaining}
         onUpgrade={handleUpgrade}
@@ -1000,6 +1191,8 @@ type GenResult =
       meta?: { topic?: string; difficulty?: number; mode?: string }
       quota?: QuotaState
       streak?: unknown
+      /** Mindestens eine Erklärung konnte nicht erzeugt werden. */
+      explanationsFailed?: boolean
     }
   | { kind: "limit"; data: Record<string, unknown> }
   | { kind: "rate_limited"; retryAfterSec: number; message: string }
@@ -1043,6 +1236,7 @@ function mapJsonToResult(
     meta: data.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
     quota: data.quota as QuotaState | undefined,
     streak: data.streak,
+    explanationsFailed: data.explanationsFailed === true,
   }
 }
 
@@ -1063,13 +1257,21 @@ async function runClassicGeneration(payload: GeneratePayload): Promise<GenResult
 }
 
 /**
- * Konsumiert den SSE-Stream. Der Callback liefert ausschließlich Phase und
- * Fortschritt in Prozent — bewusst KEINEN Frageninhalt, damit nichts angezeigt
- * wird, was ein nachgelagerter Repair noch verändern könnte.
+ * Konsumiert den SSE-Stream der zweistufigen Generierung.
+ *
+ * `onProgress` liefert während der ersten Stufe ausschließlich Phase und
+ * Prozent — bewusst KEINEN Frageninhalt, denn halbfertiges JSON war genau der
+ * Grund, warum die frühere Live-Vorschau falsche Fragen zeigte.
+ *
+ * `onDraft` feuert, sobald die Frage vollständig, validiert und fachlich
+ * gegengelesen ist. Ab da kann der Studierende lesen und antworten. Die
+ * Erklärungen kommen danach über das aufgelöste Ergebnis nach; Fragestellung
+ * und Antwortoptionen sind zu diesem Zeitpunkt bereits endgültig.
  */
 async function runStreamingGeneration(
   payload: GeneratePayload,
-  onProgress: (phase: GenerationPhase, percent: number) => void
+  onProgress: (phase: GenerationPhase, percent: number) => void,
+  onDraft: (result: Extract<GenResult, { kind: "success" }>) => void
 ): Promise<GenResult> {
   let res: Response
   try {
@@ -1094,10 +1296,11 @@ async function runStreamingGeneration(
     return { kind: "unsupported" }
   }
 
-  // Erwartete Ausgabegröße als Referenz für den Fortschrittsbalken. Gemessen:
-  // Einzelfrage ≈ 9.000 Zeichen, Fallfrage ≈ 8.300 Zeichen je Teilfrage.
+  // Erwartete Größe der ERSTEN Stufe als Referenz für den Fortschrittsbalken.
+  // Gemessen: Fragestellung + fünf Optionen sind 160 Tokens ≈ 600 Zeichen; mit
+  // Kernaussage und JSON-Gerüst ≈ 1.000. Fallfragen zusätzlich ein Falltext.
   const expectedChars =
-    payload.mode === "case" ? 8300 * (payload.caseQuestionCount ?? 3) : 9000
+    payload.mode === "case" ? 900 + 1000 * (payload.caseQuestionCount ?? 3) : 1000
 
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
@@ -1133,6 +1336,17 @@ async function runStreamingGeneration(
           }
         } else if (evt.type === "verifying") {
           onProgress("verifying", 96)
+        } else if (evt.type === "draft") {
+          if (!Array.isArray(evt.questions)) {
+            return { kind: "error", message: "Unerwartete Server-Antwort.", counted: false }
+          }
+          onDraft({
+            kind: "success",
+            questions: evt.questions as BulkQuestion[],
+            meta: evt.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+            quota: evt.quota as QuotaState | undefined,
+            streak: evt.streak,
+          })
         } else if (evt.type === "final") {
           if (!Array.isArray(evt.questions)) {
             return { kind: "error", message: "Unerwartete Server-Antwort.", counted: false }
@@ -1143,6 +1357,7 @@ async function runStreamingGeneration(
             meta: evt.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
             quota: evt.quota as QuotaState | undefined,
             streak: evt.streak,
+            explanationsFailed: evt.explanationsFailed === true,
           }
         } else if (evt.type === "error") {
           return {

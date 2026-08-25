@@ -1,19 +1,9 @@
 import { NextResponse } from "next/server"
 import { assertSameOrigin } from "@/lib/security"
 import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
-import { generatorMaxOutputTokens } from "@/lib/generator-ai-config"
 import { parseGenerateRequest } from "@/lib/generator-request"
-import {
-  buildSystemInstructions,
-  buildUserPrompt,
-} from "@/lib/ai-question-generator-prompt"
-import {
-  callGeneratorRepair,
-  callMedicalReviewer,
-  callGeneratorModelWithRetry,
-  GeneratorModelError,
-} from "@/lib/generator-openai"
-import { finalizeGenerated } from "@/lib/generator-finalize"
+import { GeneratorModelError } from "@/lib/generator-openai"
+import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -112,52 +102,39 @@ export async function POST(req: Request) {
       await refundGeneratorQuota(quotaSubject, expectedCount)
     }
 
-    const promptParams = {
-      topic,
-      difficulty: Math.round(difficulty),
-      mode,
-      caseQuestionCount: mode === "case" ? caseQuestionCount : undefined,
-      difficulties: mode === "case" ? difficulties : undefined,
-    }
-
-    const instructions = buildSystemInstructions()
-    const userPrompt = buildUserPrompt(promptParams)
-    const maxOutputTokens = generatorMaxOutputTokens(mode, expectedCount)
-
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), GENERATOR_TIMEOUT_MS)
 
     try {
-      const callParams = {
-        instructions,
-        input: userPrompt,
-        maxOutputTokens,
+      const runCtx = {
+        topic,
+        difficulty,
+        mode,
+        caseQuestionCount,
+        difficulties,
+        expectedCount,
         signal: controller.signal,
       }
 
-      let rawText: string
+      // Dieselbe zweistufige Generierung wie im SSE-Pfad. Hier bringt sie
+      // keinen früheren Anzeigezeitpunkt — der Client bekommt eine einzige
+      // Antwort —, wohl aber die parallele Anreicherung der Teilfragen: Bei
+      // Fallfragen ist das der Unterschied zwischen 133 s und ~35 s.
+      let draft: Awaited<ReturnType<typeof runDraftPhase>>
       try {
-        rawText = await callGeneratorModelWithRetry(callParams)
+        draft = await runDraftPhase(runCtx)
       } catch (err) {
         await refundOnce()
         throw err
       }
 
-      // Gemeinsame Validierung + konservative Repair-Pässe.
-      const finalized = await finalizeGenerated({
-        rawText,
-        mode,
-        expectedCount,
-        repair: (opts) => callGeneratorRepair(callParams, opts),
-        medicalReview: (input) => callMedicalReviewer(input, controller.signal),
-      })
-
-      if (!finalized.ok) {
+      if (!draft.ok) {
         await refundOnce()
-        return NextResponse.json({ ok: false, error: finalized.error }, { status: finalized.status })
+        return NextResponse.json({ ok: false, error: draft.error }, { status: draft.status })
       }
 
-      const questions = finalized.questions
+      const enriched = await runEnrichPhase(runCtx, draft.questions)
+      const questions = enriched.questions
 
       // Streak nur für eingeloggte User – best-effort, niemals werfen.
       let streakInfo: Awaited<ReturnType<typeof recordStreakActivity>> = null
@@ -172,6 +149,7 @@ export async function POST(req: Request) {
       const res = NextResponse.json({
         ok: true,
         questions,
+        explanationsFailed: enriched.failedIndices.length > 0,
         quota: {
           used: quotaResult.used,
           remaining: quotaResult.remaining,
