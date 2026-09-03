@@ -11,7 +11,16 @@ export const runtime = "nodejs"
 
 // Modelle aus ENV (beide optional). Wenn nur PRIMARY gesetzt ist, wird es für beide Modi genutzt.
 const MODEL_PRIMARY = process.env.OPENAI_MODEL_PRIMARY || "gpt-5"
-const MODEL_CONCISE = process.env.OPENAI_MODEL_CONCISE || MODEL_PRIMARY
+/**
+ * Kurzantworten laufen auf dem kleinen Modell.
+ *
+ * Vorher fiel der Standard auf MODEL_PRIMARY zurück — ohne gesetzte
+ * Umgebungsvariable beantwortete also gpt-5 auch die Kurzfragen. Gemessen mit
+ * derselben Frage: gpt-5-mini 5,2 s / 443 Output-Tokens, gpt-5 17,5 s / 803.
+ * Beide fachlich korrekt. Für eine bewusst knappe Antwort ist das große Modell
+ * dreimal so langsam und doppelt so teuer, ohne dass es besser wird.
+ */
+const MODEL_CONCISE = process.env.OPENAI_MODEL_CONCISE || "gpt-5-mini"
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 

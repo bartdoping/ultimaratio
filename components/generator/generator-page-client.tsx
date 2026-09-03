@@ -346,6 +346,26 @@ export function GeneratorPageClient({
     return () => window.removeEventListener("fragenkreuzen:subscription-updated", onSubscriptionUpdated)
   }, [refreshQuota])
 
+  /**
+   * Thema aus der URL übernehmen (?topic=… &difficulty=…).
+   *
+   * Einstieg aus „Meine Fragen": Wer dort sieht, dass er bei einem Thema
+   * schwach steht, soll mit einem Klick genau dazu weiterüben — ohne das
+   * Thema abzutippen.
+   */
+  useEffect(() => {
+    const urlTopic = searchParams.get("topic")
+    if (!urlTopic) return
+    const sauber = urlTopic.trim().slice(0, GENERATOR_TOPIC_MAX)
+    if (sauber.length < 3) return
+
+    setSource("free")
+    setTopic(sauber)
+    const lvl = Number(searchParams.get("difficulty"))
+    if (Number.isFinite(lvl) && lvl >= 1 && lvl <= 5) setDifficulty(Math.round(lvl))
+    router.replace("/generator", { scroll: false })
+  }, [searchParams, router])
+
   // Preset über Share-Link laden (?preset=<slug>)
   useEffect(() => {
     const presetSlug = searchParams.get("preset")

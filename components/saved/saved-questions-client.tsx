@@ -138,14 +138,21 @@ export function SavedQuestionsClient() {
         <section className="rounded-xl border bg-card p-4">
           <h2 className="text-sm font-semibold text-foreground">Trefferquote je Thema</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
-            Schwächstes Thema zuerst — dort lohnt sich die nächste Sitzung.
+            Schwächstes Thema zuerst — Thema anklicken, um gezielt weiterzuüben.
           </p>
           <ul className="mt-3 space-y-2">
             {daten.byTopic.map((t) => (
               <li key={t.topic} className="flex items-center gap-3">
-                <span className="w-40 shrink-0 truncate text-xs text-foreground" title={t.topic}>
+                {/* Anklickbar: direkt zu diesem Thema weiterüben. Eine Quote
+                    anzuzeigen, ohne einen Weg zur Übung anzubieten, lässt den
+                    Nutzer mit der Erkenntnis allein. */}
+                <Link
+                  href={`/generator?topic=${encodeURIComponent(t.topic)}`}
+                  title={`Neue Frage zu „${t.topic}" generieren`}
+                  className="w-40 shrink-0 truncate text-xs text-foreground underline-offset-2 hover:underline"
+                >
                   {t.topic}
-                </span>
+                </Link>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <span
                     className={cn(

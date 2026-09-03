@@ -32,10 +32,39 @@ const fraunces = Fraunces({
   axes: ["SOFT", "WONK"],
 })
 
-const metadataBase =
-  typeof process !== "undefined" && process.env.NEXT_PUBLIC_APP_URL
-    ? new URL(process.env.NEXT_PUBLIC_APP_URL)
-    : new URL("https://ultimaratio.app")
+/**
+ * Basis für kanonische URLs, Open-Graph-Bilder und die Sitemap.
+ *
+ * Vorher stand hier fest `https://ultimaratio.app` als Rückfall — eine Domain,
+ * unter der die Plattform nicht läuft. Ohne gesetztes NEXT_PUBLIC_APP_URL
+ * zeigten damit sämtliche OG- und Canonical-Angaben ins Leere.
+ *
+ * Reihenfolge:
+ *  1. NEXT_PUBLIC_APP_URL — ausdrückliche Vorgabe, gewinnt immer.
+ *  2. NEXTAUTH_URL — in Production zwingend gesetzt und per Definition der
+ *     kanonische Ursprung der Anwendung (Auth-Callbacks laufen darüber).
+ *  3. VERCEL_URL — Vorschau-Deployments ohne eigene Domain.
+ *  4. Die Live-Domain als letzter Rückfall.
+ */
+function resolveMetadataBase(): URL {
+  const kandidaten = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXTAUTH_URL,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  ]
+  for (const kandidat of kandidaten) {
+    const wert = kandidat?.trim()
+    if (!wert) continue
+    try {
+      return new URL(wert)
+    } catch {
+      // Unbrauchbarer Wert — nächsten Kandidaten versuchen.
+    }
+  }
+  return new URL("https://fragenkreuzen.de")
+}
+
+const metadataBase = resolveMetadataBase()
 
 export const metadata: Metadata = {
   metadataBase,

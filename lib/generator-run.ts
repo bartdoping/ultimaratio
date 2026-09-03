@@ -75,9 +75,28 @@ export async function runDraftPhase(
     signal: ctx.signal,
   }
 
-  const rawText = progress
-    ? await streamGeneratorModel(callParams, progress.onDelta)
-    : await callGeneratorModelWithRetry(callParams)
+  let rawText: string
+  if (progress) {
+    try {
+      rawText = await streamGeneratorModel(callParams, progress.onDelta)
+    } catch (err) {
+      // Ein Abbruch (Timeout, Client weg) ist endgültig — nicht neu versuchen.
+      if (ctx.signal.aborted || (err as { name?: string })?.name === "AbortError") throw err
+
+      // Der Streaming-Aufruf kennt selbst keinen Modell-Fallback. Fällt das
+      // Primärmodell aus, wiederholen wir OHNE Stream: `callGeneratorModelWithRetry`
+      // bringt Retry und Ersatzmodell mit. Der Nutzer verliert dabei nur den
+      // Fortschrittsbalken, nicht die Frage — vorher war das ein harter Fehler.
+      console.warn(
+        `[generator] Streaming fehlgeschlagen (${
+          err instanceof Error ? err.message : "unbekannt"
+        }) — erneuter Versuch ohne Stream.`
+      )
+      rawText = await callGeneratorModelWithRetry(callParams)
+    }
+  } else {
+    rawText = await callGeneratorModelWithRetry(callParams)
+  }
 
   progress?.onVerifying()
 

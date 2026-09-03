@@ -8,6 +8,7 @@ import { TextHighlighter, type HighlightSet } from "@/components/text-highlighte
 import { LabValuesDialog } from "@/components/lab-values-dialog"
 import { DifficultyBadge } from "@/components/generator/difficulty-badge"
 import { QuestionReport } from "@/components/generator/question-report"
+import { formatQuestionForSharing } from "@/lib/question-share"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import type { GeneratorSection } from "@/lib/generator-section"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
@@ -21,6 +22,8 @@ import {
   TrendingUp,
   TrendingDown,
   Layers,
+  Copy,
+  Check as CheckIcon,
   Wand2,
 } from "lucide-react"
 import {
@@ -138,6 +141,7 @@ export function GeneratorRunner({
   const expandedExplanation = !!qExpOpen[q.id]
   const stemHighlights = highlightsByQ[q.id] ?? new Set<number>()
   const gespeichert = Boolean(savedIds?.some(Boolean))
+  const [kopiert, setKopiert] = useState(false)
   const struckIds = struckByQ[q.id] ?? EMPTY_STRIKES
   const toggleStrike = useCallback(
     (optionId: string) => {
@@ -411,7 +415,7 @@ export function GeneratorRunner({
           </p>
         )}
 
-        {/* Melden — direkt an der Frage, nicht im allgemeinen Feedback. */}
+        {/* Melden und Teilen — direkt an der Frage. */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           <QuestionReport
             stem={q.stem}
@@ -423,6 +427,39 @@ export function GeneratorRunner({
               mode: meta.mode === "case" ? "Fallfrage" : "Einzelfrage",
             }}
           />
+
+          <button
+            type="button"
+            onClick={async () => {
+              const text = formatQuestionForSharing(
+                questions[idx],
+                { topic: meta.topic, difficulty: meta.difficulty },
+                typeof window !== "undefined" ? window.location.origin : undefined
+              )
+              try {
+                await navigator.clipboard.writeText(text)
+                setKopiert(true)
+                window.setTimeout(() => setKopiert(false), 2000)
+              } catch {
+                // Zwischenablage gesperrt (z. B. ohne HTTPS) — still bleiben,
+                // ein Fehlerhinweis hilft dem Nutzer hier nicht weiter.
+              }
+            }}
+            title="Frage als Text kopieren — zum Teilen in der Lerngruppe"
+            className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            {kopiert ? (
+              <>
+                <CheckIcon className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                Kopiert
+              </>
+            ) : (
+              <>
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+                Frage kopieren
+              </>
+            )}
+          </button>
         </div>
 
         {/* Tastatur-Shortcuts Hint */}
