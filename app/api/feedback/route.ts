@@ -7,7 +7,10 @@ import { sendMail } from "@/lib/mail"
 
 export const runtime = "nodejs"
 
-const ALLOWED_CATEGORIES = new Set(["bug", "idea", "praise", "general"])
+// "question" = Meldung zu einer konkret generierten Frage (fachlich falsch,
+// mehrdeutig, unverständlich). Kommt aus dem Melde-Knopf im Runner und
+// enthält die beanstandete Frage im Klartext, damit sie prüfbar ist.
+const ALLOWED_CATEGORIES = new Set(["bug", "idea", "praise", "general", "question"])
 const MESSAGE_MAX = 2000
 
 function recipient(): string {

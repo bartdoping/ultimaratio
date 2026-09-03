@@ -1,8 +1,15 @@
 import { cn } from "@/lib/utils"
-import { difficultyLabel, difficultyTone } from "@/lib/generator-difficulty"
+import {
+  difficultyHintShort,
+  difficultyLabel,
+  difficultyTone,
+} from "@/lib/generator-difficulty"
+import type { GeneratorSection } from "@/lib/generator-section"
 
 type Props = {
   level: number
+  /** Prüfungsabschnitt — entscheidet über die Bezeichnung der Stufe. */
+  section?: GeneratorSection
   className?: string
 }
 
@@ -16,8 +23,9 @@ const TONE_CLASSES: Record<ReturnType<typeof difficultyTone>, string> = {
     "border-rose-500/30 bg-rose-500/10 text-rose-700 dark:text-rose-300",
 }
 
-export function DifficultyBadge({ level, className }: Props) {
+export function DifficultyBadge({ level, section, className }: Props) {
   const tone = difficultyTone(level)
+  const label = difficultyLabel(level, section)
   return (
     <span
       className={cn(
@@ -25,11 +33,11 @@ export function DifficultyBadge({ level, className }: Props) {
         TONE_CLASSES[tone],
         className
       )}
-      title={difficultyLabel(level)}
+      title={`${Math.round(level)}/5 · ${label} — ${difficultyHintShort(level, section)}`}
     >
       <span className="font-semibold tabular-nums">{Math.round(level)}/5</span>
       <span className="hidden sm:inline">·</span>
-      <span className="hidden sm:inline">{difficultyLabel(level)}</span>
+      <span className="hidden sm:inline">{label}</span>
     </span>
   )
 }

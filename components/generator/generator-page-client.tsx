@@ -15,15 +15,23 @@ import {
   LEARN_PLANS,
   generatableTopics,
   getLearnPlanDay,
-  pickRandomTopic,
   planLastDay,
   type LearnPlanId,
 } from "@/lib/learn-plans"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
 import type { GeneratorSection } from "@/lib/generator-section"
+import {
+  EMPTY_PROGRESS,
+  // Umbenannt: "loadProgress" ist hier bereits der Prozentwert des
+  // Ladebalkens — die Namen dürfen sich nicht überdecken.
+  loadProgress as loadPlanProgress,
+  pickUnusedTopic,
+  saveProgress as savePlanProgress,
+  type PlanProgress,
+} from "@/lib/learn-plan-progress"
 import { cn } from "@/lib/utils"
 import { GENERATOR_TOPIC_MAX } from "@/lib/generator-ai-config"
-import { difficultyLabel } from "@/lib/generator-difficulty"
+import { difficultyHintShort, difficultyLabel } from "@/lib/generator-difficulty"
 import {
   detectGenerationPhase,
   estimateProgress,
@@ -55,6 +63,10 @@ type SessionState = {
     mode: "single" | "case"
     /** Herkunft, wenn die Frage aus einem Lernplan-Tag stammt. */
     sourceLabel?: string
+    /** Prüfungsabschnitt der Generierung — beschriftet die Schwierigkeitsstufe. */
+    section?: GeneratorSection
+    /** Der Server meldet, ob der fachliche Gegencheck aktiv war. */
+    reviewed?: boolean
   }
   /**
    * Die Frage steht, die Erklärungen entstehen noch (zweite Stufe). Nur dann
@@ -108,6 +120,18 @@ export function GeneratorPageClient({
   const [cooldownRemaining, setCooldownRemaining] = useState(0)
   const [phase, setPhase] = useState<GenerationPhase | null>(null)
   /**
+   * Was gerade erzeugt wird. Im Lernplan-Modus wird das Thema erst beim
+   * Generieren gewürfelt — ohne diese Anzeige weiß der Nutzer während der
+   * Wartezeit nicht einmal, zu welchem Thema seine Frage entsteht.
+   */
+  const [pending, setPending] = useState<{
+    topic: string
+    difficulty: number
+    mode: "single" | "case"
+    units: number
+    section: GeneratorSection
+  } | null>(null)
+  /**
    * Schwierigkeit je Teilfrage einer Fallfrage. Index 0 = Teilfrage 1.
    * Wird auf `caseCount` zugeschnitten; neue Teilfragen erben die
    * Gesamtschwierigkeit. `perQuestionDifficulty` schaltet den Modus frei.
@@ -121,6 +145,13 @@ export function GeneratorPageClient({
   const [source, setSource] = useState<"free" | "plan">("free")
   const [planId, setPlanId] = useState<LearnPlanId>("m2")
   const [planDay, setPlanDay] = useState(1)
+  /**
+   * Fest gewähltes Thema des Plantages. `null` = zufällig ziehen (Vorgabe).
+   * Wer gezielt eine Lücke schließen will, wählt das Thema selbst.
+   */
+  const [planTopicChoice, setPlanTopicChoice] = useState<string | null>(null)
+  /** Fortschritt im aktuellen Plan (localStorage, siehe lib/learn-plan-progress). */
+  const [progress, setProgress] = useState<PlanProgress>(EMPTY_PROGRESS)
   const progressTimerRef = useRef<number | null>(null)
   const stageTimerRef = useRef<number | null>(null)
 
@@ -139,6 +170,20 @@ export function GeneratorPageClient({
     topic: string
     promise: Promise<GenResult>
   } | null>(null)
+
+  // Fortschritt des gewählten Plans laden. Nur im Browser vorhanden; ohne
+  // gespeicherten Stand bleibt es beim leeren Fortschritt.
+  useEffect(() => {
+    setProgress(loadPlanProgress(planId))
+  }, [planId])
+
+  const updateProgress = useCallback(
+    (next: PlanProgress) => {
+      setProgress(next)
+      savePlanProgress(planId, next)
+    },
+    [planId]
+  )
 
   const units = mode === "case" ? caseCount : 1
 
@@ -175,7 +220,16 @@ export function GeneratorPageClient({
    */
   const settingsKey = JSON.stringify(
     source === "plan"
-      ? { source, planId, planDay, difficulty, mode, caseCount, effectiveDifficulties }
+      ? {
+          source,
+          planId,
+          planDay,
+          planTopicChoice,
+          difficulty,
+          mode,
+          caseCount,
+          effectiveDifficulties,
+        }
       : { source, topic: topic.trim(), difficulty, mode, caseCount, effectiveDifficulties }
   )
 
@@ -190,7 +244,11 @@ export function GeneratorPageClient({
     if (prefetchRef.current?.key === settingsKey) return
 
     const prefetchTopic =
-      source === "plan" ? (pickRandomTopic(planId, planDay) ?? "") : topic.trim()
+      source === "plan"
+        ? (planTopicChoice ??
+            pickUnusedTopic(planId, planDay, progress.used[String(planDay)] ?? [])?.topic ??
+            "")
+        : topic.trim()
     if (prefetchTopic.length < 3) return
 
     const payload: GeneratePayload = {
@@ -224,6 +282,8 @@ export function GeneratorPageClient({
     caseCount,
     effectiveDifficulties,
     section,
+    planTopicChoice,
+    progress.used,
   ])
 
   const remainingSufficient = quota.unlimited || quota.remaining >= units
@@ -446,10 +506,24 @@ export function GeneratorPageClient({
     // gewürfelt — auch bei "Gleiches Thema" auf der Done-Card, damit man einen
     // Tag durchmischen kann, ohne jedes Mal zurück ins Formular zu müssen.
     // Ein ausdrücklicher Topic-Override (Preset, Share-Link) hat Vorrang.
-    const planTopic =
-      source === "plan" && overrides.topic === undefined
-        ? pickRandomTopic(planId, planDay)
-        : null
+    // Reihenfolge: ausdrücklicher Override (Preset/Share) > fest gewähltes
+    // Thema des Tages > zufällig, aber ohne Wiederholung innerhalb des Tages.
+    let planTopic: string | null = null
+    if (source === "plan" && overrides.topic === undefined) {
+      if (planTopicChoice) {
+        planTopic = planTopicChoice
+      } else {
+        const dayKey = String(planDay)
+        const gezogen = pickUnusedTopic(planId, planDay, progress.used[dayKey] ?? [])
+        if (gezogen) {
+          planTopic = gezogen.topic
+          updateProgress({
+            ...progress,
+            used: { ...progress.used, [dayKey]: gezogen.usedAfter },
+          })
+        }
+      }
+    }
     const effTopic = (overrides.topic ?? planTopic ?? topic).trim()
     const effDifficulty = overrides.difficulty ?? difficulty
     const effMode = overrides.mode ?? mode
@@ -558,6 +632,13 @@ export function GeneratorPageClient({
     setLimitState(null)
     setPhase(null)
     setLoadStage(0)
+    setPending({
+      topic: effTopic,
+      difficulty: effDifficulty,
+      mode: effMode,
+      units: effUnits,
+      section,
+    })
 
     const payload: GeneratePayload = {
       topic: effTopic,
@@ -579,13 +660,28 @@ export function GeneratorPageClient({
       void refreshQuota()
     }
 
-    const sessionMeta = (meta: { topic?: string; difficulty?: number; mode?: string } | undefined) => ({
+    /**
+     * Markiert den Plantag als bearbeitet — sobald eine Frage tatsächlich
+     * angezeigt wird, nicht schon beim Absenden. Ein fehlgeschlagener Versuch
+     * soll den Tag nicht als erledigt zeigen.
+     */
+    const markPlanDayDone = () => {
+      if (source !== "plan") return
+      if (progress.done.includes(planDay)) return
+      updateProgress({ ...progress, done: [...progress.done, planDay] })
+    }
+
+    const sessionMeta = (
+      meta: { topic?: string; difficulty?: number; mode?: string; reviewed?: boolean } | undefined
+    ) => ({
       topic: meta?.topic ?? effTopic,
       difficulty: meta?.difficulty ?? effDifficulty,
       mode: (meta?.mode === "case" ? "case" : "single") as "single" | "case",
       sourceLabel: planTopic
         ? `Tag ${planDay} · ${getLearnPlanDay(planId, planDay)?.subject ?? LEARN_PLANS[planId].shortLabel}`
         : undefined,
+      section,
+      reviewed: meta?.reviewed === true,
     })
 
     // Wurde die Frage bereits aus der ersten Stufe angezeigt? Dann darf das
@@ -614,6 +710,8 @@ export function GeneratorPageClient({
           setLoading(false)
           setLoadProgress(0)
           setPhase(null)
+          setPending(null)
+          markPlanDayDone()
           setSession({
             questions: drafted.questions,
             meta: sessionMeta(drafted.meta),
@@ -686,6 +784,7 @@ export function GeneratorPageClient({
               new CustomEvent("fragenkreuzen:streak-updated", { detail: result.streak })
             )
           }
+          markPlanDayDone()
           setSession({ questions: result.questions, meta: sessionMeta(result.meta) })
           if (result.explanationsFailed) {
             toast.error("Erklärungen unvollständig", {
@@ -704,6 +803,7 @@ export function GeneratorPageClient({
       setLoading(false)
       setLoadProgress(0)
       setPhase(null)
+      setPending(null)
     }
   }
 
@@ -713,6 +813,7 @@ export function GeneratorPageClient({
         questions={session.questions}
         meta={session.meta}
         explanationsPending={session.explanationsPending === true}
+        reviewed={session.meta.reviewed === true}
         onLastAnswerConfirmed={startPrefetch}
         isPro={isPro}
         quotaRemaining={quota.unlimited ? null : quota.remaining}
@@ -879,10 +980,20 @@ export function GeneratorPageClient({
                 setPlanId(id)
                 // Tag auf den gültigen Bereich des neuen Plans begrenzen.
                 setPlanDay((d) => Math.min(d, planLastDay(id)))
+                setPlanTopicChoice(null)
               }}
               day={planDay}
-              onDayChange={setPlanDay}
+              onDayChange={(d) => {
+                setPlanDay(d)
+                // Themenwahl gilt immer für genau einen Tag.
+                setPlanTopicChoice(null)
+              }}
               disabled={loading}
+              doneDays={progress.done}
+              examDate={progress.examDate}
+              onExamDateChange={(iso) => updateProgress({ ...progress, examDate: iso })}
+              selectedTopic={planTopicChoice}
+              onSelectedTopicChange={setPlanTopicChoice}
             />
           )}
         </div>
@@ -918,7 +1029,7 @@ export function GeneratorPageClient({
               </div>
             )}
             {!(mode === "case" && perQuestionDifficulty) && (
-              <DifficultyPill level={difficulty} onChange={setDifficulty} />
+              <DifficultyPill level={difficulty} section={section} onChange={setDifficulty} />
             )}
             {mode === "case" && (
               <button
@@ -967,6 +1078,7 @@ export function GeneratorPageClient({
                     Teilfrage {i + 1}
                   </span>
                   <DifficultyPill
+                    section={section}
                     level={caseDifficulties[i] ?? difficulty}
                     onChange={(lvl) =>
                       setCaseDifficulties((prev) => {
@@ -980,7 +1092,7 @@ export function GeneratorPageClient({
                     }
                   />
                   <span className="text-[11px] text-muted-foreground">
-                    {difficultyLabel(caseDifficulties[i] ?? difficulty)}
+                    {difficultyLabel(caseDifficulties[i] ?? difficulty, section)}
                   </span>
                 </div>
               ))}
@@ -1013,10 +1125,24 @@ export function GeneratorPageClient({
               </div>
 
               {/*
-                Bewusst KEINE Inhalts-Vorschau: Nach dem Stream können noch
-                Qualitäts-Repairs laufen, die Texte verändern. Eine Vorschau
-                würde daher von der fertigen Frage abweichen.
+                Bewusst KEINE Vorschau des halbfertigen Textes: Solange die
+                erste Stufe läuft, ist das JSON unvollständig — angezeigt wird
+                erst die fertig geprüfte Frage. Was hier steht, ist der
+                AUFTRAG, nicht das Ergebnis; er ändert sich nicht mehr.
               */}
+              {pending && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                    {pending.topic}
+                  </span>
+                  <span className="rounded-full border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                    Stufe {pending.difficulty} · {difficultyLabel(pending.difficulty, pending.section)}
+                  </span>
+                  <span className="rounded-full border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                    {pending.mode === "case" ? `Fallfrage · ${pending.units} Teilfragen` : "Einzelfrage"}
+                  </span>
+                </div>
+              )}
               <div className="flex flex-wrap gap-1.5">
                 {LOAD_STAGES.map((stage, i) => (
                   <span
@@ -1142,15 +1268,18 @@ function SegmentedControl<T extends string>({
 
 function DifficultyPill({
   level,
+  section,
   onChange,
 }: {
   level: number
+  /** Prüfungsabschnitt — Stufe 4 heißt in der Vorklinik etwas anderes. */
+  section?: GeneratorSection
   onChange: (level: number) => void
 }) {
   return (
     <div
       className="inline-flex items-center gap-2 rounded-full border bg-background/80 px-2 py-1 text-xs"
-      title={`Schwierigkeit ${level}/5 · ${difficultyLabel(level)}`}
+      title={`Schwierigkeit ${level}/5 · ${difficultyLabel(level, section)} — ${difficultyHintShort(level, section)}`}
     >
       <span className="text-muted-foreground">Schwierigkeit</span>
       <div className="flex items-center gap-0.5">
@@ -1171,6 +1300,9 @@ function DifficultyPill({
           </button>
         ))}
       </div>
+      {/* Wer die Stufe wählt, soll wissen, WEN sie treffen soll — die Zahl
+          allein sagt einem Studierenden nichts. */}
+      <span className="font-medium text-foreground">{difficultyLabel(level, section)}</span>
     </div>
   )
 }
@@ -1206,7 +1338,7 @@ type GenResult =
   | {
       kind: "success"
       questions: BulkQuestion[]
-      meta?: { topic?: string; difficulty?: number; mode?: string }
+      meta?: { topic?: string; difficulty?: number; mode?: string; reviewed?: boolean }
       quota?: QuotaState
       streak?: unknown
       /** Mindestens eine Erklärung konnte nicht erzeugt werden. */
@@ -1251,7 +1383,9 @@ function mapJsonToResult(
   return {
     kind: "success",
     questions: data.questions as BulkQuestion[],
-    meta: data.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+    meta: data.meta as
+      | { topic?: string; difficulty?: number; mode?: string; reviewed?: boolean }
+      | undefined,
     quota: data.quota as QuotaState | undefined,
     streak: data.streak,
     explanationsFailed: data.explanationsFailed === true,
@@ -1361,7 +1495,9 @@ async function runStreamingGeneration(
           onDraft({
             kind: "success",
             questions: evt.questions as BulkQuestion[],
-            meta: evt.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+            meta: evt.meta as
+              | { topic?: string; difficulty?: number; mode?: string; reviewed?: boolean }
+              | undefined,
             quota: evt.quota as QuotaState | undefined,
             streak: evt.streak,
           })
@@ -1372,7 +1508,9 @@ async function runStreamingGeneration(
           return {
             kind: "success",
             questions: evt.questions as BulkQuestion[],
-            meta: evt.meta as { topic?: string; difficulty?: number; mode?: string } | undefined,
+            meta: evt.meta as
+              | { topic?: string; difficulty?: number; mode?: string; reviewed?: boolean }
+              | undefined,
             quota: evt.quota as QuotaState | undefined,
             streak: evt.streak,
             explanationsFailed: evt.explanationsFailed === true,

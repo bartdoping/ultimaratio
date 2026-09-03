@@ -6,7 +6,9 @@ import { AnswerOptions } from "@/components/answer-options"
 import { TextHighlighter, type HighlightSet } from "@/components/text-highlighter"
 import { LabValuesDialog } from "@/components/lab-values-dialog"
 import { DifficultyBadge } from "@/components/generator/difficulty-badge"
+import { QuestionReport } from "@/components/generator/question-report"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
+import type { GeneratorSection } from "@/lib/generator-section"
 import { bulkQuestionsToRunnerFormat } from "@/lib/question-bulk-json"
 import { cn } from "@/lib/utils"
 import {
@@ -28,6 +30,9 @@ import {
 } from "@/lib/insight-quality"
 import { AiDisclaimer } from "@/components/legal/ai-disclaimer"
 
+/** Stabile leere Menge — verhindert eine neue Referenz bei jedem Render. */
+const EMPTY_STRIKES: Set<string> = new Set()
+
 export type GeneratorQuickAction =
   | "same_again"
   | "harder"
@@ -43,6 +48,8 @@ type Props = {
     mode: "single" | "case"
     /** Herkunft, z. B. "Tag 25 · Infektiologie und Hygiene". */
     sourceLabel?: string
+    /** Prüfungsabschnitt — bestimmt die Bezeichnung der Schwierigkeitsstufe. */
+    section?: GeneratorSection
   }
   onNewGeneration: () => void
   /**
@@ -52,6 +59,12 @@ type Props = {
    * einen erklärten Zwischenzustand statt einer leeren Fläche.
    */
   explanationsPending?: boolean
+  /**
+   * Meldet der Server, dass jede Frage zusätzlich fachlich gegengelesen wurde.
+   * Kommt aus der laufenden Instanz, wird NICHT im Client behauptet: Ist der
+   * Gegencheck abgeschaltet, darf die Oberfläche ihn nicht versprechen.
+   */
+  reviewed?: boolean
   /**
    * Feuert genau einmal, wenn die letzte offene Frage aufgelöst wurde. Der
    * Nutzer liest ab jetzt die Erklärung — das ist das Zeitfenster, in dem die
@@ -70,6 +83,7 @@ export function GeneratorRunner({
   questions,
   meta,
   explanationsPending = false,
+  reviewed = false,
   onLastAnswerConfirmed,
   onNewGeneration,
   onQuickAction,
@@ -87,6 +101,12 @@ export function GeneratorRunner({
   const [done, setDone] = useState(false)
   const [labOpen, setLabOpen] = useState(false)
   const [highlightsByQ, setHighlightsByQ] = useState<Record<string, HighlightSet>>({})
+  /**
+   * Gestrichene Optionen je Frage. Liegt hier statt in AnswerOptions, damit
+   * die Tastatur streichen kann — Ausschlussverfahren ist beim Kreuzen das am
+   * häufigsten benutzte Werkzeug und soll ohne Mausweg erreichbar sein.
+   */
+  const [struckByQ, setStruckByQ] = useState<Record<string, Set<string>>>({})
   const [vignetteHighlights, setVignetteHighlights] = useState<HighlightSet>(() => new Set())
   /**
    * Bei welcher Frage-ID der Inline-Pro-Nudge gezeigt wurde. Pro Session/Run
@@ -106,6 +126,18 @@ export function GeneratorRunner({
   const allConfirmed = confirmedCount === runnerQuestions.length
   const expandedExplanation = !!qExpOpen[q.id]
   const stemHighlights = highlightsByQ[q.id] ?? new Set<number>()
+  const struckIds = struckByQ[q.id] ?? EMPTY_STRIKES
+  const toggleStrike = useCallback(
+    (optionId: string) => {
+      setStruckByQ((m) => {
+        const cur = new Set(m[q.id] ?? [])
+        if (cur.has(optionId)) cur.delete(optionId)
+        else cur.add(optionId)
+        return { ...m, [q.id]: cur }
+      })
+    },
+    [q.id]
+  )
   const setStemHighlights = useCallback(
     (next: HighlightSet) => {
       setHighlightsByQ((m) => ({ ...m, [q.id]: next }))
@@ -141,7 +173,11 @@ export function GeneratorRunner({
       const optIdx = letterIdx >= 0 ? letterIdx : digitIdx
       if (optIdx >= 0 && optIdx < q.options.length) {
         e.preventDefault()
-        if (!isConfirmed) {
+        if (isConfirmed) return
+        // Umschalt + Buchstabe/Ziffer = Option streichen statt wählen.
+        if (e.shiftKey) {
+          toggleStrike(q.options[optIdx].id)
+        } else {
           choose(q.options[optIdx].id)
         }
         return
@@ -173,7 +209,7 @@ export function GeneratorRunner({
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [done, labOpen, q.id, given, isConfirmed, atEnd, atStart, allConfirmed])
+  }, [done, labOpen, q.id, given, isConfirmed, atEnd, atStart, allConfirmed, toggleStrike])
 
   function choose(optionId: string) {
     if (isConfirmed) return
@@ -244,7 +280,7 @@ export function GeneratorRunner({
           <span className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-xs font-medium">
             {meta.mode === "case" ? "Fallfrage" : "Einzelfrage"}
           </span>
-          <DifficultyBadge level={meta.difficulty} />
+          <DifficultyBadge level={meta.difficulty} section={meta.section} />
           {meta.sourceLabel && (
             <span className="rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-foreground">
               {meta.sourceLabel}
@@ -323,6 +359,8 @@ export function GeneratorRunner({
         </p>
 
         <AnswerOptions
+          struckIds={struckIds}
+          onToggleStrike={toggleStrike}
           options={q.options}
           selectedOptionId={given}
           onSelect={choose}
@@ -353,10 +391,25 @@ export function GeneratorRunner({
           </p>
         )}
 
+        {/* Melden — direkt an der Frage, nicht im allgemeinen Feedback. */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <QuestionReport
+            stem={q.stem}
+            options={q.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))}
+            caseVignette={q.caseVignette}
+            meta={{
+              topic: meta.topic,
+              difficulty: meta.difficulty,
+              mode: meta.mode === "case" ? "Fallfrage" : "Einzelfrage",
+            }}
+          />
+        </div>
+
         {/* Tastatur-Shortcuts Hint */}
         <p className="hidden sm:block text-[11px] text-muted-foreground/80">
           Tastatur: <kbd className="rounded border bg-muted/40 px-1">A</kbd>–<kbd className="rounded border bg-muted/40 px-1">E</kbd>{" "}
           oder <kbd className="rounded border bg-muted/40 px-1">1</kbd>–<kbd className="rounded border bg-muted/40 px-1">5</kbd> wählen ·{" "}
+          <kbd className="rounded border bg-muted/40 px-1">⇧</kbd>+Buchstabe streichen ·{" "}
           <kbd className="rounded border bg-muted/40 px-1">Enter</kbd> bestätigen / weiter ·{" "}
           <kbd className="rounded border bg-muted/40 px-1">L</kbd> Labor ·{" "}
           <kbd className="rounded border bg-muted/40 px-1">←</kbd>/<kbd className="rounded border bg-muted/40 px-1">→</kbd> Frage wechseln
@@ -486,6 +539,12 @@ export function GeneratorRunner({
       <AiDisclaimer className="mx-auto max-w-prose" />
 
       <p className="text-center text-xs text-muted-foreground">
+        {reviewed && (
+          <>
+            <span className="text-foreground">Fachlich gegengelesen</span>
+            {" · "}
+          </>
+        )}
         Keine Speicherung · keine Decks · Markierungen nur in dieser Session
       </p>
 

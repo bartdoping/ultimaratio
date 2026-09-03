@@ -4,6 +4,7 @@ import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-
 import { parseGenerateRequest } from "@/lib/generator-request"
 import { GeneratorModelError } from "@/lib/generator-openai"
 import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
+import { medicalReviewEnabled } from "@/lib/generator-medical-review"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -190,6 +191,9 @@ export async function POST(req: Request) {
         mode,
         caseQuestionCount: expectedCount,
         unitsCharged: expectedCount,
+        // Tatsache aus der laufenden Instanz, keine Marketing-Aussage: Die
+        // Oberfläche darf den Gegencheck nur nennen, wenn er wirklich lief.
+        reviewed: medicalReviewEnabled(),
       }
 
       // ---- Stufe 1: Frage + Optionen, geprüft und fachlich gegengelesen ----

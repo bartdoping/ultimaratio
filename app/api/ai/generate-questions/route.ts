@@ -4,6 +4,7 @@ import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-
 import { parseGenerateRequest } from "@/lib/generator-request"
 import { GeneratorModelError } from "@/lib/generator-openai"
 import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
+import { medicalReviewEnabled } from "@/lib/generator-medical-review"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -163,6 +164,7 @@ export async function POST(req: Request) {
           mode,
           caseQuestionCount: expectedCount,
           unitsCharged: expectedCount,
+          reviewed: medicalReviewEnabled(),
         },
         streak: streakInfo
           ? {

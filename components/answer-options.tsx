@@ -19,6 +19,13 @@ type AnswerOptionsProps = {
   onSelect: (optionId: string) => void
   showFeedback?: boolean
   submitting?: boolean
+  /**
+   * Optional kontrollierter Streich-Zustand. Wird er übergeben, hält ihn die
+   * Elternkomponente — nötig, damit auch eine Tastenkombination streichen kann
+   * und die Streichungen beim Blättern zur richtigen Frage gehören.
+   */
+  struckIds?: Set<string>
+  onToggleStrike?: (optionId: string) => void
 }
 
 export function AnswerOptions({
@@ -27,12 +34,21 @@ export function AnswerOptions({
   onSelect,
   showFeedback = false,
   submitting = false,
+  struckIds,
+  onToggleStrike,
 }: AnswerOptionsProps) {
-  const [strikethroughIds, setStrikethroughIds] = useState<Set<string>>(new Set())
+  const [internalStruck, setInternalStruck] = useState<Set<string>>(new Set())
   const [openExplanations, setOpenExplanations] = useState<Set<string>>(new Set())
 
+  const isControlled = struckIds !== undefined
+  const strikethroughIds = isControlled ? struckIds : internalStruck
+
   const toggleStrike = (optionId: string) => {
-    setStrikethroughIds((prev) => {
+    if (isControlled) {
+      onToggleStrike?.(optionId)
+      return
+    }
+    setInternalStruck((prev) => {
       const next = new Set(prev)
       if (next.has(optionId)) next.delete(optionId)
       else next.add(optionId)
