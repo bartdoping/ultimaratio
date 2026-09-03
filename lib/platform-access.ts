@@ -20,6 +20,7 @@ const EXACT_PATHS = new Set([
   "/kuendigung",
   "/faq",
   "/account",
+  "/meine-fragen",
   "/subscription",
   "/feedback",
 ])
@@ -41,6 +42,7 @@ const PREFIX_PATHS = [
   "/api/kuendigung",
   "/api/onboarding",
   "/api/presets",
+  "/api/meine-fragen",
   "/blog",
 ]
 

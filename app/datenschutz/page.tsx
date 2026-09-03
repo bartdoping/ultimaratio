@@ -294,6 +294,15 @@ export default function DatenschutzPage() {
             Prüfungsversuche und Lernstände
           </li>
           <li>
+            <strong>Deine generierten Fragen und dein Lernstand dazu:</strong> Erzeugst
+            du als angemeldeter Nutzer eine Frage, speichern wir diese Frage samt
+            Antwortoptionen und Erklärungen sowie das Thema, den Schwierigkeitsgrad
+            und – sobald du antwortest – ob deine Antwort richtig war, wie oft du die
+            Frage bearbeitet hast und wann sie zur Wiederholung ansteht. Das ist die
+            Grundlage für den Bereich „Meine Fragen" mit Fehlerübersicht und
+            Wiederholungen. Ohne Anmeldung findet diese Speicherung nicht statt.
+          </li>
+          <li>
             optionale Angaben aus dem Onboarding (angestrebtes Examen, Semester)
           </li>
           <li>deine Anzeigeeinstellungen (z. B. Schriftgröße)</li>
@@ -301,7 +310,10 @@ export default function DatenschutzPage() {
         <p>
           Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Durchführung des
           Nutzungsverhältnisses). Die Daten speichern wir, solange dein Nutzerkonto
-          besteht. Du kannst dein Konto jederzeit selbst im Bereich{" "}
+          besteht. Gespeicherte Fragen kannst du einzeln im Bereich{" "}
+          <Link href="/meine-fragen">Meine Fragen</Link> löschen; darüber hinaus
+          behalten wir je Konto höchstens die 1.000 zuletzt erzeugten Fragen, ältere
+          werden automatisch entfernt. Du kannst dein Konto jederzeit selbst im Bereich{" "}
           <Link href="/account">Account</Link> löschen oder die Löschung per E-Mail an{" "}
           <a href="mailto:info@ultima-rat.io">info@ultima-rat.io</a> verlangen. Nach
           der Löschung entfernen wir deine Daten, soweit keine gesetzlichen

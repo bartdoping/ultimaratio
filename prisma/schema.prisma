@@ -81,6 +81,7 @@ model User {
   streak        UserStreak?
   generatorPresets GeneratorPreset[]
   feedbacks     UserFeedback[]
+  savedQuestions SavedQuestion[]
 }
 
 model Exam {
@@ -640,4 +641,55 @@ model StripeEventLog {
 
   @@index([type])
   @@index([receivedAt])
+}
+
+/// Eine vom Generator erzeugte und für einen Nutzer gespeicherte Frage.
+///
+/// Bewusst getrennt von `Question`: Jenes Modell verlangt eine `examId` und
+/// gehört zum kuratierten Prüfungsbestand. Generierte Fragen dort einzuhängen
+/// würde Admin-Ansichten, Decks und Auswertungen des Bestands verfälschen.
+///
+/// Die vollständige Frage liegt als JSON in `payload` (Struktur: BulkQuestion).
+/// Die daneben stehenden Spalten sind bewusst denormalisiert, damit Listen,
+/// Fälligkeiten und Themenauswertung ohne JSON-Zugriff abfragbar bleiben.
+///
+/// Löschung: `onDelete: Cascade` — mit dem Konto verschwinden die Fragen.
+model SavedQuestion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Fasst die Teilfragen EINER Fallfrage zusammen.
+  groupId      String
+  orderInGroup Int    @default(0)
+
+  topic       String
+  difficulty  Int
+  mode        String  @default("single")
+  section     String  @default("auto")
+  sourceLabel String?
+  /// Fragestellung, damit Listen ohne JSON-Parsing auskommen.
+  stem        String
+
+  /// Vollständige Frage inkl. Optionen, Erklärungen und Falltext.
+  payload Json
+
+  // ---- Lernstand ----
+  attempts     Int @default(0)
+  correctCount Int @default(0)
+  /// Richtige Antworten in Folge — steuert den Wiederholungsabstand.
+  streak       Int @default(0)
+  lastAnsweredAt DateTime?
+  lastCorrect    Boolean?
+  /// Nächste Fälligkeit zur Wiederholung. null = noch nie beantwortet.
+  dueAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([userId, dueAt])
+  @@index([userId, lastCorrect])
+  @@index([userId, topic])
+  @@index([groupId])
 }

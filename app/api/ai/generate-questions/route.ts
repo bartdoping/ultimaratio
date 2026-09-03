@@ -5,6 +5,7 @@ import { parseGenerateRequest } from "@/lib/generator-request"
 import { GeneratorModelError } from "@/lib/generator-openai"
 import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
 import { medicalReviewEnabled } from "@/lib/generator-medical-review"
+import { saveGeneratedQuestions } from "@/lib/saved-questions-store"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -138,6 +139,17 @@ export async function POST(req: Request) {
       const enriched = await runEnrichPhase(runCtx, draft.questions)
       const questions = enriched.questions
 
+      // Nur für angemeldete Nutzer; best-effort, nie blockierend.
+      const savedIds = access.user?.id
+        ? await saveGeneratedQuestions(access.user.id, questions, {
+            topic,
+            difficulty,
+            mode,
+            section,
+            sourceLabel: null,
+          })
+        : null
+
       // Streak nur für eingeloggte User – best-effort, niemals werfen.
       let streakInfo: Awaited<ReturnType<typeof recordStreakActivity>> = null
       if (access.user?.id) {
@@ -151,6 +163,7 @@ export async function POST(req: Request) {
       const res = NextResponse.json({
         ok: true,
         questions,
+        savedIds,
         explanationsFailed: enriched.failedIndices.length > 0,
         quota: {
           used: quotaResult.used,

@@ -5,6 +5,7 @@ import { parseGenerateRequest } from "@/lib/generator-request"
 import { GeneratorModelError } from "@/lib/generator-openai"
 import { runDraftPhase, runEnrichPhase } from "@/lib/generator-run"
 import { medicalReviewEnabled } from "@/lib/generator-medical-review"
+import { saveGeneratedQuestions } from "@/lib/saved-questions-store"
 import {
   consumeGeneratorQuota,
   refundGeneratorQuota,
@@ -254,10 +255,23 @@ export async function POST(req: Request) {
       // ---- Stufe 2: Erklärungen, während der Nutzer liest ----
       const enriched = await runEnrichPhase(runCtx, draft.questions)
 
+      // Erst jetzt speichern: Die Frage ist vollständig, inklusive Erklärungen.
+      // Nur für angemeldete Nutzer; best-effort, nie blockierend.
+      const savedIds = access.user?.id
+        ? await saveGeneratedQuestions(access.user.id, enriched.questions, {
+            topic,
+            difficulty,
+            mode,
+            section,
+            sourceLabel: null,
+          })
+        : null
+
       send({
         type: "final",
         ok: true,
         questions: enriched.questions,
+        savedIds,
         explanationsFailed: enriched.failedIndices.length > 0,
         quota: quotaPayload,
         meta: metaPayload,

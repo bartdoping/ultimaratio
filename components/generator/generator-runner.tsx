@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { AnswerOptions } from "@/components/answer-options"
 import { TextHighlighter, type HighlightSet } from "@/components/text-highlighter"
@@ -66,6 +67,14 @@ type Props = {
    */
   reviewed?: boolean
   /**
+   * IDs der gespeicherten Fragen, gleiche Reihenfolge wie `questions`.
+   * Ist eine ID vorhanden, wird die Antwort für die Wiederholung erfasst.
+   * Fehlt sie (nicht angemeldet), verhält sich der Runner wie bisher.
+   */
+  savedIds?: (string | null)[] | null
+  /** Meldet eine bestätigte Antwort an die Ablage. */
+  onAnswerRecorded?: (savedId: string, correct: boolean) => void
+  /**
    * Feuert genau einmal, wenn die letzte offene Frage aufgelöst wurde. Der
    * Nutzer liest ab jetzt die Erklärung — das ist das Zeitfenster, in dem die
    * nächste Frage vorab erzeugt werden kann.
@@ -84,6 +93,8 @@ export function GeneratorRunner({
   meta,
   explanationsPending = false,
   reviewed = false,
+  savedIds = null,
+  onAnswerRecorded,
   onLastAnswerConfirmed,
   onNewGeneration,
   onQuickAction,
@@ -126,6 +137,7 @@ export function GeneratorRunner({
   const allConfirmed = confirmedCount === runnerQuestions.length
   const expandedExplanation = !!qExpOpen[q.id]
   const stemHighlights = highlightsByQ[q.id] ?? new Set<number>()
+  const gespeichert = Boolean(savedIds?.some(Boolean))
   const struckIds = struckByQ[q.id] ?? EMPTY_STRIKES
   const toggleStrike = useCallback(
     (optionId: string) => {
@@ -220,6 +232,14 @@ export function GeneratorRunner({
     if (!given || isConfirmed) return
     setConfirmed((c) => ({ ...c, [q.id]: true }))
     setQExpOpen((o) => ({ ...o, [q.id]: true }))
+
+    // Ergebnis an die Ablage melden — daraus entstehen Fehlerliste und
+    // Wiederholungstermin. Best-effort; scheitert es, merkt der Nutzer nichts.
+    const savedId = savedIds?.[idx]
+    if (savedId) {
+      const gewaehlt = q.options.find((o) => o.id === given)
+      onAnswerRecorded?.(savedId, gewaehlt?.isCorrect === true)
+    }
     // Inline-Pro-Nudge nur beim ersten bestätigten Frage-Beleg dieser Session.
     if (!isPro && inlineNudgeForQId == null) {
       setInlineNudgeForQId(q.id)
@@ -538,6 +558,8 @@ export function GeneratorRunner({
       {/* Transparenzhinweis für KI-Inhalte (Art. 50 KI-VO) – dauerhaft sichtbar. */}
       <AiDisclaimer className="mx-auto max-w-prose" />
 
+      {/* Der Hinweis muss der Wirklichkeit folgen: Für angemeldete Nutzer wird
+          die Frage gespeichert, für alle anderen nicht. */}
       <p className="text-center text-xs text-muted-foreground">
         {reviewed && (
           <>
@@ -545,7 +567,16 @@ export function GeneratorRunner({
             {" · "}
           </>
         )}
-        Keine Speicherung · keine Decks · Markierungen nur in dieser Session
+        {gespeichert ? (
+          <>
+            <Link href="/meine-fragen" className="text-foreground underline underline-offset-2">
+              In „Meine Fragen" gespeichert
+            </Link>
+            {" · Markierungen nur in dieser Session"}
+          </>
+        ) : (
+          "Keine Speicherung · Markierungen nur in dieser Session"
+        )}
       </p>
 
       {/* MOBILE STICKY ACTION-BAR */}

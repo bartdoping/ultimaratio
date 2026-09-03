@@ -73,6 +73,8 @@ type SessionState = {
    * zeigt der Runner den Hinweis "Erklärung wird geschrieben".
    */
   explanationsPending?: boolean
+  /** IDs in der Ablage — vorhanden, sobald die Frage gespeichert wurde. */
+  savedIds?: (string | null)[] | null
 }
 
 type LimitState = {
@@ -184,6 +186,19 @@ export function GeneratorPageClient({
     },
     [planId]
   )
+
+  /**
+   * Meldet eine Antwort an die Ablage. Best-effort: Die Erfassung des
+   * Lernstands darf den Durchlauf niemals stören, deshalb ohne Fehleranzeige.
+   */
+  const recordAnswer = useCallback((savedId: string, correct: boolean) => {
+    void fetch(`/api/meine-fragen/${encodeURIComponent(savedId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ correct }),
+    }).catch(() => {})
+  }, [])
 
   const units = mode === "case" ? caseCount : 1
 
@@ -729,7 +744,12 @@ export function GeneratorPageClient({
           if (result.quota) setQuota(result.quota)
           setSession((prev) =>
             prev
-              ? { ...prev, questions: result.questions, explanationsPending: false }
+              ? {
+                  ...prev,
+                  questions: result.questions,
+                  explanationsPending: false,
+                  savedIds: result.savedIds ?? null,
+                }
               : { questions: result.questions, meta: sessionMeta(result.meta) }
           )
           if (result.explanationsFailed) {
@@ -785,7 +805,11 @@ export function GeneratorPageClient({
             )
           }
           markPlanDayDone()
-          setSession({ questions: result.questions, meta: sessionMeta(result.meta) })
+          setSession({
+            questions: result.questions,
+            meta: sessionMeta(result.meta),
+            savedIds: result.savedIds ?? null,
+          })
           if (result.explanationsFailed) {
             toast.error("Erklärungen unvollständig", {
               description:
@@ -814,6 +838,8 @@ export function GeneratorPageClient({
         meta={session.meta}
         explanationsPending={session.explanationsPending === true}
         reviewed={session.meta.reviewed === true}
+        savedIds={session.savedIds}
+        onAnswerRecorded={recordAnswer}
         onLastAnswerConfirmed={startPrefetch}
         isPro={isPro}
         quotaRemaining={quota.unlimited ? null : quota.remaining}
@@ -1343,6 +1369,8 @@ type GenResult =
       streak?: unknown
       /** Mindestens eine Erklärung konnte nicht erzeugt werden. */
       explanationsFailed?: boolean
+      /** IDs der gespeicherten Fragen (nur angemeldet), Reihenfolge wie questions. */
+      savedIds?: (string | null)[] | null
     }
   | { kind: "limit"; data: Record<string, unknown> }
   | { kind: "rate_limited"; retryAfterSec: number; message: string }
@@ -1389,6 +1417,7 @@ function mapJsonToResult(
     quota: data.quota as QuotaState | undefined,
     streak: data.streak,
     explanationsFailed: data.explanationsFailed === true,
+    savedIds: Array.isArray(data.savedIds) ? (data.savedIds as (string | null)[]) : null,
   }
 }
 
@@ -1514,6 +1543,7 @@ async function runStreamingGeneration(
             quota: evt.quota as QuotaState | undefined,
             streak: evt.streak,
             explanationsFailed: evt.explanationsFailed === true,
+            savedIds: Array.isArray(evt.savedIds) ? (evt.savedIds as (string | null)[]) : null,
           }
         } else if (evt.type === "error") {
           return {
