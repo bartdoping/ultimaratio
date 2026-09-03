@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { signOut, useSession } from "next-auth/react"
 import { useEffect, useState } from "react"
 import {
+  BookMarked,
   LogOut,
   Menu,
   Settings as SettingsIcon,
@@ -94,8 +95,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const navItems: NavItem[] = [
     { href: "/generator", label: "Generator", icon: Wand2 },
-    { href: "/account", label: "Account", icon: SettingsIcon },
   ]
+  // "Meine Fragen" nur für Angemeldete: Ohne Konto wird nichts gespeichert,
+  // ein Eintrag ins Leere wäre irreführend.
+  if (isLoggedIn) {
+    navItems.push({ href: "/meine-fragen", label: "Meine Fragen", icon: BookMarked })
+  }
+  navItems.push({ href: "/account", label: "Account", icon: SettingsIcon })
   if (isAdmin) {
     navItems.push({
       href: "/admin",

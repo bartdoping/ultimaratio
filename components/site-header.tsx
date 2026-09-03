@@ -96,6 +96,7 @@ export function SiteHeader() {
             {generatorMode ? (
               <>
                 {navLink("/generator", "Generator")}
+                {session && navLink("/meine-fragen", "Meine Fragen")}
                 {session && navLink("/account", "Account")}
               </>
             ) : (
@@ -103,6 +104,7 @@ export function SiteHeader() {
                 {navLink("/exams", "Prüfungen")}
                 {navLink("/generator", "Generator")}
                 {navLink("/dashboard", "Mein Bereich")}
+                {session && navLink("/meine-fragen", "Meine Fragen")}
                 {showPricingLink && (
                   <Link
                     href="/#preise"
@@ -258,6 +260,15 @@ export function SiteHeader() {
                 </Link>
                 {session && (
                   <Link
+                    href="/meine-fragen"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Meine Fragen
+                  </Link>
+                )}
+                {session && (
+                  <Link
                     href="/account"
                     className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                     onClick={() => setMobileMenuOpen(false)}
@@ -289,6 +300,15 @@ export function SiteHeader() {
                 >
                   Mein Bereich
                 </Link>
+                {session && (
+                  <Link
+                    href="/meine-fragen"
+                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
+                    onClick={() => setMobileMenuOpen(false)}
+                  >
+                    Meine Fragen
+                  </Link>
+                )}
                 {showPricingLink && (
                   <Link
                     href="/#preise"
