@@ -321,7 +321,7 @@ function SidebarContent({
           <Logo />
           <div className="flex flex-col leading-tight">
             <span className="text-sm">fragenkreuzen</span>
-            <span className="text-[10px] text-muted-foreground">by ultima-rat.io</span>
+            <span className="text-xs text-muted-foreground">by ultima-rat.io</span>
           </div>
         </div>
       )}

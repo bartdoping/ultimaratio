@@ -104,7 +104,11 @@ export function AnswerOptions({
           <div
             key={option.id}
             className={cn(
-              "group rounded-lg border bg-background transition-colors",
+              // Der Rahmen umreißt hier die Bedienfläche selbst, nicht bloß
+              // eine Trennlinie — deshalb der kontraststärkere Token (3,26:1
+              // statt 1,24:1). Ausgewählte und bewertete Zustände setzen ihn
+              // ohnehin durch ihre eigene Farbe außer Kraft.
+              "group rounded-lg border border-border-interactive bg-background transition-colors",
               isSelected && !showFeedback && "border-primary/60 bg-primary/5 ring-1 ring-primary/30",
               showFeedback && isCorrect && "border-emerald-500/60 bg-emerald-500/5",
               showFeedback && isSelected && !isCorrect && "border-red-500/60 bg-red-500/5",
@@ -158,7 +162,7 @@ export function AnswerOptions({
               {showFeedback ? (
                 <span
                   className={cn(
-                    "mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold",
+                    "mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-semibold",
                     isCorrect
                       ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : isSelected
@@ -237,7 +241,7 @@ function StrikeIconButton({
       title={active ? "Streichung aufheben" : "Option streichen"}
       aria-label={active ? "Streichung aufheben" : "Option streichen"}
       className={cn(
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "tap-target inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         active && "border-foreground/30 bg-muted text-foreground",
         disabled && "pointer-events-none opacity-40"
       )}

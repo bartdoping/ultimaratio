@@ -446,7 +446,7 @@ export function GeneratorRunner({
               }
             }}
             title="Frage als Text kopieren — zum Teilen in der Lerngruppe"
-            className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="tap-target inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           >
             {kopiert ? (
               <>
@@ -463,7 +463,7 @@ export function GeneratorRunner({
         </div>
 
         {/* Tastatur-Shortcuts Hint */}
-        <p className="hidden sm:block text-[11px] text-muted-foreground/80">
+        <p className="hidden sm:block text-xs text-muted-foreground/80">
           Tastatur: <kbd className="rounded border bg-muted/40 px-1">A</kbd>–<kbd className="rounded border bg-muted/40 px-1">E</kbd>{" "}
           oder <kbd className="rounded border bg-muted/40 px-1">1</kbd>–<kbd className="rounded border bg-muted/40 px-1">5</kbd> wählen ·{" "}
           <kbd className="rounded border bg-muted/40 px-1">⇧</kbd>+Buchstabe streichen ·{" "}
@@ -492,7 +492,7 @@ export function GeneratorRunner({
             {/* Kernaussage — der eine Satz, den man behält */}
             {isKeyTakeawayWorthShowing(q.keyTakeaway) && (
               <div className="animate-fade-in rounded-xl border border-primary/30 bg-gradient-to-br from-primary/10 via-card to-card px-4 py-3">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
                   <Sparkles className="h-3.5 w-3.5" />
                   Kernaussage
                 </div>
@@ -693,7 +693,7 @@ function HighYieldCard({ items }: { items: string[] }) {
   if (clean.length === 0) return null
   return (
     <div className="animate-fade-in rounded-xl border border-gold/35 bg-gold/8 px-4 py-3">
-      <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-gold">
+      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gold">
         <Zap className="h-3.5 w-3.5" />
         High-Yield &amp; Transfer
       </div>

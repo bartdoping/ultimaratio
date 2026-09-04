@@ -153,12 +153,12 @@ export default function AssistantSidebar(props: {
             <div className="text-xs text-muted-foreground">
               {spoilerOn ? (
                 <span className="inline-flex items-center gap-1">
-                  <Badge variant="secondary" className="h-4 text-[10px]">Spoiler-Schutz</Badge>
+                  <Badge variant="secondary" className="h-4 text-xs">Spoiler-Schutz</Badge>
                   {busy ? <span className="inline-flex items-center gap-1"><ThinkingDots /> denkt…</span> : "bereit"}
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1">
-                  <Badge variant="default" className="h-4 text-[10px]">Antworten erlaubt</Badge>
+                  <Badge variant="default" className="h-4 text-xs">Antworten erlaubt</Badge>
                   {busy ? <span className="inline-flex items-center gap-1"><ThinkingDots /> denkt…</span> : "bereit"}
                 </span>
               )}

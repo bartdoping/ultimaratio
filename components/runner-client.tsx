@@ -907,7 +907,7 @@ const aiContext = useMemo(() => {
             if (visible.length === 0) return null
             return (
               <div key={`${g.id ?? "single"}-rail-${gi}`} className="space-y-2">
-                <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
                   {g.id ? g.label : "Einzelfragen"}
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -931,7 +931,7 @@ const aiContext = useMemo(() => {
                         }
                       >
                         {n}
-                        {isFlagged && <span className="absolute -top-1 -right-1 text-[11px] leading-none">★</span>}
+                        {isFlagged && <span className="absolute -top-1 -right-1 text-xs leading-none">★</span>}
                       </button>
                     )
                   })}
@@ -941,7 +941,7 @@ const aiContext = useMemo(() => {
           })}
         </div>
 
-            <div className="mt-4 border-t pt-2 text-[11px] text-muted-foreground space-y-1">
+            <div className="mt-4 border-t pt-2 text-xs text-muted-foreground space-y-1">
               <div>✓ Grün = beantwortet</div>
               <div>• Ring = aktuell</div>
               <div>★ = markiert</div>
@@ -1275,7 +1275,7 @@ const aiContext = useMemo(() => {
                             }
                           >
                             {n}
-                            {isFlagged && <span className="absolute -top-1 -right-1 text-[11px] leading-none">★</span>}
+                            {isFlagged && <span className="absolute -top-1 -right-1 text-xs leading-none">★</span>}
                           </button>
                         )
                       })}

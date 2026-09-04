@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic"
 const SEITE_MAX = 50
 
 /**
- * GET /api/questions — die gespeicherten Fragen des angemeldeten Nutzers.
+ * GET /api/meine-fragen — die gespeicherten Fragen des angemeldeten Nutzers.
  *
  * `filter`:
  *   "due"   — zur Wiederholung fällig (dueAt <= jetzt)

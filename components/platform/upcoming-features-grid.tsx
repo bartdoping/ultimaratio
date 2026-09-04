@@ -18,7 +18,7 @@ export function UpcomingFeaturesGrid({ compact = false }: Props) {
           key={feature.title}
           className="rounded-xl border bg-card p-5 shadow-sm space-y-2 relative overflow-hidden"
         >
-          <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <span className="absolute top-3 right-3 rounded-full bg-muted px-2 py-0.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Bald
           </span>
           <div className="text-2xl" aria-hidden>

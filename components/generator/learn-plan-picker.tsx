@@ -78,7 +78,7 @@ export function LearnPlanPicker({
               disabled={disabled}
               aria-pressed={active}
               className={cn(
-                "rounded-full px-3 py-1.5 font-medium transition-colors",
+                "tap-target rounded-full px-3 py-1.5 font-medium transition-colors",
                 active
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:text-foreground"
@@ -102,7 +102,7 @@ export function LearnPlanPicker({
             onClick={() => onDayChange(clamp(day - 1))}
             disabled={disabled || day <= planFirstDay()}
             aria-label="Vorheriger Tag"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            className="tap-target inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             <Minus className="h-4 w-4" />
           </button>
@@ -125,7 +125,7 @@ export function LearnPlanPicker({
             onClick={() => onDayChange(clamp(day + 1))}
             disabled={disabled || day >= lastDay}
             aria-label="Nächster Tag"
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
+            className="tap-target inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -134,7 +134,7 @@ export function LearnPlanPicker({
         <span className="text-xs text-muted-foreground">von {lastDay}</span>
 
         {doneSet.has(day) && (
-          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+          <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:text-emerald-300">
             <Check className="h-3 w-3" aria-hidden="true" />
             bearbeitet
           </span>
@@ -191,13 +191,13 @@ export function LearnPlanPicker({
               type="button"
               onClick={() => onDayChange(tagHeute)}
               disabled={disabled}
-              className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-primary/20"
+              className="rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-foreground transition-colors hover:bg-primary/20"
             >
               Heute: Tag {tagHeute}
             </button>
           )}
           {tagHeute !== null && tagHeute === day && (
-            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
               Heutiger Tag
             </span>
           )}
@@ -221,7 +221,7 @@ export function LearnPlanPicker({
               disabled={disabled}
               aria-pressed={selectedTopic === null}
               className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] leading-relaxed transition-colors",
+                "tap-target rounded-full border px-2 py-0.5 text-xs leading-relaxed transition-colors",
                 selectedTopic === null
                   ? "border-primary/60 bg-primary/10 font-medium text-foreground"
                   : "bg-card text-muted-foreground hover:bg-muted"
@@ -241,7 +241,7 @@ export function LearnPlanPicker({
                   aria-pressed={aktiv}
                   title={aktiv ? "Auswahl aufheben" : `Gezielt zu „${t}" generieren`}
                   className={cn(
-                    "rounded-full border px-2 py-0.5 text-[11px] leading-relaxed transition-colors",
+                    "tap-target rounded-full border px-2 py-0.5 text-xs leading-relaxed transition-colors",
                     aktiv
                       ? "border-primary/60 bg-primary/10 font-medium text-foreground"
                       : "bg-card text-muted-foreground hover:bg-muted hover:text-foreground"

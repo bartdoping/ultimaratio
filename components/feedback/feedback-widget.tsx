@@ -161,7 +161,7 @@ export function FeedbackWidget() {
                 placeholder="Was läuft gut? Was klemmt? Was wünschst du dir?"
                 maxLength={2000}
               />
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {message.length}/2000
               </p>
             </div>

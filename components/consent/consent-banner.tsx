@@ -153,14 +153,14 @@ export function ConsentBanner() {
             <button
               type="button"
               onClick={() => persist(denyAll())}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Alle ablehnen
             </button>
             <button
               type="button"
               onClick={() => persist(acceptAll())}
-              className="inline-flex h-11 flex-1 items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 flex-1 items-center justify-center rounded-lg border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Alle akzeptieren
             </button>
@@ -169,7 +169,7 @@ export function ConsentBanner() {
             <button
               type="button"
               onClick={() => persist(customConsent({ analytics, marketing }))}
-              className="inline-flex h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
             >
               Auswahl speichern
             </button>
@@ -177,7 +177,7 @@ export function ConsentBanner() {
             <button
               type="button"
               onClick={() => setShowDetails(true)}
-              className="inline-flex h-11 items-center justify-center rounded-lg px-5 text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
+              className="inline-flex min-h-11 items-center justify-center rounded-lg px-5 text-sm font-medium text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-auto"
               aria-expanded={showDetails}
             >
               Einstellungen
@@ -185,7 +185,7 @@ export function ConsentBanner() {
           )}
         </div>
 
-        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
           Rechtsgrundlage für einwilligungspflichtige Dienste ist deine Einwilligung
           (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Der Widerruf ist jederzeit
           mit Wirkung für die Zukunft möglich.{" "}
@@ -234,7 +234,7 @@ function CategoryRow({
           <Icon className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-medium">{title}</span>
           {badge && (
-            <span className="rounded-full border bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            <span className="rounded-full border bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {badge}
             </span>
           )}

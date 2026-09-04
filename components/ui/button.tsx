@@ -21,11 +21,18 @@ const buttonVariants = cva(
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
+      /*
+       * Alle Größen tragen `tap-target`: Die Klasse vergrößert auf Touch-
+       * Geräten ausschließlich die Bedienfläche auf 44 px (Design-Richtlinie
+       * „Accessibility"), ohne die sichtbare Größe oder das Layout zu ändern.
+       * Mit der Maus bleibt alles wie bisher. Gemessen lagen "sm" (32 px) und
+       * "default" (36 px) sonst unter der Mindestgröße für den Finger.
+       */
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
+        default: "tap-target h-9 px-4 py-2 has-[>svg]:px-3",
+        sm: "tap-target h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
+        lg: "tap-target h-10 rounded-md px-6 has-[>svg]:px-4",
+        icon: "tap-target size-9",
       },
     },
     defaultVariants: {

@@ -40,6 +40,7 @@
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-border-interactive: var(--border-interactive);
   --color-destructive: var(--destructive);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
@@ -126,6 +127,14 @@
   --accent-foreground: #02707e;
   --destructive: #b42318;
   --border: #e0e8e9;
+  /*
+   * Rahmen INTERAKTIVER Elemente (Antwortoptionen, Eingabefelder, Umschalter).
+   * --border ist mit 1,24:1 auf Weiß eine reine Trennlinie und darf das auch
+   * bleiben. Wo der Rahmen aber die Bedienfläche selbst umreißt, verlangt
+   * WCAG 1.4.11 mindestens 3:1 — sonst ist bei schwacher Sicht nicht
+   * erkennbar, wo eine Option anfängt und aufhört. #7d9298 erreicht 3,26:1.
+   */
+  --border-interactive: #7d9298;
   --input: #ccd8d9;
   --ring: #0395a6;
 
@@ -182,6 +191,8 @@
   --accent-foreground: #7fd8e3;
   --destructive: #f0685c;
   --border: color-mix(in oklab, #a0cdd4 16%, transparent);
+  /* 3,61:1 auf der Kartenfläche #0d2429. */
+  --border-interactive: #41808e;
   --input: color-mix(in oklab, #a0cdd4 24%, transparent);
   --ring: #22b8c8;
 
@@ -353,3 +364,33 @@ hr { border-color: var(--border); }
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in { animation: fadeIn 260ms ease-out; }
+
+/* ===========================================================================
+ * Trefferflächen auf Touch-Geräten
+ *
+ * Design-Richtlinie „Accessibility": Bedienelemente brauchen mindestens 44 pt
+ * Kantenlänge, damit sie zuverlässig mit dem Finger getroffen werden. Gemessen
+ * auf 390 px Breite lagen 18 Elemente darunter — die Schwierigkeitswahl mit
+ * 20 px am deutlichsten, also ausgerechnet das meistbenutzte Bedienelement.
+ *
+ * Die Klasse vergrößert ausschließlich die BEDIENFLÄCHE über ein Pseudo-
+ * Element, nicht die sichtbare Größe: Das Layout bleibt unverändert, der
+ * Finger trifft trotzdem. Sie greift nur bei grobem Zeiger (Finger/Stift);
+ * mit der Maus bleibt alles wie bisher.
+ * =========================================================================== */
+@media (pointer: coarse) {
+  .tap-target {
+    position: relative;
+  }
+  .tap-target::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+    /* Rein zur Vergrößerung der Trefferfläche — nie sichtbar. */
+    pointer-events: auto;
+  }
+}

@@ -933,7 +933,7 @@ export function GeneratorPageClient({
     <div className="mx-auto w-full max-w-3xl px-4 pb-32 pt-6 sm:px-6 sm:pt-10 lg:pb-14 lg:pt-14">
       {/* Hero — auf Mobile straffer */}
       <div className="mb-6 space-y-2 text-center sm:mb-8 sm:space-y-3">
-        <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-[11px] font-medium text-muted-foreground backdrop-blur sm:text-xs">
+        <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-3 py-1 text-xs font-medium text-muted-foreground backdrop-blur sm:text-xs">
           <Sparkles className="h-3.5 w-3.5 text-primary" />
           KI-Fragengenerator
         </div>
@@ -1137,7 +1137,7 @@ export function GeneratorPageClient({
                       })
                     }
                   />
-                  <span className="text-[11px] text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {difficultyLabel(caseDifficulties[i] ?? difficulty, section)}
                   </span>
                 </div>
@@ -1178,13 +1178,13 @@ export function GeneratorPageClient({
               */}
               {pending && (
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                  <span className="rounded-full border border-primary/30 bg-primary/5 px-2 py-0.5 text-xs font-medium text-foreground">
                     {pending.topic}
                   </span>
-                  <span className="rounded-full border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="rounded-full border bg-card px-2 py-0.5 text-xs text-muted-foreground">
                     Stufe {pending.difficulty} · {difficultyLabel(pending.difficulty, pending.section)}
                   </span>
-                  <span className="rounded-full border bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                  <span className="rounded-full border bg-card px-2 py-0.5 text-xs text-muted-foreground">
                     {pending.mode === "case" ? `Fallfrage · ${pending.units} Teilfragen` : "Einzelfrage"}
                   </span>
                 </div>
@@ -1194,7 +1194,7 @@ export function GeneratorPageClient({
                   <span
                     key={stage}
                     className={cn(
-                      "rounded-full border px-2 py-0.5 text-[11px] transition-colors",
+                      "rounded-full border px-2 py-0.5 text-xs transition-colors",
                       i < loadStage
                         ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
                         : i === loadStage
@@ -1297,7 +1297,7 @@ function SegmentedControl<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
+              "tap-target inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-medium transition-colors",
               active
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:text-foreground"
@@ -1336,7 +1336,7 @@ function DifficultyPill({
             onClick={() => onChange(n)}
             aria-label={`Schwierigkeit ${n} setzen`}
             className={cn(
-              "h-5 w-5 rounded-full text-[10px] font-semibold transition-colors",
+              "tap-target h-5 w-5 rounded-full text-xs font-semibold transition-colors",
               n <= level
                 ? "bg-primary text-primary-foreground"
                 : "border bg-background text-muted-foreground hover:bg-muted"

@@ -181,12 +181,12 @@ export default function AssistantWidget(props: {
               <div className="text-xs text-muted-foreground">
                 {spoilerOn ? (
                   <span className="inline-flex items-center gap-1">
-                    <Badge variant="secondary" className="h-4 text-[10px]">Spoiler-Schutz</Badge>
+                    <Badge variant="secondary" className="h-4 text-xs">Spoiler-Schutz</Badge>
                     {busy ? <span className="inline-flex items-center gap-1"><ThinkingDots /> denkt…</span> : "bereit"}
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1">
-                    <Badge variant="default" className="h-4 text-[10px]">Antworten erlaubt</Badge>
+                    <Badge variant="default" className="h-4 text-xs">Antworten erlaubt</Badge>
                     {busy ? <span className="inline-flex items-center gap-1"><ThinkingDots /> denkt…</span> : "bereit"}
                   </span>
                 )}
@@ -274,7 +274,7 @@ export default function AssistantWidget(props: {
                   {!mine && (
                     <div className="mt-2 -mb-1 flex justify-end">
                       <button
-                        className="text-[11px] text-muted-foreground hover:underline"
+                        className="text-xs text-muted-foreground hover:underline"
                         onClick={() => copy(m.content)}
                         title="Antwort kopieren"
                       >

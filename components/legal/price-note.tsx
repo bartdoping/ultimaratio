@@ -18,7 +18,7 @@ export function PriceNote({
   variant?: "full" | "short"
 }) {
   return (
-    <p className={cn("text-[11px] leading-relaxed text-muted-foreground", className)}>
+    <p className={cn("text-xs leading-relaxed text-muted-foreground", className)}>
       {variant === "short" ? (
         <>Endpreis, keine USt. (§ 19 UStG)</>
       ) : (

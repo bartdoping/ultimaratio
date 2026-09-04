@@ -69,7 +69,7 @@ export default async function ProbierenPage() {
         <div className="mb-6 overflow-hidden rounded-2xl border bg-gradient-to-br from-primary/10 via-card to-card shadow-sm sm:mb-8">
           <div className="grid gap-4 px-5 py-5 sm:grid-cols-[1fr,auto] sm:items-center sm:px-6">
             <div className="space-y-1.5">
-              <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-2.5 py-0.5 text-[11px] font-medium text-primary">
+              <div className="inline-flex items-center gap-1.5 rounded-full border bg-card/60 px-2.5 py-0.5 text-xs font-medium text-primary">
                 <Sparkles className="h-3.5 w-3.5" />
                 Kostenlose Demo · ohne Konto
               </div>

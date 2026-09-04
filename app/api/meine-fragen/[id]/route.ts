@@ -18,7 +18,7 @@ async function currentUserId(): Promise<string | null> {
 }
 
 /**
- * POST /api/questions/[id] — eine Antwort auf eine gespeicherte Frage erfassen.
+ * POST /api/meine-fragen/[id] — eine Antwort auf eine gespeicherte Frage erfassen.
  *
  * Body: { correct: boolean }
  *
@@ -84,7 +84,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   )
 }
 
-/** DELETE /api/questions/[id] — eine gespeicherte Frage entfernen. */
+/** DELETE /api/meine-fragen/[id] — eine gespeicherte Frage entfernen. */
 export async function DELETE(req: Request, ctx: { params: Promise<{ id: string }> }) {
   try {
     assertSameOrigin(req)

@@ -19,7 +19,7 @@ function InfoBadge({ text }: { text: string }) {
     <span className="relative inline-flex items-center align-middle ml-2 group">
       {/* „i“-Icon */}
       <span
-        className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-[11px] leading-none cursor-help select-none"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-full border text-xs leading-none cursor-help select-none"
         aria-label="Info"
         tabIndex={0}
       >

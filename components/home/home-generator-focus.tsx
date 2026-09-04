@@ -105,7 +105,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
       <section className="mx-auto max-w-3xl px-2">
         <div className="mb-4 flex items-center justify-between gap-2">
           <h2 className="text-lg font-semibold tracking-tight">So sieht eine generierte Frage aus</h2>
-          <Badge variant="outline" className="text-[10px] uppercase tracking-wide">
+          <Badge variant="outline" className="text-xs uppercase tracking-wide">
             Beispiel
           </Badge>
         </div>
@@ -150,7 +150,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
                 <th className="px-5 py-3 font-medium">
                   <span className="inline-flex items-center gap-1.5">
                     Pro
-                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                    <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
                       9,99&nbsp;€/Mo
                     </span>
                   </span>

@@ -111,7 +111,7 @@ export function ProDetailsModal({
                   <th className="px-4 py-2 font-medium">
                     <span className="inline-flex items-center gap-1.5">
                       Pro
-                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
                         9,99&nbsp;€/Mo
                       </span>
                     </span>

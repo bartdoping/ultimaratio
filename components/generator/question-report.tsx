@@ -93,7 +93,7 @@ export function QuestionReport(props: Props) {
 
   if (gesendet) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
         <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-hidden />
         Gemeldet — danke.
       </span>
@@ -105,7 +105,7 @@ export function QuestionReport(props: Props) {
       <button
         type="button"
         onClick={() => setOffen(true)}
-        className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        className="tap-target inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
       >
         <Flag className="h-3.5 w-3.5" aria-hidden />
         Frage melden
@@ -124,7 +124,7 @@ export function QuestionReport(props: Props) {
             onClick={() => setGrund(g.id)}
             aria-pressed={grund === g.id}
             className={cn(
-              "rounded-full border px-2.5 py-1 text-[11px] transition-colors",
+              "tap-target rounded-full border px-2.5 py-1 text-xs transition-colors",
               grund === g.id
                 ? "border-primary/60 bg-primary/10 text-foreground"
                 : "text-muted-foreground hover:bg-muted"
@@ -142,7 +142,7 @@ export function QuestionReport(props: Props) {
         placeholder="Optional: Was genau ist falsch?"
         className="mt-2 w-full resize-none rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:ring-2 focus:ring-primary/40"
       />
-      <p className="mt-1 text-[10px] text-muted-foreground">
+      <p className="mt-1 text-xs text-muted-foreground">
         Die Frage und die Antwortoptionen werden zur Prüfung mitgesendet.
       </p>
       <div className="mt-2 flex items-center gap-2">
@@ -150,14 +150,14 @@ export function QuestionReport(props: Props) {
           type="button"
           onClick={senden}
           disabled={!grund || sendet}
-          className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-opacity disabled:opacity-40"
+          className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-opacity disabled:opacity-40"
         >
           {sendet ? "Wird gesendet…" : "Melden"}
         </button>
         <button
           type="button"
           onClick={() => setOffen(false)}
-          className="rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+          className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
           Abbrechen
         </button>

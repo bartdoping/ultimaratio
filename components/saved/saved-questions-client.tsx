@@ -188,7 +188,7 @@ export function SavedQuestionsClient() {
               aria-pressed={aktiv}
               title={f.hinweis}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                "tap-target rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                 aktiv
                   ? "border-primary/60 bg-primary/10 text-foreground"
                   : "text-muted-foreground hover:bg-muted"
@@ -226,26 +226,26 @@ export function SavedQuestionsClient() {
           <li key={q.id} className="rounded-xl border bg-card p-3">
             <div className="flex flex-wrap items-center gap-2">
               <DifficultyBadge level={q.difficulty} section={q.section} />
-              <span className="rounded-full border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
+              <span className="rounded-full border bg-background px-2 py-0.5 text-xs text-muted-foreground">
                 {q.topic}
               </span>
               {q.mode === "case" && (
-                <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-[11px] text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-full border bg-background px-2 py-0.5 text-xs text-muted-foreground">
                   <Layers className="h-3 w-3" aria-hidden /> Fallfrage
                 </span>
               )}
               {q.lastCorrect === false && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-[11px] font-medium text-rose-700 dark:text-rose-300">
+                <span className="inline-flex items-center gap-1 rounded-full border border-rose-500/30 bg-rose-500/10 px-2 py-0.5 text-xs font-medium text-rose-700 dark:text-rose-300">
                   <AlertCircle className="h-3 w-3" aria-hidden /> zuletzt falsch
                 </span>
               )}
               {q.dueAt && new Date(q.dueAt) <= new Date() && (
-                <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-foreground">
+                <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-2 py-0.5 text-xs font-medium text-foreground">
                   <CalendarClock className="h-3 w-3" aria-hidden /> fällig
                 </span>
               )}
               {q.quote !== null && (
-                <span className="text-[11px] tabular-nums text-muted-foreground">
+                <span className="text-xs tabular-nums text-muted-foreground">
                   {q.correctCount}/{q.attempts} richtig
                 </span>
               )}
@@ -266,12 +266,12 @@ export function SavedQuestionsClient() {
                 type="button"
                 onClick={() => void loeschen(q.id)}
                 title="Frage entfernen"
-                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <Trash2 className="h-3.5 w-3.5" aria-hidden /> Entfernen
               </button>
               {!q.question && (
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-xs text-muted-foreground">
                   Inhalt beschädigt — bitte entfernen.
                 </span>
               )}
