@@ -158,7 +158,7 @@ export function TextHighlighter({
       onPointerDown={handlePointerDown}
       onKeyUp={handleKeyUp}
       tabIndex={0}
-      className="whitespace-pre-wrap text-base leading-relaxed select-text outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm"
+      className="whitespace-pre-wrap text-[17px] leading-[1.6] tracking-[-0.01em] select-text outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded-sm sm:text-lg"
     >
       {runs.map((run) =>
         run.on ? (

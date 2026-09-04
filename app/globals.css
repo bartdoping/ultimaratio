@@ -100,7 +100,12 @@
  */
 :root {
   /* Radius-Skala der Referenz: 10 / 14 / 20 / 28 px – Basis ist radius-md. */
-  --radius: 0.875rem;
+  /*
+   * Eckenradius. Von 0,875 rem auf 1 rem angehoben: Die Richtlinie setzt auf
+   * spürbar gerundete, weiche Flächen; 14 px wirkten daneben kantig. Wirkt
+   * über --radius-sm/md/lg/xl auf die ganze Anwendung.
+   */
+  --radius: 1rem;
 
   /* Marken-Rohwerte */
   --brand: #0395a6;
@@ -111,7 +116,16 @@
   --gold: #c08a2d;
 
   /* Semantische Tokens */
-  --background: #ffffff;
+  /*
+   * Seitengrund leicht getönt, Karten bleiben reinweiß.
+   *
+   * Vorher waren --background und --card beide #ffffff — im hellen Modus hob
+   * sich damit keine Karte vom Grund ab, die Gliederung hing allein am Rahmen.
+   * Die Richtlinie trennt Ebenen über die Fläche: gruppierte Inhalte liegen
+   * auf einem gedämpften Grund. #f0f5f6 hebt die Karte um 1,10:1 an und lässt
+   * Fließtext bei 15,6:1 und Sekundärtext bei 4,73:1 — beide über der Schwelle.
+   */
+  --background: #f0f5f6;
   --foreground: #0a1e24;
   --card: #ffffff;
   --card-foreground: #0a1e24;
@@ -393,4 +407,23 @@ hr { border-color: var(--border); }
     /* Rein zur Vergrößerung der Trefferfläche — nie sichtbar. */
     pointer-events: auto;
   }
+}
+
+
+/* ===========================================================================
+ * Materialflächen
+ *
+ * Die Richtlinie trennt Ebenen über MATERIAL und Fläche, nicht über gezogene
+ * Rahmen: Eine Karte hebt sich durch ihren eigenen Grund und einen weichen
+ * Schatten ab, der Rahmen ist bestenfalls eine Haarlinie. Das nimmt der
+ * Oberfläche das Gitternetz-Aussehen, ohne die Gliederung zu verlieren.
+ * =========================================================================== */
+.material {
+  background-color: color-mix(in oklab, var(--card) 88%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow:
+    0 1px 2px color-mix(in oklab, var(--foreground) 6%, transparent),
+    0 8px 24px -12px color-mix(in oklab, var(--foreground) 14%, transparent);
 }

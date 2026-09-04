@@ -339,7 +339,7 @@ export function GeneratorRunner({
         </div>
       )}
 
-      <div className="rounded-xl border bg-card shadow-sm p-5 md:p-8 space-y-6">
+      <div className="material rounded-2xl p-5 md:p-8 space-y-7">
         {q.caseVignette && (
           <div className="rounded-lg border bg-secondary/40">
             <button
@@ -764,7 +764,7 @@ function GeneratorDoneCard({
   const canCase = meta.mode === "single"
 
   return (
-    <div className="rounded-2xl border bg-card p-6 md:p-8 shadow-sm space-y-6">
+    <div className="material rounded-2xl p-6 md:p-8 space-y-6">
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
           Durchlauf abgeschlossen

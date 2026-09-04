@@ -135,7 +135,7 @@ export function SavedQuestionsClient() {
 
       {/* Themenbilanz — wo stehst du? */}
       {daten && daten.byTopic.length > 0 && (
-        <section className="rounded-xl border bg-card p-4">
+        <section className="material rounded-2xl p-5">
           <h2 className="text-sm font-semibold text-foreground">Trefferquote je Thema</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">
             Schwächstes Thema zuerst — Thema anklicken, um gezielt weiterzuüben.
@@ -207,7 +207,7 @@ export function SavedQuestionsClient() {
       {fehler && <p className="text-sm text-rose-600 dark:text-rose-400">{fehler}</p>}
 
       {!laedt && !fehler && daten?.questions.length === 0 && (
-        <div className="rounded-xl border bg-card p-6 text-center">
+        <div className="material rounded-2xl p-8 text-center">
           <p className="text-sm text-muted-foreground">
             {filter === "due"
               ? "Nichts fällig. Gut gemacht — schau später wieder rein."
@@ -221,9 +221,9 @@ export function SavedQuestionsClient() {
         </div>
       )}
 
-      <ul className="space-y-2">
+      <ul className="material divide-y divide-border overflow-hidden rounded-2xl">
         {daten?.questions.map((q) => (
-          <li key={q.id} className="rounded-xl border bg-card p-3">
+          <li key={q.id} className="p-4 transition-colors hover:bg-muted/30">
             <div className="flex flex-wrap items-center gap-2">
               <DifficultyBadge level={q.difficulty} section={q.section} />
               <span className="rounded-full border bg-background px-2 py-0.5 text-xs text-muted-foreground">

@@ -89,7 +89,7 @@ export function AnswerOptions({
         if (submitting) return
         onSelect(value)
       }}
-      className="space-y-1.5"
+      className="divide-y divide-border overflow-hidden rounded-2xl border border-border-interactive bg-card"
       aria-label="Antwortoptionen"
     >
       {options.map((option, index) => {
@@ -104,19 +104,20 @@ export function AnswerOptions({
           <div
             key={option.id}
             className={cn(
-              // Der Rahmen umreißt hier die Bedienfläche selbst, nicht bloß
-              // eine Trennlinie — deshalb der kontraststärkere Token (3,26:1
-              // statt 1,24:1). Ausgewählte und bewertete Zustände setzen ihn
-              // ohnehin durch ihre eigene Farbe außer Kraft.
-              "group rounded-lg border border-border-interactive bg-background transition-colors",
-              isSelected && !showFeedback && "border-primary/60 bg-primary/5 ring-1 ring-primary/30",
-              showFeedback && isCorrect && "border-emerald-500/60 bg-emerald-500/5",
-              showFeedback && isSelected && !isCorrect && "border-red-500/60 bg-red-500/5",
-              isStruck && "opacity-70"
+              // Zustände werden über die FLÄCHE getragen, nicht über eine
+              // eigene Umrandung je Zeile: Fünf gerahmte Kästen übereinander
+              // erzeugen Rahmenrauschen und lassen die Auswahl schwerer
+              // erkennen als ein ruhiger, getönter Streifen.
+              "group relative transition-colors",
+              !showFeedback && !isSelected && "hover:bg-muted/40",
+              isSelected && !showFeedback && "bg-primary/10",
+              showFeedback && isCorrect && "bg-emerald-500/10",
+              showFeedback && isSelected && !isCorrect && "bg-red-500/10",
+              isStruck && "opacity-60"
             )}
           >
             {/* Hauptzeile: Letter + Text + Right-Action (Strike oder Feedback-Chip) */}
-            <div className="flex items-start gap-2 px-2.5 py-2 sm:px-3">
+            <div className="flex items-start gap-2.5 px-4 py-3.5">
               {/* Tappbarer Bereich für Auswahl: Letter + Text */}
               <Label
                 htmlFor={option.id}
@@ -127,7 +128,7 @@ export function AnswerOptions({
               >
                 <span
                   className={cn(
-                    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
+                    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border text-sm font-semibold transition-colors",
                     showFeedback && isCorrect
                       ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
                       : showFeedback && isSelected
@@ -143,7 +144,7 @@ export function AnswerOptions({
 
                 <span
                   className={cn(
-                    "flex-1 select-text pt-0.5 text-[15px] leading-snug sm:text-base",
+                    "flex-1 select-text pt-0.5 text-base leading-relaxed",
                     isStruck && "line-through"
                   )}
                 >
@@ -195,7 +196,7 @@ export function AnswerOptions({
                 type="button"
                 onClick={() => toggleExplanation(option.id)}
                 aria-expanded={isExplOpen}
-                className="flex w-full items-center justify-between gap-2 border-t px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 sm:px-3"
+                className="flex w-full items-center justify-between gap-2 border-t px-4 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50"
               >
                 <span>Erklärung {letter}</span>
                 <ChevronDown
@@ -208,7 +209,7 @@ export function AnswerOptions({
             )}
 
             {showFeedback && hasExplanation && isExplOpen && (
-              <div className="border-t bg-muted/30 px-2.5 py-2 text-sm leading-relaxed text-muted-foreground sm:px-3">
+              <div className="border-t bg-muted/30 px-4 py-3 text-sm leading-relaxed text-muted-foreground">
                 {option.explanation}
               </div>
             )}
