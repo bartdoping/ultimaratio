@@ -1,4 +1,5 @@
 import OpenAI from "openai"
+import { EXCLUSION_INSTRUCTIONS } from "@/lib/option-exclusion-check"
 import {
   GENERATOR_MODEL,
   GENERATOR_MODEL_FALLBACK,
@@ -64,7 +65,7 @@ function buildRequestBody(
  * mit klarem Frontend-Text wandeln kann.
  */
 export class GeneratorModelError extends Error {
-  readonly kind: "invalid_model" | "auth" | "rate_limited" | "server" | "unknown"
+  readonly kind: "invalid_model" | "auth" | "quota" | "rate_limited" | "server" | "unknown"
   readonly status?: number
   constructor(message: string, kind: GeneratorModelError["kind"], status?: number) {
     super(message)
@@ -98,6 +99,26 @@ function classifyOpenAIError(err: unknown): GeneratorModelError {
       "KI-Authentifizierung fehlgeschlagen.",
       "auth",
       status ?? 500
+    )
+  }
+
+  // Guthaben erschöpft — sieht aus wie ein Rate-Limit (ebenfalls HTTP 429),
+  // ist aber keines: Warten und Wiederholen hilft nicht, ein Ersatzmodell in
+  // derselben Organisation auch nicht. Früher landete das als "ausgelastet,
+  // bitte gleich erneut versuchen" beim Nutzer und löste Wiederholungen aus.
+  if (
+    e?.code === "insufficient_quota" ||
+    msg.includes("insufficient_quota") ||
+    msg.includes("no credits") ||
+    msg.includes("exceeded your current quota")
+  ) {
+    console.error(
+      "[generator] OpenAI-Guthaben erschöpft — alle KI-Funktionen fallen aus, bis unter platform.openai.com → Billing nachgeladen wird."
+    )
+    return new GeneratorModelError(
+      "Der KI-Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.",
+      "quota",
+      503
     )
   }
 
@@ -170,6 +191,26 @@ export async function callMedicalReviewer(
 }
 
 /**
+ * Ausschluss-Check: Ein unabhängiger Leser sieht NUR die Antwortoptionen und
+ * nennt, was sich ohne Fachwissen streichen lässt (siehe
+ * lib/option-exclusion-check.ts). Kleines Budget, kein Reasoning — die
+ * Aufgabe ist Lesen, nicht Herleiten, und sie läuft parallel zum fachlichen
+ * Gegencheck, verlängert die Wartezeit also nicht.
+ */
+export async function callOptionExclusionCheck(
+  input: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const params: GeneratorCallParams = {
+    instructions: EXCLUSION_INSTRUCTIONS,
+    input,
+    maxOutputTokens: 600,
+    signal,
+  }
+  return createResponseWithModel(GENERATOR_MODEL, params)
+}
+
+/**
  * Streamt die Generierung. `onDelta` erhält Text-Deltas, sobald sie eintreffen
  * (für die Live-Preview im Client). Rückgabe ist der vollständige Text nach
  * Stream-Ende — die serverseitige Validierung passiert unverändert darauf.
@@ -236,9 +277,69 @@ export async function callGeneratorModel(
  * ausschließlich die beanstandeten Felder überarbeiten. Stem, Vignette und
  * Antwortoptionen bleiben identisch — die Frage behält also ihre Identität.
  */
+/**
+ * Was eine Nachbesserung ändern darf.
+ *
+ *  - "explanations": Die Frage ist bereits sichtbar. Stem, Falltext,
+ *    Optionen und die Markierung der richtigen Antwort sind unantastbar;
+ *    nur Erklärungs- und Zusatztexte dürfen sich ändern.
+ *  - "options": Die Frage ist noch NICHT sichtbar. Die Optionstexte dürfen
+ *    umformuliert und unplausible Distraktoren ersetzt werden — Stem,
+ *    Reihenfolge, Markierung und die Aussage der richtigen Option nicht.
+ *    Für formale Lösungshinweise (siehe lib/option-cues.ts).
+ *  - "draft": Die Frage ist noch NICHT sichtbar und hat einen inhaltlichen
+ *    Mangel (fachlicher Fehler, Spoiler, ungültige Struktur). Stem, Optionen
+ *    und Markierung dürfen geändert werden, soweit die Mängelliste es verlangt.
+ *
+ * Früher gab es nur den ersten Rahmen — auch in der Entwurfsstufe. Damit
+ * bekam das Modell bei einem fachlichen Befund widersprüchliche Anweisungen:
+ * Der Hinweis verlangte, die richtige Antwort umzumarkieren, der Rahmen
+ * verbot genau das.
+ */
+export type RepairScope = "explanations" | "options" | "draft"
+
+function repairFrame(scope: RepairScope): string[] {
+  if (scope === "options") {
+    return [
+      "Die Frage ist noch nicht veröffentlicht.",
+      "",
+      "ZWINGEND UNVERÄNDERT übernehmen:",
+      '  - "stem" und "caseVignette" (Zeichen für Zeichen)',
+      "  - die Reihenfolge der Antwortoptionen",
+      '  - jeder "options[].isCorrect"',
+      "  - die fachliche AUSSAGE der richtigen Option (nur ihre Formulierung darf sich ändern)",
+      "",
+      "ERLAUBT und GEFORDERT: die Formulierung der Antwortoptionen so anzugleichen,",
+      "dass keine Option durch Form auffällt; unplausible Distraktoren durch",
+      "plausible zu ersetzen. Alle übrigen Felder bleiben unverändert.",
+    ]
+  }
+  if (scope === "draft") {
+    return [
+      "Die Frage ist noch nicht veröffentlicht.",
+      "",
+      "Behebe die genannten Mängel. Dafür darfst du Stem, Antwortoptionen und die",
+      "Markierung der richtigen Antwort ändern — aber NUR soweit die Mängelliste",
+      "es verlangt. Thema, Schwierigkeitsgrad, Modus und die Anzahl der Fragen",
+      "bzw. Teilfragen bleiben gleich. Keine neue Frage zu einem anderen Aspekt.",
+    ]
+  }
+  return [
+    "ZWINGEND UNVERÄNDERT übernehmen (Zeichen für Zeichen):",
+    '  - "stem" jeder Frage',
+    '  - "caseVignette"',
+    '  - jeder "options[].text"',
+    '  - jeder "options[].isCorrect"',
+    "",
+    "Du erfindest KEINE neue Frage, KEIN neues Thema und KEINE neuen",
+    "Antwortoptionen. Verändert werden ausschließlich die beanstandeten",
+    "Erklärungs- und Zusatztexte.",
+  ]
+}
+
 export async function callGeneratorRepair(
   params: GeneratorCallParams,
-  opts: { hint: string; previousJson: string }
+  opts: { hint: string; previousJson: string; scope?: RepairScope }
 ): Promise<string> {
   const repairInput = [
     "ÜBERARBEITUNG EINER BEREITS ERZEUGTEN FRAGE",
@@ -249,15 +350,7 @@ export async function callGeneratorRepair(
     "AUFGABE: Gib GENAU DIESE Frage erneut aus und behebe ausschließlich die",
     "genannten Mängel.",
     "",
-    "ZWINGEND UNVERÄNDERT übernehmen (Zeichen für Zeichen):",
-    '  - "stem" jeder Frage',
-    '  - "caseVignette"',
-    '  - jeder "options[].text"',
-    '  - jeder "options[].isCorrect"',
-    "",
-    "Du erfindest KEINE neue Frage, KEIN neues Thema und KEINE neuen",
-    "Antwortoptionen. Verändert werden ausschließlich die beanstandeten",
-    "Erklärungs- und Zusatztexte.",
+    ...repairFrame(opts.scope ?? "explanations"),
     "",
     "DEINE BISHERIGE ANTWORT:",
     opts.previousJson,
@@ -282,10 +375,12 @@ export async function callGeneratorModelWithRetry(
     // Aborts/Timeouts nicht erneut versuchen.
     if (params.signal?.aborted) throw firstError
 
-    // Auth-Fehler sind hart — kein Retry und kein Fallback-Modell.
+    // Auth-Fehler und fehlendes Guthaben sind hart — kein Retry und kein
+    // Fallback-Modell. Beides würde nur weitere, garantiert scheiternde
+    // Aufrufe erzeugen.
     if (
       firstError instanceof GeneratorModelError &&
-      firstError.kind === "auth"
+      (firstError.kind === "auth" || firstError.kind === "quota")
     ) {
       throw firstError
     }

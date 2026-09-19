@@ -90,7 +90,9 @@ describe("Stufen-Vorrang im System-Prompt", () => {
 
   it("begrenzt Verkomplizierung und harte Distraktoren auf Stufe 3+", () => {
     expect(sys).toMatch(/auf Stufe 1–2 ist sie UNTERSAGT/)
-    expect(sys).toMatch(/Auf Stufe 1–2 dürfen Distraktoren dagegen klar falsch sein/)
+    // Stufe 1–2: klar falsch nur für Wissende — für Unwissende ebenso plausibel.
+    expect(sys).toMatch(/Auf Stufe 1–2 dürfen Distraktoren dagegen klar falsch sein — aber nur für Wissende/)
+    expect(sys).toMatch(/Für jemanden OHNE dieses Wissen müssen sie aber genauso plausibel wirken/)
   })
 })
 

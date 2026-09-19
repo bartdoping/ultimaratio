@@ -132,6 +132,16 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ ok: true, text })
   } catch (e: any) {
+    // Fehlendes OpenAI-Guthaben kommt ebenfalls als HTTP 429 — früher wurde
+    // daraus "forbidden". Für Nutzer ist es ein vorübergehender Ausfall.
+    const msg = String(e?.message || "").toLowerCase()
+    if (e?.code === "insufficient_quota" || msg.includes("no credits") || msg.includes("exceeded your current quota")) {
+      console.error("[assistant] OpenAI-Guthaben erschöpft — der KI-Tutor fällt aus, bis nachgeladen wird.")
+      return NextResponse.json(
+        { ok: false, error: "Der KI-Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut." },
+        { status: 503 }
+      )
+    }
     if (e?.status) {
       return NextResponse.json({ ok: false, error: "forbidden" }, { status: e.status })
     }

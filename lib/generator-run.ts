@@ -12,6 +12,8 @@ import {
   callGeneratorModelWithRetry,
   callGeneratorRepair,
   callMedicalReviewer,
+  callOptionExclusionCheck,
+  GeneratorModelError,
   streamGeneratorModel,
 } from "@/lib/generator-openai"
 import type { GeneratorSection } from "@/lib/generator-section"
@@ -82,6 +84,9 @@ export async function runDraftPhase(
     } catch (err) {
       // Ein Abbruch (Timeout, Client weg) ist endgültig — nicht neu versuchen.
       if (ctx.signal.aborted || (err as { name?: string })?.name === "AbortError") throw err
+      // Fehlendes Guthaben oder ungültiger Schlüssel: Ein zweiter Versuch
+      // scheitert garantiert und kostet nur Zeit.
+      if (err instanceof GeneratorModelError && (err.kind === "quota" || err.kind === "auth")) throw err
 
       // Der Streaming-Aufruf kennt selbst keinen Modell-Fallback. Fällt das
       // Primärmodell aus, wiederholen wir OHNE Stream: `callGeneratorModelWithRetry`
@@ -104,9 +109,31 @@ export async function runDraftPhase(
     rawText,
     mode: ctx.mode,
     expectedCount: ctx.expectedCount,
-    repair: (opts) => callGeneratorRepair(callParams, opts),
-    medicalReview: (reviewInput) => callMedicalReviewer(reviewInput, ctx.signal),
+    topic: ctx.topic,
+    repair: (opts) =>
+      callGeneratorRepair({ ...callParams, signal: begrenzt(ctx.signal, REPAIR_TIMEOUT_MS) }, opts),
+    medicalReview: (reviewInput) =>
+      callMedicalReviewer(reviewInput, begrenzt(ctx.signal, CHECK_TIMEOUT_MS)),
+    exclusionCheck: (input) =>
+      callOptionExclusionCheck(input, begrenzt(ctx.signal, CHECK_TIMEOUT_MS)),
   })
+}
+
+/**
+ * Obergrenzen für die Aufrufe NACH dem Entwurf.
+ *
+ * Die Prüfungen und Nachbesserungen sind fehlertolerant — scheitern sie, bleibt
+ * die Frage unverändert. Sie waren aber nicht ZEITtolerant: In der Messung hing
+ * ein einzelner Aufruf 240 s und hielt die fertige Frage so lange zurück, weil
+ * nur das Gesamt-Timeout griff. Ein Prüfer, der nicht antwortet, soll die Frage
+ * nicht blockieren; nach der Grenze gilt er als gescheitert und die Frage geht
+ * unverändert weiter.
+ */
+const CHECK_TIMEOUT_MS = 25_000
+const REPAIR_TIMEOUT_MS = 40_000
+
+function begrenzt(signal: AbortSignal, ms: number): AbortSignal {
+  return AbortSignal.any([signal, AbortSignal.timeout(ms)])
 }
 
 /**

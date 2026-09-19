@@ -8,6 +8,18 @@ import {
   type DepthCheckIssue,
 } from "@/lib/generator-validate"
 import { buildSpoilerRepairHint, detectSpoilers } from "@/lib/spoiler-detection"
+import { buildCueRepairHint, detectOptionCues, needsQuestionRework } from "@/lib/option-cues"
+import { shuffleAll } from "@/lib/option-order"
+import {
+  buildExclusionInput,
+  buildExclusionRepairHint,
+  needsOptionRework,
+  optionCheckEnabled,
+  parseExclusionResult,
+  type ExclusionFn,
+  type ExclusionResult,
+} from "@/lib/option-exclusion-check"
+import type { RepairScope } from "@/lib/generator-openai"
 import {
   buildMedicalRepairHint,
   hasFindings,
@@ -39,6 +51,8 @@ export type FinalizeResult =
 export type RepairFn = (opts: {
   hint: string
   previousJson: string
+  /** Was die Nachbesserung ändern darf — siehe `RepairScope`. Vorgabe: nur Erklärungen. */
+  scope?: RepairScope
 }) => Promise<string>
 
 /**
@@ -67,6 +81,38 @@ function repairableIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
 }
 
 /**
+ * Führt den Ausschluss-Check je Frage parallel aus. Fail-open: Ohne Funktion,
+ * bei abgeschalteter Prüfung oder bei einem Fehler ist das Ergebnis null.
+ */
+async function runExclusionChecks(
+  questions: BulkQuestion[],
+  check: ExclusionFn | undefined
+): Promise<(ExclusionResult | null)[]> {
+  if (!check || !optionCheckEnabled()) return questions.map(() => null)
+  return Promise.all(
+    questions.map(async (q) => {
+      try {
+        const { input, zuordnung } = buildExclusionInput(q)
+        return parseExclusionResult(await check(input), zuordnung)
+      } catch (err) {
+        console.warn("[generator] Ausschluss-Check fehlgeschlagen – Frage bleibt unverändert.", err)
+        return null
+      }
+    })
+  )
+}
+
+/** Steht die richtige Antwort in jeder Frage noch an derselben Stelle? */
+function sameCorrectPositions(a: BulkQuestion[], b: BulkQuestion[]): boolean {
+  if (a.length !== b.length) return false
+  return a.every((q, i) => {
+    const ia = q.options.findIndex((o) => o.isCorrect)
+    const ib = b[i].options.findIndex((o) => o.isCorrect)
+    return ia === ib && q.options.length === b[i].options.length
+  })
+}
+
+/**
  * Nachbearbeitung der ERSTEN Stufe (Frage + Optionen, noch ohne Erklärungen).
  *
  * Diese Stufe entscheidet über alles, was der Studierende gleich zu sehen
@@ -74,10 +120,14 @@ function repairableIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
  * vollständig abgeschlossen sein, BEVOR die Frage ausgeliefert wird:
  *
  *  1) Struktur-Validierung (+ 1 Repair bei ungültigem JSON)
- *  2) Spoiler-Prüfung der Teilfragen-Stems bei Fallfragen — ein Stem, der eine
+ *  2) Formale Lösungshinweise in den Antwortoptionen (siehe lib/option-cues.ts):
+ *     Ist die richtige Antwort an Länge, Begründungen, Dringlichkeitswörtern
+ *     oder Absicherungen erkennbar, werden die Optionen angeglichen — nur hier
+ *     ist das möglich, danach sieht der Nutzer sie.
+ *  3) Spoiler-Prüfung der Teilfragen-Stems bei Fallfragen — ein Stem, der eine
  *     spätere Lösung verrät, ließe sich später nicht mehr korrigieren, ohne
  *     dem Nutzer die Frage unter den Händen wegzuändern.
- *  3) Unabhängiger fachlicher Gegencheck. Läuft bewusst VOR der Anzeige: Wird
+ *  4) Unabhängiger fachlicher Gegencheck. Läuft bewusst VOR der Anzeige: Wird
  *     die als richtig markierte Antwort beanstandet, muss das korrigiert sein,
  *     bevor jemand die Frage liest.
  *
@@ -90,6 +140,15 @@ export async function finalizeDraft(opts: {
   expectedCount: number
   repair: RepairFn
   medicalReview?: ReviewFn
+  /** Thema der Generierung — für die Erkennung eines Themenechos in der richtigen Antwort. */
+  topic?: string
+  /**
+   * Optionaler Ausschluss-Check: liest nur die Optionen und nennt, was sich
+   * ohne Fachwissen streichen lässt (siehe lib/option-exclusion-check.ts).
+   */
+  exclusionCheck?: ExclusionFn
+  /** Zufallsquelle für die Reihenfolge der Optionen — nur für Tests überschrieben. */
+  rand?: () => number
 }): Promise<FinalizeResult> {
   const { mode, expectedCount, repair } = opts
   let jsonText = extractJsonFromModelText(opts.rawText)
@@ -99,6 +158,7 @@ export async function finalizeDraft(opts: {
     const repaired = await repair({
       hint: `VALIDIERUNGSFEHLER: ${check.error}`,
       previousJson: jsonText,
+      scope: "draft",
     })
     jsonText = extractJsonFromModelText(repaired)
     check = validateGeneratedQuestions(jsonText, mode, expectedCount, "draft")
@@ -112,6 +172,42 @@ export async function finalizeDraft(opts: {
     }
   }
 
+  // Formale Lösungshinweise — nur die betroffenen Teilfragen, parallel.
+  // Läuft vor Spoiler-Prüfung und Gegencheck, damit beide die endgültig
+  // formulierten Optionen sehen.
+  {
+    const questions = [...check.questions]
+    const betroffen = [...new Set(detectOptionCues(questions, opts.topic).map((c) => c.questionIndex))]
+    if (betroffen.length > 0) {
+      const results = await Promise.all(
+        betroffen.map(async (idx) => {
+          const original = questions[idx]
+          const vorher = detectOptionCues([original], opts.topic)
+          // Ein Themenecho verlangt eine umgestellte Frage, alles andere nur
+          // angeglichene Formulierungen der Optionen.
+          const umbau = needsQuestionRework(vorher)
+          const repaired = await repair({
+            hint: buildCueRepairHint(vorher),
+            previousJson: JSON.stringify({ questions: [original] }),
+            scope: umbau ? "draft" : "options",
+          })
+          const rc = validateGeneratedQuestions(extractJsonFromModelText(repaired), mode, 1, "draft")
+          if (!rc.ok || !rc.questions[0]) return null
+          const neu = { ...rc.questions[0], caseVignette: original.caseVignette ?? null }
+          // Nur übernehmen, was tatsächlich weniger verrät — und bei reinen
+          // Formulierungskorrekturen die richtige Antwort an ihrem Platz lässt.
+          if (!umbau && !sameCorrectPositions([original], [neu])) return null
+          if (detectOptionCues([neu], opts.topic).length >= vorher.length) return null
+          return { idx, question: neu }
+        }).map((pr) => pr.catch(() => null))
+      )
+      for (const r of results) {
+        if (r) questions[r.idx] = r.question
+      }
+      check = { ok: true, questions }
+    }
+  }
+
   // Spoiler zwischen den Teilfragen-Stems. Höhere Schwelle als beim vollen
   // Text: Ohne Erklärungen ist ein einzelnes geteiltes Wort kein Beleg, und
   // ein Reparatur-Durchlauf kostet hier ~40 s.
@@ -122,6 +218,7 @@ export async function finalizeDraft(opts: {
         const repaired = await repair({
           hint: buildSpoilerRepairHint(hits),
           previousJson: JSON.stringify({ questions: check.questions }),
+          scope: "draft",
         })
         const recheck = validateGeneratedQuestions(
           extractJsonFromModelText(repaired),
@@ -141,59 +238,79 @@ export async function finalizeDraft(opts: {
     }
   }
 
-  // Fachlicher Gegencheck vor der Anzeige.
-  if (opts.medicalReview) {
-    try {
-      const findings = await reviewMedicalAccuracy(check.questions, opts.medicalReview)
-      const flagged = findings.filter(hasFindings)
+  // Fachlicher Gegencheck und Ausschluss-Check — gleichzeitig.
+  //
+  // Beide lesen denselben Entwurf und sind voneinander unabhängig; parallel
+  // verlängern sie die Wartezeit nicht über den langsameren der beiden hinaus.
+  // Je Teilfrage folgt höchstens EINE Nachbesserung: Hat sie einen fachlichen
+  // Befund, gehen beide Befunde in denselben Auftrag.
+  try {
+    const questions = [...check.questions]
+    const [findings, ausschluss] = await Promise.all([
+      opts.medicalReview
+        ? reviewMedicalAccuracy(questions, opts.medicalReview)
+        : Promise.resolve([]),
+      runExclusionChecks(questions, opts.exclusionCheck),
+    ])
 
-      if (flagged.length > 0) {
-        // Gezielt NUR die beanstandeten Teilfragen neu erzeugen, und diese
-        // parallel. Der Gutachter beanstandet je Frage unabhängig; einen
-        // ganzen Fall mit fünf Teilfragen neu zu schreiben, weil eine davon
-        // auffiel, kostete ~35 s statt ~8 s.
-        const questions = [...check.questions]
-        const results = await Promise.all(
-          flagged.map(async (finding) => {
-            const idx = finding.questionIndex
-            const original = questions[idx]
-            if (!original) return null
+    const fachlich = new Map(findings.filter(hasFindings).map((f) => [f.questionIndex, f]))
+    const auftraege = questions
+      .map((q, idx) => {
+        const befund = fachlich.get(idx)
+        const ex = ausschluss[idx]
+        const formlich = ex && needsOptionRework(q, ex) ? ex : null
+        if (!befund && !formlich) return null
+        return { idx, befund, formlich }
+      })
+      .filter((a): a is NonNullable<typeof a> => a !== null)
 
-            // Der Hint nummeriert 1-basiert; hier ist es immer "Frage 1".
-            const hint = buildMedicalRepairHint([{ ...finding, questionIndex: 0 }])
-            if (!hint) return null
+    if (auftraege.length > 0) {
+      const results = await Promise.all(
+        auftraege.map(async ({ idx, befund, formlich }) => {
+          const original = questions[idx]
+          // Die Hinweise zählen 1-basiert; die Einzelfrage ist immer "Frage 1".
+          const teile = [
+            befund ? buildMedicalRepairHint([{ ...befund, questionIndex: 0 }]) : "",
+            formlich ? buildExclusionRepairHint(original, formlich) : "",
+          ].filter(Boolean)
+          if (teile.length === 0) return null
 
-            const repaired = await repair({
-              hint,
-              previousJson: JSON.stringify({ questions: [original] }),
-            })
-            const rc = validateGeneratedQuestions(
-              extractJsonFromModelText(repaired),
-              mode,
-              1,
-              "draft"
-            )
-            if (!rc.ok || !rc.questions[0]) return null
-            return {
-              idx,
-              // Der Falltext ist allen Teilfragen gemeinsam und darf durch die
-              // Einzelreparatur nicht auseinanderlaufen.
-              question: { ...rc.questions[0], caseVignette: original.caseVignette ?? null },
-            }
-          }).map((p) => p.catch(() => null))
-        )
+          const repaired = await repair({
+            hint: teile.join("\n\n"),
+            previousJson: JSON.stringify({ questions: [original] }),
+            // Ein fachlicher Befund darf die richtige Antwort ändern, ein
+            // reiner Form-Befund nur die Formulierung der Optionen.
+            scope: befund ? "draft" : "options",
+          })
+          const rc = validateGeneratedQuestions(extractJsonFromModelText(repaired), mode, 1, "draft")
+          if (!rc.ok || !rc.questions[0]) return null
+          // Der Falltext ist allen Teilfragen gemeinsam und darf durch die
+          // Einzelreparatur nicht auseinanderlaufen.
+          const neu = { ...rc.questions[0], caseVignette: original.caseVignette ?? null }
 
-        for (const r of results) {
-          if (r) questions[r.idx] = r.question
-        }
-        check = { ok: true, questions }
+          if (!befund) {
+            // Reine Form-Nachbesserung: Die richtige Antwort bleibt, wo sie
+            // war, und es dürfen keine neuen Wortmuster-Hinweise entstehen.
+            if (!sameCorrectPositions([original], [neu])) return null
+            if (detectOptionCues([neu], opts.topic).length > detectOptionCues([original], opts.topic).length) return null
+          }
+          return { idx, question: neu }
+        }).map((pr) => pr.catch(() => null))
+      )
+
+      for (const r of results) {
+        if (r) questions[r.idx] = r.question
       }
-    } catch {
-      // best-effort — die fachliche Prüfung darf nie zum Fehlschlag führen.
+      check = { ok: true, questions }
     }
+  } catch {
+    // best-effort — die Prüfungen dürfen nie zum Fehlschlag führen.
   }
 
-  return { ok: true, questions: check.questions }
+  // Reihenfolge mischen — erst jetzt, nach allen Prüfungen, und bevor die
+  // Erklärungen entstehen (siehe lib/option-order.ts). Das Modell setzte die
+  // richtige Antwort sonst fast nie auf D oder E.
+  return { ok: true, questions: shuffleAll(check.questions, opts.rand) }
 }
 
 /**
@@ -277,6 +394,7 @@ export async function finalizeGenerated(opts: {
         const repaired = await repair({
           hint: buildSpoilerRepairHint(hits),
           previousJson: JSON.stringify({ questions: check.questions }),
+          scope: "draft",
         })
         const repairedJson = extractJsonFromModelText(repaired)
         const recheck = validateGeneratedQuestions(repairedJson, mode, expectedCount)
