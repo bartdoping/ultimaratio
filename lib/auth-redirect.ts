@@ -1,14 +1,12 @@
 /** Sichere interne Weiterleitung nach Login/Register (keine Open-Redirects). */
 
-import { isAdminRole } from "@/lib/platform-access"
-
-export function getDefaultAuthFallback(role?: string | null): string {
-  return isAdminRole(role ?? undefined) ? "/dashboard" : "/generator"
+export function getDefaultAuthFallback(_role?: string | null): string {
+  return "/kreuzen"
 }
 
 export function getSafeCallbackUrl(
   raw: string | null | undefined,
-  fallback = "/generator"
+  fallback = "/kreuzen"
 ): string {
   if (!raw || typeof raw !== "string") return fallback
   const trimmed = raw.trim()

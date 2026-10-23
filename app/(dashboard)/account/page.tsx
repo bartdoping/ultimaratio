@@ -6,6 +6,10 @@ import prisma from "@/lib/db"
 import AccountClient from "./account-client"
 import { SettingsShell } from "@/components/settings/settings-shell"
 import { GeneratorAccountSummary } from "@/components/account/generator-summary"
+import { LearningSettings } from "@/components/account/learning-settings"
+import { ReferralCard } from "@/components/account/referral-card"
+import { ensureReferralCode } from "@/lib/referral"
+import { getAppBaseUrl } from "@/lib/app-base-url"
 
 export const dynamic = "force-dynamic"
 
@@ -21,9 +25,19 @@ export default async function AccountPage() {
       surname: true,
       email: true,
       createdAt: true,
+      reminderOptIn: true,
+      dailyGoal: true,
+      proBonusUntil: true,
     },
   })
   if (!me) notFound()
+
+  const [refCode, eingeladen, belohnt] = await Promise.all([
+    ensureReferralCode(me.id).catch(() => null),
+    prisma.user.count({ where: { referredById: me.id } }),
+    prisma.user.count({ where: { referredById: me.id, referralRewardedAt: { not: null } } }),
+  ])
+  const bonusAktiv = me.proBonusUntil && me.proBonusUntil.getTime() > Date.now()
 
   const purchases = await prisma.purchase.findMany({
     where: { userId: me.id },
@@ -34,9 +48,18 @@ export default async function AccountPage() {
   return (
     <SettingsShell
       title="Account"
-      description="Persönliche Daten, Login, Abo und Generator-Nutzung."
+      description="Persönliche Daten, Login, Abo, Lernziel und Erinnerungen."
     >
       <GeneratorAccountSummary />
+      <LearningSettings initialOptIn={me.reminderOptIn} initialGoal={me.dailyGoal} />
+      {refCode && (
+        <ReferralCard
+          link={`${getAppBaseUrl()}/r/${refCode}`}
+          eingeladen={eingeladen}
+          belohnt={belohnt}
+          bonusUntil={bonusAktiv ? me.proBonusUntil!.toISOString() : null}
+        />
+      )}
       <AccountClient
         user={{
           id: me.id,

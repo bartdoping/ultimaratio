@@ -1,21 +1,23 @@
 {
-  "name": "fragenkreuzen.de",
+  "id": "/kreuzen",
+  "name": "fragenkreuzen",
   "short_name": "fragenkreuzen",
-  "description": "Die Fragenbank für dein Medizinstudium",
-  "start_url": "/",
+  "description": "Prüfungsfragen fürs Medizinstudium kreuzen — ohne Wartezeit, mit kurzer Aha-Erklärung.",
+  "lang": "de",
+  "start_url": "/kreuzen?quelle=app",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "background_color": "#071619",
+  "theme_color": "#071619",
+  "categories": ["education", "medical"],
   "icons": [
-    {
-      "src": "/logo/fragenkreuzen logo transparent.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/logo/fragenkreuzen logo transparent.png",
-      "sizes": "32x32",
-      "type": "image/png"
-    }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Weiterkreuzen", "url": "/kreuzen?quelle=app", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Meine Fragen", "url": "/meine-fragen", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
   ]
 }

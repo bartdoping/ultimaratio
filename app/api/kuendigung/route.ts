@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { track } from "@/lib/product-events"
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
 import { assertSameOrigin } from "@/lib/security"
@@ -158,6 +159,8 @@ export async function POST(req: Request) {
       },
     })
     recordId = created.id
+    // Grund nur als Kategorie-Hinweis (gekürzt), nicht als Volltext.
+    track("cancellation_submitted", { userId: user?.id ?? null, props: { kind, mitGrund: Boolean(reasonRaw) } })
   } catch (err) {
     persistFailed = true
     recordId = `manuell-${receivedAt.getTime().toString(36)}`

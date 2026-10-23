@@ -148,7 +148,7 @@ export function AccountSheet({
                 className="h-10 w-full"
                 onClick={() => onOpenChange(false)}
               >
-                <Link href="/login?callbackUrl=/generator">Anmelden</Link>
+                <Link href="/login?callbackUrl=/kreuzen">Anmelden</Link>
               </Button>
               <Button
                 asChild
@@ -157,7 +157,7 @@ export function AccountSheet({
                 className="h-10 w-full"
                 onClick={() => onOpenChange(false)}
               >
-                <Link href="/login?callbackUrl=/generator">
+                <Link href="/login?callbackUrl=/kreuzen">
                   Kostenlos registrieren
                 </Link>
               </Button>

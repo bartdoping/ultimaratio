@@ -5,6 +5,9 @@
 // geprüft — bereits gesehene Events werden mit 200 quittiert, ohne erneut
 // die DB zu ändern.
 import { NextResponse } from "next/server"
+import { extendBonus } from "@/lib/subscription"
+import { EXAM_PASS_DAYS } from "@/lib/stripe-plans"
+import { track } from "@/lib/product-events"
 import type Stripe from "stripe"
 import stripe from "@/lib/stripe"
 import prisma from "@/lib/db"
@@ -117,6 +120,10 @@ export async function POST(req: Request) {
           }
         }
 
+        if (userId && s.mode === "payment" && s.metadata?.plan === "exam_pass" && s.payment_status === "paid") {
+          await grantExamPass(userId, s.id)
+        }
+
         if (userId && examId && s.mode === "payment") {
           if (s.payment_status === "paid") {
             const exists = await prisma.purchase.findFirst({ where: { userId, examId } })
@@ -130,6 +137,14 @@ export async function POST(req: Request) {
         break
       }
 
+      case "checkout.session.async_payment_succeeded": {
+        // Verzögerte Zahlarten (z. B. SEPA): Pro erst nach Zahlungseingang.
+        const s = event.data.object as Stripe.Checkout.Session
+        const userId = (s.metadata?.userId as string | undefined) || undefined
+        if (userId && s.metadata?.plan === "exam_pass") await grantExamPass(userId, s.id)
+        break
+      }
+
       case "customer.subscription.created":
       case "customer.subscription.updated":
       case "customer.subscription.deleted": {
@@ -137,6 +152,12 @@ export async function POST(req: Request) {
         await applyStripeSubscriptionToDatabase(subscription, {
           source: event.type,
         })
+        const subUserId = (subscription.metadata?.userId as string | undefined) || null
+        if (event.type === "customer.subscription.created") {
+          track("subscription_started", { userId: subUserId, props: { plan: String(subscription.metadata?.plan ?? "") } })
+        } else if (event.type === "customer.subscription.deleted") {
+          track("subscription_canceled", { userId: subUserId })
+        }
         break
       }
 
@@ -215,4 +236,15 @@ export async function POST(req: Request) {
     // löschen, um einen Replay zu erzwingen.
     return new NextResponse("Webhook handler failed", { status: 500 })
   }
+}
+
+/** Examenspass gutschreiben: 90 Tage Pro, angehängt an laufende Pro-Zeit. */
+async function grantExamPass(userId: string, sessionId: string): Promise<void> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { proBonusUntil: true } })
+  if (!u) return
+  await prisma.user.update({
+    where: { id: userId },
+    data: { proBonusUntil: extendBonus(u.proBonusUntil, EXAM_PASS_DAYS) },
+  })
+  track("subscription_started", { userId, props: { plan: "exam_pass", session: sessionId.slice(-8) } })
 }

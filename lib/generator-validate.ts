@@ -2,30 +2,27 @@ import type { BulkQuestion } from "@/lib/question-bulk-json"
 import { validateBulkJson } from "@/lib/question-bulk-json"
 
 /**
- * Mindest-Anforderungen an die inhaltliche Tiefe der KI-Antwort.
+ * Grenzen für das Aha-Format.
  *
- * Diese Schwellen erzwingen, dass das Modell substanziell erklärt — kurze
- * Ein-Satz-Erklärungen sind ein häufiger Defekt billiger LLM-Antworten.
- *
- * Die Schwellen sind großzügig genug, damit gut formulierte Antworten nicht
- * zufällig durchfallen, aber streng genug, um echte Knappheit zu blockieren.
+ * Erklärungen sind bewusst kurz: Der Studierende liest sie in 15 Sekunden,
+ * oft auf dem Handy. Geprüft wird deshalb in beide Richtungen — zu knapp
+ * (kein Argument, bloße Floskel) UND zu lang (ein Absatz, wo ein Satz reicht).
+ * Die ausführliche Vertiefung entsteht nur auf Anforderung (lib/deep-dive.ts).
  */
 export const QUESTION_QUALITY = {
-  /** Gesamterklärung in Zeichen — sollte 3 Sinn-Abschnitte abdecken. */
-  MIN_TOTAL_EXPLANATION_CHARS: 420,
-  /** Erklärung der richtigen Option — Mechanismus + Algorithmus + Falle. */
-  MIN_CORRECT_OPTION_EXPL_CHARS: 220,
-  /** Erklärung jeder falschen Option — warum nicht + wann wäre richtig. */
-  MIN_DISTRACTOR_EXPL_CHARS: 140,
-  /**
-   * Must-Know — sehr konkret, nicht generisch. 1–2 Sätze, aber ≥ 40 Zeichen
-   * fordert echte Substanz.
-   */
-  MIN_MUST_KNOW_CHARS: 40,
-  /** Kernaussage — ein prägnanter, aber substanzieller Satz. */
+  /** Aha-Satz: mindestens ein vollständiges Argument … */
   MIN_KEY_TAKEAWAY_CHARS: 25,
-  /** High-Yield-Transfer — mindestens so viele Punkte sind wünschenswert. */
-  MIN_HIGH_YIELD_ITEMS: 2,
+  /** … aber höchstens zwei Sätze (~40 Wörter). */
+  MAX_KEY_TAKEAWAY_CHARS: 320,
+  /** Ein Satz zur richtigen Option — mit konkretem Kriterium. */
+  MIN_CORRECT_OPTION_EXPL_CHARS: 30,
+  /** Ein Satz pro Distraktor: warum hier falsch — wann richtig. */
+  MIN_DISTRACTOR_EXPL_CHARS: 25,
+  /** Ein Satz, ~30 Wörter. Darüber ist es ein Absatz. */
+  MAX_OPTION_EXPL_CHARS: 260,
+  /** Merkregel — konkret, keine Floskel. */
+  MIN_MUST_KNOW_CHARS: 25,
+  MAX_MUST_KNOW_CHARS: 240,
   /** Fallvignette für Case-Mode — substanzieller Kontext, kein Einzeiler. */
   MIN_CASE_VIGNETTE_CHARS: 180,
 } as const
@@ -141,7 +138,9 @@ export function validateGeneratedQuestions(
  */
 export function questionsHaveExplanations(questions: BulkQuestion[]): boolean {
   for (const q of questions) {
-    if (!q.explanation?.trim()) return false
+    // Pflicht sind Aha-Satz und eine Zeile je Option. Die Vertiefung
+    // ("explanation") entsteht nur auf Anforderung und darf fehlen.
+    if (!q.keyTakeaway?.trim()) return false
     for (const opt of q.options) {
       if (!opt.explanation?.trim()) return false
     }
@@ -152,106 +151,73 @@ export function questionsHaveExplanations(questions: BulkQuestion[]): boolean {
 export type DepthCheckIssue = {
   questionIndex: number
   kind:
-    | "total_explanation_short"
+    | "key_takeaway_short"
+    | "key_takeaway_long"
     | "correct_option_short"
     | "distractor_short"
+    | "option_long"
     | "must_know_short"
-    | "key_takeaway_short"
-    | "high_yield_thin"
+    | "must_know_long"
     | "mnemonic_missing"
   detail: string
 }
 
 /**
- * Tiefencheck. Wird NACH dem strukturellen Validate aufgerufen; meldet
- * konkrete Stellen, an denen das Modell zu knapp war. Bei Treffern triggert
- * der API-Pfad einen gezielten Repair-Pass mit den Mängeln im Hint.
+ * Formprüfung des Aha-Formats. Meldet zu Knappes (kein Argument) und zu
+ * Langes (Absatz statt Satz). Ob ein Befund eine Nachbesserung auslöst,
+ * entscheidet `hardSevereIssues` — nicht jede Abweichung ist einen
+ * zusätzlichen Modellaufruf wert.
  */
 export function checkExplanationDepth(questions: BulkQuestion[]): DepthCheckIssue[] {
+  const Q = QUESTION_QUALITY
   const issues: DepthCheckIssue[] = []
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i]
-    const total = (q.explanation ?? "").trim()
-    if (total.length < QUESTION_QUALITY.MIN_TOTAL_EXPLANATION_CHARS) {
-      issues.push({
-        questionIndex: i,
-        kind: "total_explanation_short",
-        detail: `Gesamterklärung ist ${total.length} Zeichen, mindestens ${QUESTION_QUALITY.MIN_TOTAL_EXPLANATION_CHARS} nötig. Drei-Abschnitts-Struktur (Pathophysiologie / Algorithmus / Take-Home) verlangt mehr Substanz.`,
-      })
-    }
-    const mk = (q.mustKnow ?? "").trim()
-    if (mk.length < QUESTION_QUALITY.MIN_MUST_KNOW_CHARS) {
-      issues.push({
-        questionIndex: i,
-        kind: "must_know_short",
-        detail: `Must-Know zu knapp/generisch (${mk.length} Zeichen). 1–2 prägnante Sätze mit dem konkreten Kerndetail — z. B. "Bei … gilt Cut-Off X, weil …".`,
-      })
-    }
     const kt = (q.keyTakeaway ?? "").trim()
-    if (kt.length < QUESTION_QUALITY.MIN_KEY_TAKEAWAY_CHARS) {
-      issues.push({
-        questionIndex: i,
-        kind: "key_takeaway_short",
-        detail: `Kernaussage ("keyTakeaway") fehlt oder ist zu knapp (${kt.length} Zeichen). Ein prägnanter Satz mit der zentralen Einsicht der Frage.`,
-      })
+    if (kt.length < Q.MIN_KEY_TAKEAWAY_CHARS) {
+      issues.push({ questionIndex: i, kind: "key_takeaway_short", detail: `Aha-Satz fehlt oder ist zu knapp (${kt.length} Zeichen). Ein vollständiges Argument: warum genau diese Lösung.` })
+    } else if (kt.length > Q.MAX_KEY_TAKEAWAY_CHARS) {
+      issues.push({ questionIndex: i, kind: "key_takeaway_long", detail: `Aha-Satz ist ${kt.length} Zeichen — höchstens 2 Sätze / 40 Wörter. Auf den Kern kürzen.` })
     }
-    // high-yield ist wünschenswert, aber weich: fehlende Transfer-Punkte
-    // triggern KEINEN harten Repair (siehe Route), sondern sind nur ein Signal.
-    const hy = Array.isArray(q.highYield) ? q.highYield.filter((x) => x.trim().length > 0) : []
-    if (hy.length < QUESTION_QUALITY.MIN_HIGH_YIELD_ITEMS) {
-      issues.push({
-        questionIndex: i,
-        kind: "high_yield_thin",
-        detail: `high-yield-Transfer dünn (${hy.length} Punkte). 2–4 kurze Punkte, die über die Frage hinaus Wissen vernetzen (Differenzial, typische Verwechslung, benachbartes High-Yield-Fakt).`,
-      })
+
+    const mk = (q.mustKnow ?? "").trim()
+    if (mk.length < Q.MIN_MUST_KNOW_CHARS) {
+      issues.push({ questionIndex: i, kind: "must_know_short", detail: `Merkregel fehlt oder ist zu knapp (${mk.length} Zeichen).` })
+    } else if (mk.length > Q.MAX_MUST_KNOW_CHARS) {
+      issues.push({ questionIndex: i, kind: "must_know_long", detail: `Merkregel ist ${mk.length} Zeichen — ein Satz, höchstens 25 Wörter.` })
     }
-    // mnemonic ist explizit OPTIONAL: nichts erfinden ist besser als
-    // schwache Eselsbrücken. Wir merken es nur als Sub-Issue an und nehmen
-    // es NICHT in den harten Repair-Pass.
+
     if (!q.mnemonic || !q.mnemonic.trim()) {
-      issues.push({
-        questionIndex: i,
-        kind: "mnemonic_missing",
-        detail: "mnemonic leer — falls keine wirklich starke Eselsbrücke existiert, ist Leerlassen korrekt.",
-      })
+      issues.push({ questionIndex: i, kind: "mnemonic_missing", detail: "Eselsbrücke leer — korrekt, wenn keine starke existiert." })
     }
 
     for (let j = 0; j < q.options.length; j++) {
       const opt = q.options[j]
       const txt = (opt.explanation ?? "").trim()
-      if (opt.isCorrect) {
-        if (txt.length < QUESTION_QUALITY.MIN_CORRECT_OPTION_EXPL_CHARS) {
-          issues.push({
-            questionIndex: i,
-            kind: "correct_option_short",
-            detail: `Erklärung der korrekten Option ist ${txt.length} Zeichen; gebraucht sind ≥${QUESTION_QUALITY.MIN_CORRECT_OPTION_EXPL_CHARS} mit Mechanismus + Algorithmus + Cut-Off/Leitlinie + Falle.`,
-          })
-        }
-      } else {
-        if (txt.length < QUESTION_QUALITY.MIN_DISTRACTOR_EXPL_CHARS) {
-          issues.push({
-            questionIndex: i,
-            kind: "distractor_short",
-            detail: `Distraktor-Erklärung Option ${String.fromCharCode(65 + j)} ist ${txt.length} Zeichen; gebraucht sind ≥${QUESTION_QUALITY.MIN_DISTRACTOR_EXPL_CHARS}: warum hier falsch + wann wäre diese Option richtig + Verwechslungsfalle.`,
-          })
-        }
+      const b = String.fromCharCode(65 + j)
+      const min = opt.isCorrect ? Q.MIN_CORRECT_OPTION_EXPL_CHARS : Q.MIN_DISTRACTOR_EXPL_CHARS
+      if (txt.length < min) {
+        issues.push({
+          questionIndex: i,
+          kind: opt.isCorrect ? "correct_option_short" : "distractor_short",
+          detail: opt.isCorrect
+            ? `Erklärung der richtigen Option ${b} (${txt.length} Zeichen) nennt kein Kriterium. Ein Satz mit dem entscheidenden Argument.`
+            : `Erklärung zu Option ${b} (${txt.length} Zeichen) zu knapp. Ein Satz: warum hier falsch — richtig wäre sie bei …`,
+        })
+      } else if (txt.length > Q.MAX_OPTION_EXPL_CHARS) {
+        issues.push({ questionIndex: i, kind: "option_long", detail: `Erklärung zu Option ${b} ist ${txt.length} Zeichen — genau ein Satz, höchstens 30 Wörter.` })
       }
     }
   }
   return issues
 }
 
-/** Baut aus Tiefendefiziten einen kompakten Repair-Hint für die Folge-Generierung. */
+/** Baut aus Formabweichungen einen kompakten Nachbesserungs-Auftrag. */
 export function buildDepthRepairHint(issues: DepthCheckIssue[]): string {
   if (issues.length === 0) return ""
-  const head =
-    "TIEFEN-DEFIZIT: Die Erklärungen sind zu knapp. Gib eine vollständig überarbeitete JSON-Antwort zurück, die die folgenden Punkte konkret behebt — Inhalt der Antwortoptionen (Text, isCorrect) bleibt strukturell gleich, die Erklärungstexte werden substanziell vertieft:"
-  const bullets = issues.map((it) => {
-    const where = `Frage ${it.questionIndex + 1}`
-    return `- ${where}: ${it.detail}`
-  })
-  bullets.push(
-    "Die Drei-Abschnitts-Struktur in der Gesamterklärung (Pathophysiologie \\n\\n klinischer Algorithmus \\n\\n Take-Home-Pearl) und die Mindest-Satz-Anzahl pro Option (richtig ≥4 Sätze, falsch ≥3 Sätze) sind verpflichtend. Antworte ausschließlich mit gültigem JSON."
-  )
-  return [head, ...bullets].join("\n")
+  return [
+    "FORM DER ERKLÄRUNGEN: Behebe genau diese Punkte. Antwortoptionen (Text, isCorrect) bleiben unverändert.",
+    ...issues.map((it) => `- Frage ${it.questionIndex + 1}: ${it.detail}`),
+    "Format: Aha-Satz höchstens 2 Sätze / 40 Wörter; je Option GENAU EIN Satz (höchstens 30 Wörter), bei falschen Optionen \"warum hier falsch — richtig wäre sie bei …\"; Merkregel ein Satz; Vertiefung leer. Antworte ausschließlich mit gültigem JSON.",
+  ].join("\n")
 }

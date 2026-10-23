@@ -11,3 +11,7 @@
 
 export const GENERATOR_FREE_DAILY_LIMIT = 3
 export const GENERATOR_PRO_DAILY_LIMIT = 100
+
+/** Kreuz-Modus: Fragen aus dem gemeinsamen Pool pro Tag (Pro: unbegrenzt). */
+export const POOL_LIMIT_ANON = 10
+export const POOL_LIMIT_FREE = 25

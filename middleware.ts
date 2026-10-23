@@ -6,7 +6,8 @@ import { isAdminRole, isGeneratorModePathAllowed } from "@/lib/platform-access"
 /**
  * Abweisung für gesperrte Pfade.
  *
- * Für Seiten ist die Weiterleitung auf /coming-soon richtig. Für API-Routen
+ * Seiten führen in den Kreuz-Modus — alte Lesezeichen (/exams, /dashboard …)
+ * landen so dort, wo das Produkt heute ist. Für API-Routen
  * wäre sie irreführend: Ein Aufruf per fetch/curl bekäme HTTP 200 mit der
  * HTML-Seite und sähe damit aus wie ein Erfolg. API-Pfade erhalten deshalb
  * eine klare JSON-Antwort mit passendem Statuscode.
@@ -18,7 +19,7 @@ function abweisen(req: NextRequest, pathname: string, angemeldet: boolean) {
       { status: angemeldet ? 403 : 401, headers: { "Cache-Control": "no-store" } }
     )
   }
-  return NextResponse.redirect(new URL("/coming-soon", req.url))
+  return NextResponse.redirect(new URL("/kreuzen", req.url))
 }
 
 export async function middleware(req: NextRequest) {

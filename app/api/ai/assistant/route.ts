@@ -1,5 +1,6 @@
 // app/api/ai/assistant/route.ts
 import { NextResponse } from "next/server"
+import { recordAiUsage } from "@/lib/ai-usage"
 import OpenAI from "openai"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
@@ -118,11 +119,13 @@ export async function POST(req: Request) {
     // Modellwahl: kurz => MODEL_CONCISE, ausführlich => MODEL_PRIMARY
     const model = answerStyle === "concise" ? MODEL_CONCISE : MODEL_PRIMARY
 
+    const t0 = Date.now()
     const resp = await client.responses.create({
       model,
       input: prompt, // Responses API akzeptiert hier den simplen String
       // keine temperature/max_tokens setzen (einige Modelle lehnen bestimmte Felder ab)
     })
+    recordAiUsage({ purpose: "assistant", model, usage: resp.usage, durationMs: Date.now() - t0, ok: true })
 
     const text = resp.output_text ?? ""
     if (!text.trim()) {

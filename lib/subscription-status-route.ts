@@ -31,6 +31,7 @@ export async function subscriptionStatusGET() {
         subscriptionStatus: true,
         proTrialStartedAt: true,
         proTrialEndsAt: true,
+          proBonusUntil: true,
         subscription: {
           select: {
             stripeSubscriptionId: true,
@@ -61,6 +62,7 @@ export async function subscriptionStatusGET() {
           subscriptionStatus: true,
           proTrialStartedAt: true,
           proTrialEndsAt: true,
+          proBonusUntil: true,
           subscription: {
             select: {
               stripeSubscriptionId: true,
@@ -97,6 +99,7 @@ export async function subscriptionStatusGET() {
           subscriptionStatus: true,
           proTrialStartedAt: true,
           proTrialEndsAt: true,
+          proBonusUntil: true,
           subscription: {
             select: {
               stripeSubscriptionId: true,
@@ -153,12 +156,15 @@ export async function subscriptionStatusGET() {
       ? Math.max(0, Math.ceil((trialEndMs - now.getTime()) / (1000 * 60 * 60 * 24)))
       : 0
 
-    const isPro = effectiveIsPro || trialActive
-    const proKind: "subscription" | "trial" | "none" = effectiveIsPro
+    const bonusActive = !!user.proBonusUntil && new Date(user.proBonusUntil).getTime() > now.getTime()
+    const isPro = effectiveIsPro || trialActive || bonusActive
+    const proKind: "subscription" | "trial" | "bonus" | "none" = effectiveIsPro
       ? "subscription"
       : trialActive
         ? "trial"
-        : "none"
+        : bonusActive
+          ? "bonus"
+          : "none"
     const questionsRemaining = isPro ? -1 : 0
     const dailyQuestionsUsed = 0
 
@@ -202,6 +208,7 @@ export async function subscriptionStatusGET() {
             daysRemaining: trialDaysRemaining,
             eligibleForStart: !trialUsed && !effectiveIsPro,
           },
+          bonusUntil: bonusActive ? user.proBonusUntil : null,
           questionsRemaining,
           dailyQuestionsUsed,
           subscriptionDetails: user.subscription,

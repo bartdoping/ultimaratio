@@ -13,6 +13,7 @@ import {
   Sparkles,
   Sparkles as SparklesIcon,
   Wand2,
+  Zap,
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -94,6 +95,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, [])
 
   const navItems: NavItem[] = [
+    { href: "/kreuzen", label: "Kreuzen", icon: Zap },
     { href: "/generator", label: "Generator", icon: Wand2 },
   ]
   // "Meine Fragen" nur für Angemeldete: Ohne Konto wird nichts gespeichert,
@@ -260,7 +262,7 @@ function MobilePlanPill({
   if (!isLoggedIn) {
     return (
       <Link
-        href="/login?callbackUrl=/generator"
+        href="/login?callbackUrl=/kreuzen"
         className="hidden xs:inline-flex h-9 items-center gap-1 rounded-full border bg-card/60 px-3 text-xs font-medium hover:bg-muted"
       >
         Anmelden

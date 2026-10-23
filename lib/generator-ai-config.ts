@@ -137,10 +137,16 @@ export function draftMaxOutputTokens(mode: "single" | "case", caseQuestionCount:
 /**
  * Token-Limit für Stufe 2 (Erklärungen zu GENAU EINER feststehenden Frage).
  *
- * Gemessen: 1813 Tokens für Gesamterklärung, mustKnow, highYield, mnemonic und
- * die fünf Options-Erklärungen. 3800 gibt reichlich Puffer, damit das Modell
- * sich bei tiefen Themen nicht selbst kürzt.
+ * Aha-Format: ein Aha-Satz, je Option ein Satz, eine Merkregel — real etwa
+ * 300–450 Tokens. Früher 3800 für das Langformat. Das Limit liegt mit Puffer
+ * darüber, damit ein Ausreißer nicht abgeschnitten wird; es ist zugleich eine
+ * Kostenbremse, falls das Modell doch in Absätze verfällt.
  */
 export function enrichMaxOutputTokens(): number {
-  return 3800
+  return 1100
+}
+
+/** Token-Limit für die Vertiefung auf Anforderung (lib/deep-dive.ts). */
+export function deepDiveMaxOutputTokens(): number {
+  return 900
 }

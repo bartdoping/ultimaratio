@@ -9,6 +9,7 @@ const LEGAL_LINKS = [
 ] as const
 
 const HELP_LINKS = [
+  { href: "/frage-des-tages", label: "Frage des Tages" },
   { href: "/faq", label: "Häufige Fragen (FAQ)" },
   { href: "/pricing", label: "Preise" },
   { href: "/blog", label: "Blog" },

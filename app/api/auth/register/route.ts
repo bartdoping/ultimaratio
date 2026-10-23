@@ -5,6 +5,8 @@
 // Das User-Modell hat `name`/`surname` als `String` Pflichtfelder; wir
 // speichern leere Strings, ohne die DB-Migration anzufassen.
 import { NextResponse } from "next/server"
+import { track } from "@/lib/product-events"
+import { attributionFromCookie } from "@/lib/referral"
 import { z } from "zod"
 import prisma from "@/lib/db"
 import { hashPassword } from "@/lib/password"
@@ -68,6 +70,8 @@ export async function POST(req: Request) {
     }
 
     const passwordHash = await hashPassword(password)
+    // Einladung oder Creator-Code aus dem /r/-Link
+    const zuordnung = await attributionFromCookie()
     const user = await prisma.user.create({
       data: {
         email,
@@ -77,9 +81,11 @@ export async function POST(req: Request) {
         surname: "",
         passwordHash,
         role: "user",
+        ...zuordnung,
       },
       select: { id: true, email: true },
     })
+    track("signup", { userId: user.id, props: { via: zuordnung.referredById ? "empfehlung" : zuordnung.creatorCodeId ? "creator" : "direkt" } })
 
     const code = generateSixDigitCode()
     await prisma.emailVerification.create({

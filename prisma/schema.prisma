@@ -50,19 +50,38 @@ model User {
   subscriptionId        String?            @unique
   subscriptionExpiresAt DateTime?
   dailyQuestionsUsed    Int                @default(0)
-  lastQuestionResetAt   DateTime          @default(now())
+  lastQuestionResetAt   DateTime           @default(now())
 
   // 7-Tage-Pro-Trial (ohne Kreditkarte). Nur einmal pro User aktivierbar.
-  proTrialStartedAt    DateTime?
-  proTrialEndsAt       DateTime?
+  proTrialStartedAt DateTime?
+  proTrialEndsAt    DateTime?
 
   // Onboarding-Profil (für personalisierte Presets & Empfehlungen)
-  examTarget           String?  // z. B. "M2", "Hammerexamen", "Z1"
-  semester             Int?
+  examTarget            String? // z. B. "M2", "Hammerexamen", "Z1"
+  semester              Int?
   onboardingCompletedAt DateTime?
 
   // UI-Präferenzen
-  fontScale            String   @default("normal") // "small" | "normal" | "large"
+  fontScale String @default("normal") // "small" | "normal" | "large"
+
+  // Pro-Zeit aus Empfehlungen und Einmalkäufen (Examenspass). Unabhängig vom
+  // Stripe-Abo: läuft ein Bonus, ist der Nutzer Pro, auch ohne Abo.
+  proBonusUntil DateTime?
+
+  // Empfehlungsprogramm: eigener Code zum Weitergeben, wer einen geworben hat,
+  // und ob die Belohnung schon gutgeschrieben wurde (erst nach E-Mail-Bestätigung).
+  referralCode       String?   @unique
+  referredById       String?
+  referralRewardedAt DateTime?
+  // Creator-Code, mit dem sich der Nutzer registriert hat (Medfluencer-Zuordnung).
+  creatorCodeId      String?
+
+  // Lernerinnerungen per E-Mail — nur nach ausdrücklicher Einwilligung (§ 7 UWG).
+  reminderOptIn  Boolean   @default(false)
+  reminderToken  String?   @unique
+  lastReminderAt DateTime?
+  // Tagesziel in Fragen.
+  dailyGoal      Int       @default(30)
 
   purchases     Purchase[]
   attempts      Attempt[]
@@ -72,16 +91,24 @@ model User {
   questionStars QuestionStar[]
 
   // Gegenrelationen
-  flags         UserQuestionFlag[]
-  decks         Deck[]
-  reviews       ReviewItem[]
-  srSetting     SRUserSetting?
-  subscription  Subscription?
+  flags                UserQuestionFlag[]
+  decks                Deck[]
+  reviews              ReviewItem[]
+  srSetting            SRUserSetting?
+  subscription         Subscription?
   generatorDailyUsages GeneratorDailyUsage[]
-  streak        UserStreak?
-  generatorPresets GeneratorPreset[]
-  feedbacks     UserFeedback[]
-  savedQuestions SavedQuestion[]
+  streak               UserStreak?
+  generatorPresets     GeneratorPreset[]
+  feedbacks            UserFeedback[]
+  savedQuestions       SavedQuestion[]
+  aiUsage              AiUsageEvent[]
+  events               ProductEvent[]
+  poolAnswers          PoolAnswer[]
+  poolSeen             PoolSeen[]
+  sessions             UserSession[]
+  referredBy           User?                 @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals            User[]                @relation("Referrals")
+  creatorCode          CreatorCode?          @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
 }
 
 model Exam {
@@ -108,11 +135,11 @@ model Exam {
   categoryId String?
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
-  sections  Section[]
-  questions Question[]
-  purchases Purchase[]
-  attempts  Attempt[]
-  cases     QuestionCase[]
+  sections   Section[]
+  questions  Question[]
+  purchases  Purchase[]
+  attempts   Attempt[]
+  cases      QuestionCase[]
   globalTags ExamGlobalTag[] // Globale Tags für alle Fragen dieses Examens
 }
 
@@ -138,16 +165,16 @@ model Question {
   hasImmediateFeedbackAllowed Boolean      @default(false)
   order                       Int          @default(0)
 
-  caseId    String?
-  case      QuestionCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  caseId String?
+  case   QuestionCase? @relation(fields: [caseId], references: [id], onDelete: SetNull)
 
-  exam      Exam               @relation(fields: [examId], references: [id], onDelete: Cascade)
-  section   Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  options   AnswerOption[]
-  media     QuestionMedia[]
-  answers   AttemptAnswer[]
-  userStats UserQuestionStat[]
-  stars     QuestionStar[]
+  exam              Exam               @relation(fields: [examId], references: [id], onDelete: Cascade)
+  section           Section?           @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  options           AnswerOption[]
+  media             QuestionMedia[]
+  answers           AttemptAnswer[]
+  userStats         UserQuestionStat[]
+  stars             QuestionStar[]
   attemptSelections AttemptQuestion[]
 
   // Gegenrelationen
@@ -185,15 +212,15 @@ model Attempt {
   passed       Boolean?
   elapsedSec   Int       @default(0)
 
-  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exam    Exam            @relation(fields: [examId], references: [id], onDelete: Cascade)
-  answers AttemptAnswer[]
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exam              Exam              @relation(fields: [examId], references: [id], onDelete: Cascade)
+  answers           AttemptAnswer[]
   selectedQuestions AttemptQuestion[]
 }
 
 model AttemptQuestion {
   id         String @id @default(cuid())
-  attemptId String
+  attemptId  String
   questionId String
   order      Int    @default(0)
 
@@ -368,7 +395,7 @@ model Tag {
   parent   Tag?    @relation("TagHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children Tag[]   @relation("TagHierarchy")
 
-  questionLinks QuestionTag[]
+  questionLinks  QuestionTag[]
   examGlobalTags ExamGlobalTag[]
 
   @@index([parentId])
@@ -477,7 +504,7 @@ model Category {
   id          String   @id @default(cuid())
   name        String   @unique
   description String?
-  color       String?  // Hex-Farbe für UI
+  color       String? // Hex-Farbe für UI
   order       Int      @default(0) // Sortierreihenfolge
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -489,16 +516,16 @@ model Category {
  * ============ Subscription Management ============
  */
 model Subscription {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  stripeCustomerId  String?  @unique
-  stripeSubscriptionId String? @unique
-  status            SubscriptionStatus @default(free)
-  priceId           String?  // Stripe Price ID
-  currentPeriodStart DateTime?
-  currentPeriodEnd   DateTime?
-  cancelAtPeriodEnd  Boolean @default(false)
-  createdAt         DateTime @default(now())
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  status               SubscriptionStatus @default(free)
+  priceId              String? // Stripe Price ID
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -514,6 +541,8 @@ model GeneratorDailyUsage {
   ipHash    String?
   dayKey    String
   count     Int      @default(0)
+  /// Aus dem Pool ausgelieferte Fragen (billig, eigenes Kontingent).
+  poolCount Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -529,15 +558,15 @@ model GeneratorDailyUsage {
  * ============ Streaks (Daily-Login-Gamification) ============
  */
 model UserStreak {
-  userId          String   @id
-  currentStreak   Int      @default(0)
-  longestStreak   Int      @default(0)
+  userId            String   @id
+  currentStreak     Int      @default(0)
+  longestStreak     Int      @default(0)
   /// Berlin-Tageskey (YYYY-MM-DD) der letzten Aktivität.
-  lastActiveDayKey String?
+  lastActiveDayKey  String?
   /// Wievielmal hat der User schon eine 7-/30-Tage-Marke erreicht?
-  milestonesReached Int    @default(0)
-  updatedAt       DateTime @updatedAt
-  createdAt       DateTime @default(now())
+  milestonesReached Int      @default(0)
+  updatedAt         DateTime @updatedAt
+  createdAt         DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -585,7 +614,6 @@ model UserFeedback {
 
 /**
  * ============ Kündigungen nach § 312k BGB ============
- *
  * § 312k BGB verlangt eine ohne Anmeldung erreichbare Kündigungsmöglichkeit
  * und eine Bestätigung der Kündigungserklärung in Textform unter Angabe von
  * Datum und Uhrzeit des Zugangs. Jede über /kuendigung abgegebene Erklärung
@@ -632,11 +660,11 @@ model CancellationRequest {
  * wird hier per `eventId` geprüft, ob das Event schon verarbeitet wurde.
  */
 model StripeEventLog {
-  id          String   @id @default(cuid())
-  eventId     String   @unique
+  id          String    @id @default(cuid())
+  eventId     String    @unique
   type        String
-  livemode    Boolean  @default(false)
-  receivedAt  DateTime @default(now())
+  livemode    Boolean   @default(false)
+  receivedAt  DateTime  @default(now())
   processedAt DateTime?
 
   @@index([type])
@@ -659,6 +687,9 @@ model SavedQuestion {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  /// Herkunft aus dem gemeinsamen Pool — verhindert doppelte Ablage derselben Frage.
+  poolQuestionId String?
+
   /// Fasst die Teilfragen EINER Fallfrage zusammen.
   groupId      String
   orderInGroup Int    @default(0)
@@ -675,10 +706,10 @@ model SavedQuestion {
   payload Json
 
   // ---- Lernstand ----
-  attempts     Int @default(0)
-  correctCount Int @default(0)
+  attempts       Int       @default(0)
+  correctCount   Int       @default(0)
   /// Richtige Antworten in Folge — steuert den Wiederholungsabstand.
-  streak       Int @default(0)
+  streak         Int       @default(0)
   lastAnsweredAt DateTime?
   lastCorrect    Boolean?
   /// Nächste Fälligkeit zur Wiederholung. null = noch nie beantwortet.
@@ -687,9 +718,134 @@ model SavedQuestion {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, poolQuestionId])
   @@index([userId, createdAt])
   @@index([userId, dueAt])
   @@index([userId, lastCorrect])
   @@index([userId, topic])
   @@index([groupId])
+}
+
+/// Token-Verbrauch jedes KI-Aufrufs. Grundlage für "Kosten pro Frage".
+/// Gespeichert werden Tokens, nicht Euro: Preise ändern sich und werden erst
+/// in der Auswertung angewandt (siehe lib/ai-usage.ts).
+model AiUsageEvent {
+  id              String   @id @default(cuid())
+  createdAt       DateTime @default(now())
+  /// draft | enrich | repair | review | exclusion | deepdive | assistant
+  purpose         String
+  model           String
+  inputTokens     Int      @default(0)
+  cachedTokens    Int      @default(0)
+  outputTokens    Int      @default(0)
+  reasoningTokens Int      @default(0)
+  durationMs      Int      @default(0)
+  ok              Boolean  @default(true)
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@index([purpose, createdAt])
+}
+
+/// Produktereignisse für Retention, Nutzung und Conversion. Serverseitig,
+/// ohne Drittanbieter. Ereignisse anonymer Besucher tragen keine Kennung.
+model ProductEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  name      String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  props     Json?
+
+  @@index([name, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// Gemeinsamer Fragenpool. Jede vollständig erzeugte und geprüfte Frage wird
+/// hier abgelegt und an alle Nutzer mit passendem Thema und Stufe ausgeliefert,
+/// die sie noch nicht gesehen haben. Enthält keine personenbezogenen Daten.
+model PoolQuestion {
+  id            String   @id @default(cuid())
+  /// Normalisiertes Thema (Kleinschreibung, ohne Satzzeichen) für die Suche.
+  topicKey      String
+  topic         String
+  difficulty    Int
+  section       String   @default("auto")
+  stem          String
+  /// Vollständige Frage (BulkQuestion) inkl. Kurzerklärungen.
+  payload       Json
+  /// Ausführliche Vertiefung — erst bei Bedarf erzeugt und dann für alle gespeichert.
+  deepDive      String?
+  contentHash   String   @unique
+  /// active | retired
+  status        String   @default("active")
+  retiredReason String?
+  servedCount   Int      @default(0)
+  answeredCount Int      @default(0)
+  correctCount  Int      @default(0)
+  reportCount   Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  answers PoolAnswer[]
+  seen    PoolSeen[]
+
+  @@index([topicKey, difficulty, status])
+  @@index([status, createdAt])
+}
+
+/// Eine Antwort auf eine Poolfrage — Grundlage für Lösungsquote und Trennschärfe.
+model PoolAnswer {
+  id             String       @id @default(cuid())
+  poolQuestionId String
+  poolQuestion   PoolQuestion @relation(fields: [poolQuestionId], references: [id], onDelete: Cascade)
+  /// Bei Kontolöschung bleibt die Antwort anonym für die Fragenstatistik erhalten.
+  userId         String?
+  user           User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  correct        Boolean
+  chosenIndex    Int
+  msToAnswer     Int?
+  /// Trefferquote des Antwortenden zum Zeitpunkt der Antwort (für die Trennschärfe).
+  userAccuracy   Float?
+  createdAt      DateTime     @default(now())
+
+  @@index([poolQuestionId])
+  @@index([userId, createdAt])
+}
+
+/// Welche Poolfragen ein angemeldeter Nutzer schon gesehen hat.
+model PoolSeen {
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  poolQuestionId String
+  poolQuestion   PoolQuestion @relation(fields: [poolQuestionId], references: [id], onDelete: Cascade)
+  seenAt         DateTime     @default(now())
+
+  @@id([userId, poolQuestionId])
+  @@index([userId, seenAt])
+}
+
+/// Aktive Anmeldungen. Begrenzt gleichzeitige Sitzungen pro Konto.
+model UserSession {
+  id         String   @id
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+/// Creator-Codes für Medfluencer: Zuordnung von Registrierungen und Abos.
+model CreatorCode {
+  id                String   @id @default(cuid())
+  code              String   @unique
+  name              String
+  email             String?
+  commissionPercent Int      @default(20)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  users             User[]
 }

@@ -26,6 +26,12 @@ type AnswerOptionsProps = {
    */
   struckIds?: Set<string>
   onToggleStrike?: (optionId: string) => void
+  /**
+   * Nach dem Auflösen die Erklärungen der gewählten und der richtigen Option
+   * automatisch aufklappen (Vorgabe). Der Kreuz-Modus zeigt diese beiden
+   * Erklärungen bereits oben im Aha-Block und lässt die Liste deshalb zu.
+   */
+  autoExpand?: boolean
 }
 
 export function AnswerOptions({
@@ -36,6 +42,7 @@ export function AnswerOptions({
   submitting = false,
   struckIds,
   onToggleStrike,
+  autoExpand = true,
 }: AnswerOptionsProps) {
   const [internalStruck, setInternalStruck] = useState<Set<string>>(new Set())
   const [openExplanations, setOpenExplanations] = useState<Set<string>>(new Set())
@@ -71,6 +78,7 @@ export function AnswerOptions({
       setOpenExplanations(new Set())
       return
     }
+    if (!autoExpand) return
     setOpenExplanations((prev) => {
       const next = new Set(prev)
       for (const opt of options) {

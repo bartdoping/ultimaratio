@@ -4,6 +4,7 @@ import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
 import { sendMail } from "@/lib/mail"
+import { reportPoolQuestion } from "@/lib/pool"
 
 export const runtime = "nodejs"
 
@@ -61,6 +62,10 @@ export async function POST(req: Request) {
       : null
   // Silent-Mode: kein Mail-Versand (für error.tsx → automatische Reports).
   const silent = body.silent === true
+  // Meldung zu einer Poolfrage: zählt für die automatische Qualitätsprüfung.
+  if (category === "question" && typeof body.poolQuestionId === "string" && body.poolQuestionId.length < 64) {
+    void reportPoolQuestion(body.poolQuestionId)
+  }
 
   const session = await getServerSession(authOptions)
   let userId: string | null = null

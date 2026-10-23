@@ -5,6 +5,9 @@ import prisma from "@/lib/db"
 import { verifyPassword } from "@/lib/password"
 import { buildOAuthProviders } from "@/lib/auth-providers"
 import { randomBytes } from "crypto"
+import { createUserSession, endUserSession, isUserSessionActive } from "@/lib/user-sessions"
+import { attributionFromCookie } from "@/lib/referral"
+import { track } from "@/lib/product-events"
 
 /**
  * Schmale Helfer: User-Lookup + Auto-Provisioning für OAuth-Logins.
@@ -46,8 +49,10 @@ async function findOrCreateOAuthUser(
   const placeholderHash = `oauth_${randomBytes(32).toString("hex")}`
 
   try {
+    const zuordnung = await attributionFromCookie()
     const created = await prisma.user.create({
       data: {
+        ...zuordnung,
         email: normalized,
         name: "",
         surname: "",
@@ -57,6 +62,7 @@ async function findOrCreateOAuthUser(
       },
       select: { id: true, role: true },
     })
+    track("signup", { userId: created.id, props: { via: zuordnung.referredById ? "empfehlung" : zuordnung.creatorCodeId ? "creator" : "oauth" } })
     return { id: created.id, role: created.role }
   } catch {
     // Race-Condition: doppelter OAuth-Login fast gleichzeitig. Nochmal lesen.
@@ -114,6 +120,11 @@ export const authOptions: NextAuthOptions = {
     // OAuth-Provider werden nur eingebaut, wenn ihre Env gesetzt ist.
     ...buildOAuthProviders(),
   ],
+  events: {
+    async signOut({ token }) {
+      if (typeof token?.sid === "string") await endUserSession(token.sid)
+    },
+  },
   callbacks: {
     /**
      * Auto-Provisioning für OAuth-Sign-Ins.
@@ -140,6 +151,15 @@ export const authOptions: NextAuthOptions = {
         if (role) token.role = role
         token.email = user.email
         ;(token as Record<string, unknown>).name = (user as { name?: string }).name
+        // Neue Anmeldung: Sitzung registrieren (max. 2 Geräte, Admins ausgenommen).
+        if (id && role !== "admin") {
+          const sid = await createUserSession(id)
+          if (sid) token.sid = sid
+        }
+      } else if (typeof token.sid === "string" && !(await isUserSessionActive(token.sid))) {
+        // Auf einem weiteren Gerät angemeldet → diese Sitzung ist beendet.
+        // Ein Fehler hier lässt NextAuth das Sitzungs-Cookie löschen.
+        throw new Error("session_replaced")
       }
 
       if (trigger === "update" && session?.user) {

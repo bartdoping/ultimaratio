@@ -14,9 +14,8 @@ export function SiteHeader() {
   const pathname = usePathname()
   const { data: session } = useSession()
   const isAdmin = (session?.user as any)?.role === "admin"
-  const generatorMode = !isAdmin
   const email = session?.user?.email ?? ""
-  const signOutUrl = generatorMode ? "/generator" : "/"
+  const signOutUrl = "/"
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -82,7 +81,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 md:px-6 lg:px-8">
         <div className="flex items-center gap-4">
-          <Link href={generatorMode ? "/generator" : "/"} className="flex items-center gap-2 font-semibold">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
             <Logo />
             <div className="flex flex-col">
               <span className="hidden sm:inline">fragenkreuzen.de</span>
@@ -93,37 +92,19 @@ export function SiteHeader() {
           
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center gap-1 text-sm">
-            {generatorMode ? (
-              <>
-                {navLink("/generator", "Generator")}
-                {session && navLink("/meine-fragen", "Meine Fragen")}
-                {session && navLink("/account", "Account")}
-              </>
-            ) : (
-              <>
-                {navLink("/exams", "Prüfungen")}
-                {navLink("/generator", "Generator")}
-                {navLink("/dashboard", "Mein Bereich")}
-                {session && navLink("/meine-fragen", "Meine Fragen")}
-                {showPricingLink && (
-                  <Link
-                    href="/#preise"
-                    className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    Preise
-                  </Link>
-                )}
-                {isAdmin && navLink("/admin", "Admin")}
-                <a
-                  href="https://www.ultima-rat.io/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  Tutor finden
-                </a>
-              </>
+            {navLink("/kreuzen", "Kreuzen")}
+            {navLink("/generator", "Generator")}
+            {session && navLink("/meine-fragen", "Meine Fragen")}
+            {session && navLink("/account", "Account")}
+            {showPricingLink && (
+              <Link
+                href="/#preise"
+                className="px-2 py-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Preise
+              </Link>
             )}
+            {isAdmin && navLink("/admin", "Admin")}
           </nav>
         </div>
 
@@ -211,16 +192,6 @@ export function SiteHeader() {
                   >
                     Abonnement
                   </Link>
-                  {!generatorMode && (
-                    <Link
-                      href="/dashboard/history"
-                      role="menuitem"
-                      className="block rounded px-3 py-2 hover:bg-muted"
-                      onClick={() => setMenuOpen(false)}
-                    >
-                      Historie
-                    </Link>
-                  )}
                   <button
                     role="menuitem"
                     onClick={() => signOut({ callbackUrl: signOutUrl })}
@@ -233,10 +204,10 @@ export function SiteHeader() {
             </div>
           ) : (
             <div className="hidden md:flex items-center gap-2">
-              <Link href={generatorMode ? "/login?callbackUrl=%2Fgenerator" : "/login"} className="btn">
+              <Link href="/login?callbackUrl=%2Fkreuzen" className="btn">
                 Login
               </Link>
-              <Link href={generatorMode ? "/register?callbackUrl=%2Fgenerator" : "/register"} className="btn">
+              <Link href="/register?callbackUrl=%2Fkreuzen" className="btn">
                 Registrieren
               </Link>
             </div>
@@ -249,95 +220,24 @@ export function SiteHeader() {
         <div className="md:hidden border-t bg-background">
           <div className="px-2 pt-2 pb-3 space-y-1">
             {/* Navigation Links */}
-            {generatorMode ? (
-              <>
+            {[
+              { href: "/kreuzen", label: "Kreuzen", show: true },
+              { href: "/generator", label: "Generator", show: true },
+              { href: "/meine-fragen", label: "Meine Fragen", show: !!session },
+              { href: "/#preise", label: "Preise", show: showPricingLink },
+              { href: "/admin", label: "Admin", show: isAdmin },
+            ]
+              .filter((l) => l.show)
+              .map((l) => (
                 <Link
-                  href="/generator"
+                  key={l.href}
+                  href={l.href}
                   className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Generator
+                  {l.label}
                 </Link>
-                {session && (
-                  <Link
-                    href="/meine-fragen"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Meine Fragen
-                  </Link>
-                )}
-                {session && (
-                  <Link
-                    href="/account"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Account
-                  </Link>
-                )}
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/exams"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Prüfungen
-                </Link>
-                <Link
-                  href="/generator"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Generator
-                </Link>
-                <Link
-                  href="/dashboard"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Mein Bereich
-                </Link>
-                {session && (
-                  <Link
-                    href="/meine-fragen"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Meine Fragen
-                  </Link>
-                )}
-                {showPricingLink && (
-                  <Link
-                    href="/#preise"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Preise
-                  </Link>
-                )}
-                {isAdmin && (
-                  <Link
-                    href="/admin"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Admin
-                  </Link>
-                )}
-                <a
-                  href="https://www.ultima-rat.io/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Tutor finden
-                </a>
-              </>
-            )}
+              ))}
 
             {/* User Section */}
             {session ? (
@@ -359,15 +259,6 @@ export function SiteHeader() {
                 >
                   Abonnement
                 </Link>
-                {!generatorMode && (
-                  <Link
-                    href="/dashboard/history"
-                    className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    Historie
-                  </Link>
-                )}
                 <button
                   onClick={() => {
                     setMobileMenuOpen(false)
@@ -381,14 +272,14 @@ export function SiteHeader() {
             ) : (
               <div className="border-t pt-4 mt-4 space-y-1">
                 <Link
-                  href={generatorMode ? "/login?callbackUrl=%2Fgenerator" : "/login"}
+                  href="/login?callbackUrl=%2Fkreuzen"
                   className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Login
                 </Link>
                 <Link
-                  href={generatorMode ? "/register?callbackUrl=%2Fgenerator" : "/register"}
+                  href="/register?callbackUrl=%2Fkreuzen"
                   className="block px-3 py-2 rounded-md text-base font-medium hover:bg-muted"
                   onClick={() => setMobileMenuOpen(false)}
                 >

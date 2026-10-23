@@ -62,15 +62,25 @@ export type RepairFn = (opts: {
  * Das ist der zentrale Latenz-Hebel: der Happy Path bleibt bei einem Aufruf.
  */
 export function hardSevereIssues(issues: DepthCheckIssue[]): DepthCheckIssue[] {
-  const distractorShort = issues.filter((d) => d.kind === "distractor_short")
+  // Eine Nachbesserung kostet einen ganzen Modellaufruf. Ausgelöst wird sie
+  // nur, wenn die Erklärung als Ganzes nicht trägt: fehlender Aha-Satz,
+  // fehlendes Argument zur richtigen Option, mehrere leere Distraktoren —
+  // oder wenn die Kürze systematisch verfehlt wurde (Aha-Satz zu lang bzw.
+  // mindestens drei Options-Erklärungen sind Absätze).
+  const anzahl = (k: DepthCheckIssue["kind"]) => issues.filter((d) => d.kind === k).length
   return issues.filter((d) => {
-    if (d.kind === "total_explanation_short") return true
-    if (d.kind === "correct_option_short") return true
-    if (d.kind === "must_know_short") return true
-    // Einzelner zu knapper Distraktor rechtfertigt keinen Full-Roundtrip;
-    // erst ab zwei wird es strukturell relevant.
-    if (d.kind === "distractor_short") return distractorShort.length >= 2
-    return false
+    switch (d.kind) {
+      case "key_takeaway_short":
+      case "key_takeaway_long":
+      case "correct_option_short":
+        return true
+      case "distractor_short":
+        return anzahl("distractor_short") >= 2
+      case "option_long":
+        return anzahl("option_long") >= 3
+      default:
+        return false
+    }
   })
 }
 

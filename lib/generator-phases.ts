@@ -73,9 +73,10 @@ export function parseEnrichResult(
     return { ok: false, error: "Erklärungen: mindestens eine Options-Erklärung ist leer." }
   }
 
+  // Die Vertiefung entsteht nur auf Anforderung — leer ist hier der Normalfall.
   const explanation = str(entry.explanation)
-  if (!explanation) {
-    return { ok: false, error: 'Erklärungen: "explanation" fehlt.' }
+  if (!str(entry.keyTakeaway)) {
+    return { ok: false, error: 'Erklärungen: Aha-Satz ("keyTakeaway") fehlt.' }
   }
 
   const highYield = Array.isArray(entry.highYield)
@@ -113,7 +114,7 @@ export function graftExplanations(draft: BulkQuestion, fields: EnrichedFields): 
   return {
     ...draft,
     keyTakeaway: fields.keyTakeaway || draft.keyTakeaway || null,
-    explanation: fields.explanation,
+    explanation: fields.explanation || draft.explanation || null,
     mustKnow: fields.mustKnow || draft.mustKnow || null,
     highYield: fields.highYield.length > 0 ? fields.highYield : (draft.highYield ?? null),
     mnemonic: fields.mnemonic || null,

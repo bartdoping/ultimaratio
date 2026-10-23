@@ -16,6 +16,7 @@ import { MessageSquare, Bug, Lightbulb, Heart, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { useSession } from "next-auth/react"
+import { usePathname } from "next/navigation"
 
 type Category = "bug" | "idea" | "praise" | "general"
 
@@ -34,6 +35,9 @@ const CATEGORIES: Array<{ value: Category; label: string; icon: React.ComponentT
  */
 export function FeedbackWidget() {
   const { data: session } = useSession()
+  // Im Kreuz-Modus liegt unten die Daumenleiste; auf dem Handy würde der Knopf
+  // Antworten verdecken. Fragen meldet man dort direkt an der Frage.
+  const ueberDaumenleiste = usePathname()?.startsWith("/kreuzen") ?? false
   const [open, setOpen] = useState(false)
   const [category, setCategory] = useState<Category>("general")
   const [message, setMessage] = useState("")
@@ -92,6 +96,7 @@ export function FeedbackWidget() {
         title="Feedback senden"
         className={cn(
           "fixed bottom-4 right-4 z-40 inline-flex h-11 w-11 items-center justify-center rounded-full border bg-card text-foreground shadow-lg backdrop-blur transition-all hover:scale-105 hover:bg-primary hover:text-primary-foreground sm:bottom-6 sm:right-6 sm:h-12 sm:w-12",
+          ueberDaumenleiste && "hidden lg:inline-flex lg:bottom-24",
           !showCta && "translate-y-2 opacity-0",
           showCta && "translate-y-0 opacity-100"
         )}

@@ -14,15 +14,12 @@ import { FullWidthLayout } from "@/components/full-width-layout"
  * behalten.
  */
 const APP_PREFIXES = [
+  "/kreuzen",
   "/generator",
   "/account",
   "/subscription",
   "/admin",
-  "/dashboard",
-  "/decks",
-  "/sr",
-  "/practice",
-  "/exam-run",
+  "/meine-fragen",
 ]
 
 function isAppRoute(pathname: string | null): boolean {

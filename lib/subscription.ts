@@ -1,7 +1,7 @@
 // lib/subscription.ts
 import prisma from "@/lib/db"
 
-export type ProAccessKind = "none" | "subscription" | "trial" | "admin"
+export type ProAccessKind = "none" | "subscription" | "trial" | "bonus" | "admin"
 
 export type ProAccessSnapshot = {
   isPro: boolean
@@ -12,7 +12,7 @@ export type ProAccessSnapshot = {
 
 /**
  * Liefert detaillierte Pro-Access-Information:
- * - `kind` zeigt, woher der Pro-Status kommt (Subscription / Trial / Admin).
+ * - `kind` zeigt, woher der Pro-Status kommt (Subscription / Trial / Bonus / Admin).
  * - `isPro` ist true, sobald irgendeine aktive Quelle existiert.
  */
 export async function getProAccess(userId: string): Promise<ProAccessSnapshot> {
@@ -22,6 +22,7 @@ export async function getProAccess(userId: string): Promise<ProAccessSnapshot> {
       subscriptionStatus: true,
       role: true,
       proTrialEndsAt: true,
+      proBonusUntil: true,
       subscription: {
         select: {
           currentPeriodEnd: true,
@@ -65,6 +66,11 @@ export async function getProAccess(userId: string): Promise<ProAccessSnapshot> {
     return { isPro: true, kind: "trial", trialEndsAt: trialEnd }
   }
 
+  // 3) Geschenkte Pro-Zeit (Empfehlung, Examenspass)
+  if (user.proBonusUntil && user.proBonusUntil.getTime() > Date.now()) {
+    return { isPro: true, kind: "bonus", trialEndsAt: trialEnd ?? null }
+  }
+
   return { isPro: false, kind: "none", trialEndsAt: trialEnd ?? null }
 }
 
@@ -93,4 +99,10 @@ export async function ensureAdminProStatus() {
   } catch (error) {
     console.error("Error ensuring admin pro status:", error)
   }
+}
+
+/** Verlängert geschenkte Pro-Zeit ab dem späteren von jetzt und dem bisherigen Ende. */
+export function extendBonus(current: Date | null, days: number, now = new Date()): Date {
+  const start = current && current.getTime() > now.getTime() ? current : now
+  return new Date(start.getTime() + days * 86_400_000)
 }

@@ -13,26 +13,19 @@ function makeOptions(correctIndex: number) {
     isCorrect: i === correctIndex,
     explanation:
       i === correctIndex
-        ? // Genug Tiefe, um die Min-Schwelle (220 Zeichen) für die korrekte Option zu erfüllen.
-          "Diese Option ist korrekt, weil der zugrundeliegende Pathomechanismus auf einer Endothelschädigung mit konsekutiver Thrombozytenaggregation beruht. Klinisch lässt sich dies anhand des in der Vignette beschriebenen Verlaufs und der etablierten Cut-Off-Werte rekonstruieren. Die Leitlinie empfiehlt in dieser Konstellation genau dieses Vorgehen. Der vermeintliche Standardreflex wäre eine andere Option, der jedoch das hier vorliegende Risikoprofil missachten würde."
-        : // Distraktor-Erklärung über 140 Zeichen.
-          `Option ${i + 1} ist hier falsch, weil die zugrundeliegende Logik in dieser klinischen Konstellation nicht greift. In einem anderen Setting mit unterschiedlichen Voraussetzungen wäre genau diese Option die richtige Wahl; die häufige Verwechslung resultiert aus oberflächlicher Mustererkennung.`,
+        ? "Richtig, weil ein INR unter 1,7 die systemische Lyse im 4,5-h-Fenster erlaubt."
+        : `Option ${i + 1} ist hier zu früh — richtig wäre sie bei bereits ausgeschlossener Blutung.`,
   }))
 }
 
 function makeQuestion(overrides: Record<string, unknown> = {}) {
   return {
     stem: "Eine ausführliche, klinisch realistische Fragestellung mit ausreichend Kontext für Single-Best-Answer-Logik?",
-    explanation:
-      "Pathophysiologisch liegt eine Endothelschaedigung mit Thrombozytenaktivierung und konsekutiver Mikrothrombenbildung vor. Diese Kaskade erklaert sowohl die Akutsymptomatik als auch den Befundverlauf.\n\nKlinisch ergibt sich daraus ein klares Vorgehen entlang der aktuellen Leitlinienempfehlung: zunaechst Risikostratifizierung anhand etablierter Scores, dann zeitkritische Therapieentscheidung mit Beruecksichtigung der absoluten und relativen Kontraindikationen. Die genannten Cut-Off-Werte sind dabei verbindlich.\n\nTake-Home: Der Standardreflex 'erst observieren' verspielt in dieser Konstellation das therapeutische Fenster - der entscheidende Punkt ist die parallele Diagnostik und Therapieeinleitung.",
+    explanation: null as string | null,
     keyTakeaway:
       "In dieser Konstellation entscheidet nicht das Alter, sondern die Kontraindikationsliste über die Akuttherapie.",
-    mustKnow:
-      "Bei dieser klinischen Konstellation ist die etablierte Akuttherapie trotz scheinbarer Kontraindikation indiziert, weil die Risiko-Nutzen-Abwägung gemäß aktueller Leitlinie eindeutig zugunsten der Intervention ausfällt.",
-    highYield: [
-      "Verwandte Differenzialdiagnose lässt sich am Verlauf und am Cut-Off-Wert abgrenzen.",
-      "Der häufigste Denkfehler ist die vorschnelle Anwendung des Standardreflexes.",
-    ],
+    mustKnow: "Ein INR unter 1,7 ist keine Kontraindikation für die Lyse.",
+    highYield: [] as string[],
     mnemonic: "",
     allowImmediate: true,
     caseVignette: null as string | null,
@@ -143,9 +136,14 @@ describe("validateGeneratedQuestions", () => {
 })
 
 describe("questionsHaveExplanations", () => {
-  it("erkennt fehlende Gesamterklärung", () => {
-    const q = makeQuestion({ explanation: "" })
+  it("erkennt fehlenden Aha-Satz", () => {
+    const q = makeQuestion({ keyTakeaway: "" })
     expect(questionsHaveExplanations([q as never])).toBe(false)
+  })
+
+  it("verlangt KEINE Vertiefung — sie entsteht nur auf Anforderung", () => {
+    const q = makeQuestion({ explanation: "" })
+    expect(questionsHaveExplanations([q as never])).toBe(true)
   })
 
   it("erkennt fehlende Option-Erklärung", () => {
@@ -167,10 +165,17 @@ describe("checkExplanationDepth", () => {
     expect(issues).toHaveLength(0)
   })
 
-  it("meldet zu kurze Gesamterklärung", () => {
-    const q = makeQuestion({ explanation: "Sehr kurze Erklärung." })
+  it("meldet einen zu langen Aha-Satz", () => {
+    const q = makeQuestion({ keyTakeaway: "Sehr lang. ".repeat(40) })
     const issues = checkExplanationDepth([q as never])
-    expect(issues.some((i) => i.kind === "total_explanation_short")).toBe(true)
+    expect(issues.some((i) => i.kind === "key_takeaway_long")).toBe(true)
+  })
+
+  it("meldet Absätze, wo ein Satz verlangt ist", () => {
+    const q = makeQuestion()
+    q.options[0].explanation = "Ein ganzer Absatz statt eines Satzes. ".repeat(10)
+    const issues = checkExplanationDepth([q as never])
+    expect(issues.some((i) => i.kind === "option_long")).toBe(true)
   })
 
   it("meldet zu kurze Erklärung der korrekten Option", () => {
@@ -205,10 +210,9 @@ describe("checkExplanationDepth", () => {
     expect(issues.some((i) => i.kind === "key_takeaway_short")).toBe(true)
   })
 
-  it("meldet dünnen High-Yield-Transfer als weiches Signal", () => {
-    const q = makeQuestion({ highYield: ["nur ein Punkt"] })
-    const issues = checkExplanationDepth([q as never])
-    expect(issues.some((i) => i.kind === "high_yield_thin")).toBe(true)
+  it("verlangt keine High-Yield-Punkte mehr", () => {
+    const q = makeQuestion({ highYield: [] })
+    expect(checkExplanationDepth([q as never]).filter((i) => i.kind !== "mnemonic_missing")).toEqual([])
   })
 
   it("wertet keyTakeaway/highYield/mnemonic nicht als harte Defizite", () => {
@@ -216,7 +220,6 @@ describe("checkExplanationDepth", () => {
     const q = makeQuestion() as never
     const issues = checkExplanationDepth([q])
     expect(issues.some((i) => i.kind === "key_takeaway_short")).toBe(false)
-    expect(issues.some((i) => i.kind === "high_yield_thin")).toBe(false)
   })
 
   it("baut nicht-leeren Repair-Hint nur bei Issues", () => {
@@ -224,16 +227,18 @@ describe("checkExplanationDepth", () => {
     const hint = buildDepthRepairHint([
       {
         questionIndex: 0,
-        kind: "total_explanation_short",
+        kind: "key_takeaway_short",
         detail: "zu kurz",
       },
     ])
     expect(hint.length).toBeGreaterThan(40)
-    expect(hint).toMatch(/Drei-Abschnitts-Struktur/)
+    expect(hint).toMatch(/GENAU EIN Satz/)
   })
 
   it("Schwellen sind sinnvoll konfiguriert", () => {
-    expect(QUESTION_QUALITY.MIN_TOTAL_EXPLANATION_CHARS).toBeGreaterThanOrEqual(300)
+    // Kurz, aber nicht leer: ein Satz passt zwischen Unter- und Obergrenze.
+    expect(QUESTION_QUALITY.MAX_OPTION_EXPL_CHARS).toBeGreaterThan(QUESTION_QUALITY.MIN_CORRECT_OPTION_EXPL_CHARS * 4)
+    expect(QUESTION_QUALITY.MAX_KEY_TAKEAWAY_CHARS).toBeLessThanOrEqual(400)
     expect(QUESTION_QUALITY.MIN_CORRECT_OPTION_EXPL_CHARS).toBeGreaterThan(
       QUESTION_QUALITY.MIN_DISTRACTOR_EXPL_CHARS
     )

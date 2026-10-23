@@ -32,6 +32,8 @@ type Props = {
   options: { text: string; isCorrect: boolean }[]
   meta: { topic: string; difficulty: number; mode: string }
   caseVignette?: string | null
+  /** Ist die Frage eine Poolfrage, zählt die Meldung für deren Qualitätsprüfung. */
+  poolQuestionId?: string | null
 }
 
 /** Baut den Meldetext. Gekürzt, damit das 2000-Zeichen-Limit sicher hält. */
@@ -75,6 +77,7 @@ export function QuestionReport(props: Props) {
         body: JSON.stringify({
           category: "question",
           message: buildMessage(grund, notiz, props),
+          poolQuestionId: props.poolQuestionId ?? undefined,
           pageUrl: typeof window !== "undefined" ? window.location.href : undefined,
         }),
       })

@@ -20,11 +20,8 @@ import {
   Zap,
   RotateCcw,
   TrendingUp,
-  TrendingDown,
-  Layers,
   Copy,
   Check as CheckIcon,
-  Wand2,
 } from "lucide-react"
 import {
   isKeyTakeawayWorthShowing,
@@ -122,13 +119,9 @@ export function GeneratorRunner({
    */
   const [struckByQ, setStruckByQ] = useState<Record<string, Set<string>>>({})
   const [vignetteHighlights, setVignetteHighlights] = useState<HighlightSet>(() => new Set())
-  /**
-   * Bei welcher Frage-ID der Inline-Pro-Nudge gezeigt wurde. Pro Session/Run
-   * wird er für maximal eine Frage angezeigt — danach erst wieder auf der
-   * Done-Card. Bei akut knappem Kontingent (quotaRemaining <= 1) bleibt er
-   * weiterhin sichtbar, weil das ein echter Limit-Hinweis ist.
-   */
-  const [inlineNudgeForQId, setInlineNudgeForQId] = useState<string | null>(null)
+  // Pro-Hinweise nur bei echtem Anlass (Kontingent fast aufgebraucht) —
+  // Werbung mitten im Durchlauf unterbricht genau den Moment, in dem gelernt wird.
+  const kontingentKnapp = quotaRemaining !== null && quotaRemaining <= 1
 
   const q = runnerQuestions[idx]
   const given = answers[q.id]
@@ -244,10 +237,6 @@ export function GeneratorRunner({
       const gewaehlt = q.options.find((o) => o.id === given)
       onAnswerRecorded?.(savedId, gewaehlt?.isCorrect === true)
     }
-    // Inline-Pro-Nudge nur beim ersten bestätigten Frage-Beleg dieser Session.
-    if (!isPro && inlineNudgeForQId == null) {
-      setInlineNudgeForQId(q.id)
-    }
     // Letzte Frage aufgelöst: Der Nutzer liest jetzt die Erklärung — ein
     // Zeitfenster von typischerweise 30–60 s, in dem die nächste Frage im
     // Hintergrund entstehen kann. Die Bestätigung des letzten offenen Items
@@ -285,7 +274,7 @@ export function GeneratorRunner({
           onNewGeneration={onNewGeneration}
           onQuickAction={onQuickAction}
         />
-        {!isPro && onUpgrade && (
+        {!isPro && onUpgrade && kontingentKnapp && (
           <PostAnswerProNudge
             quotaRemaining={quotaRemaining}
             onUpgrade={onUpgrade}
@@ -577,20 +566,9 @@ export function GeneratorRunner({
         )}
       </div>
 
-      {showFeedback && !isPro && onUpgrade && (() => {
-        const lowQuota = quotaRemaining !== null && quotaRemaining <= 1
-        // Standard: nur 1× pro Session am ersten Bestätigungs-Belegmoment.
-        // Ausnahme: bei knappem Kontingent immer (echter Limit-Hinweis).
-        const showHere = lowQuota || inlineNudgeForQId === q.id
-        if (!showHere) return null
-        return (
-          <PostAnswerProNudge
-            quotaRemaining={quotaRemaining}
-            onUpgrade={onUpgrade}
-            upgrading={upgrading}
-          />
-        )
-      })()}
+      {showFeedback && !isPro && onUpgrade && kontingentKnapp && (
+        <PostAnswerProNudge quotaRemaining={quotaRemaining} onUpgrade={onUpgrade} upgrading={upgrading} />
+      )}
 
       {/* Transparenzhinweis für KI-Inhalte (Art. 50 KI-VO) – dauerhaft sichtbar. */}
       <AiDisclaimer className="mx-auto max-w-prose" />
@@ -760,14 +738,12 @@ function GeneratorDoneCard({
         : "text-red-600 dark:text-red-400"
 
   const canHarder = meta.difficulty < 5
-  const canEasier = meta.difficulty > 1
-  const canCase = meta.mode === "single"
 
   return (
     <div className="material rounded-2xl p-6 md:p-8 space-y-6">
       <div className="text-center space-y-3">
         <div className="inline-flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-          Durchlauf abgeschlossen
+          Geschafft
         </div>
         <p className={`text-4xl font-semibold tabular-nums ${tone}`}>
           {correct} <span className="text-xl text-muted-foreground">/ {total}</span>
@@ -781,49 +757,32 @@ function GeneratorDoneCard({
         </p>
       </div>
 
-      {onQuickAction && (
-        <div className="space-y-3">
-          <p className="text-center text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Direkt weiter
-          </p>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            <QuickActionButton
-              icon={RotateCcw}
-              label="Gleiches Thema"
-              onClick={() => onQuickAction("same_again")}
-            />
+      <div className="space-y-2">
+        <Link
+          href={`/kreuzen?thema=${encodeURIComponent(meta.topic)}`}
+          className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-base font-semibold text-primary-foreground"
+        >
+          <Zap className="h-4 w-4" aria-hidden />
+          Endlos weiterkreuzen
+        </Link>
+        {onQuickAction && (
+          <div className="grid grid-cols-2 gap-2">
+            <QuickActionButton icon={RotateCcw} label="Gleiches Thema" onClick={() => onQuickAction("same_again")} />
             <QuickActionButton
               icon={TrendingUp}
               label="Schwieriger"
               disabled={!canHarder}
               onClick={() => onQuickAction("harder")}
             />
-            <QuickActionButton
-              icon={TrendingDown}
-              label="Einfacher"
-              disabled={!canEasier}
-              onClick={() => onQuickAction("easier")}
-            />
-            {canCase && (
-              <QuickActionButton
-                icon={Layers}
-                label="Als Fallfrage"
-                onClick={() => onQuickAction("as_case")}
-              />
-            )}
-            <QuickActionButton
-              icon={Wand2}
-              label="Neues Thema"
-              onClick={() => onQuickAction("new_topic")}
-            />
           </div>
-        </div>
-      )}
-
-      <div className="border-t pt-4 text-center">
-        <Button onClick={onNewGeneration} variant="outline" size="sm">
-          Zum Generator zurück
-        </Button>
+        )}
+        <button
+          type="button"
+          onClick={onNewGeneration}
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground"
+        >
+          Neues Thema
+        </button>
       </div>
     </div>
   )

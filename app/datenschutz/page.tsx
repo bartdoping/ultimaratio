@@ -319,6 +319,109 @@ export default function DatenschutzPage() {
           der Löschung entfernen wir deine Daten, soweit keine gesetzlichen
           Aufbewahrungsfristen entgegenstehen (siehe Abschnitt 13).
         </p>
+
+        <LegalSubsection title="Kreuz-Modus und gemeinsamer Fragenpool">
+          <p>
+            Im <Link href="/kreuzen">Kreuz-Modus</Link> beantwortest du Fragen aus
+            einem gemeinsamen Fragenpool. Die Fragen entstehen aus Thema und
+            Schwierigkeitsgrad und enthalten keine personenbezogenen Daten. Zu jeder
+            Antwort speichern wir: welche Frage, welche Option du gewählt hast, ob sie
+            richtig war, wie lange du gebraucht hast, deine Trefferquote der letzten
+            Antworten zum Zeitpunkt der Antwort sowie welche Fragen dir bereits gezeigt
+            wurden (damit sich nichts wiederholt). Bist du angemeldet, ist die Antwort
+            deinem Konto zugeordnet und die Frage wird zusätzlich in „Meine Fragen"
+            abgelegt; ohne Anmeldung erfolgt die Speicherung ohne Personenbezug.
+          </p>
+          <p>
+            Die Antworten aller Nutzer werten wir statistisch aus, um fehlerhafte oder
+            missverständliche Fragen automatisch zu erkennen und aus dem Pool zu
+            nehmen (Trefferquote, Trennschärfe, Meldungen). Rechtsgrundlage ist
+            Art. 6 Abs. 1 lit. b DSGVO (Erbringung des Lerndienstes) und Art. 6 Abs. 1
+            lit. f DSGVO (berechtigtes Interesse an fachlich richtigen Fragen). Löschst
+            du dein Konto, bleiben die Antworten ohne Zuordnung zu dir für diese
+            Statistik erhalten; ein Rückschluss auf dich ist dann nicht mehr möglich.
+          </p>
+          <p>
+            Fragen aus dem Pool kannst du über einen Link teilen. Geteilte Seiten und
+            die öffentliche „Frage des Tages" zeigen nur die Frage selbst — keine
+            Angaben dazu, wer sie geteilt oder beantwortet hat.
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Speicherung auf deinem Gerät (Offline-Vorrat)">
+          <p>
+            Damit das Kreuzen ohne Wartezeit und auch im Funkloch funktioniert, legt
+            die App im Speicher deines Browsers (Local Storage) einen Vorrat von bis zu
+            20 Fragen, die Liste bereits gesehener Fragen, noch nicht übertragene
+            Antworten, deinen Lernplan-Fortschritt samt Prüfungsdatum, dein Tagesziel
+            und gewählte Einstellungen ab. Wenn du fragenkreuzen als App installierst,
+            speichert ein Service Worker außerdem die zuletzt geladene Kreuz-Seite und
+            die Programmdateien zwischen. Diese Daten verlassen dein Gerät nur, soweit
+            sie für die genannten Funktionen an uns übertragen werden. Die Speicherung
+            ist für die von dir gewünschte Funktion unbedingt erforderlich (§ 25 Abs. 2
+            Nr. 2 TDDDG). Du kannst sie jederzeit über die Browsereinstellungen löschen.
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Anmeldesitzungen">
+          <p>
+            Ein Konto ist für eine Person bestimmt. Damit es nicht geteilt wird, können
+            höchstens zwei Geräte gleichzeitig angemeldet sein. Dazu speichern wir je
+            Anmeldung eine zufällige Sitzungskennung mit Zeitpunkt der Anmeldung und
+            der letzten Nutzung. Meldest du dich auf einem dritten Gerät an, wird die
+            älteste Sitzung beendet. Sitzungen werden bei der Abmeldung gelöscht,
+            spätestens 30 Tage nach der letzten Nutzung. Rechtsgrundlage ist Art. 6
+            Abs. 1 lit. b DSGVO (Nutzungsbedingungen) und Art. 6 Abs. 1 lit. f DSGVO
+            (Schutz vor Missbrauch des Kontos).
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Lern-Erinnerungen per E-Mail">
+          <p>
+            Nur wenn du sie im Bereich <Link href="/account">Account</Link> ausdrücklich
+            einschaltest, schicken wir dir höchstens eine Erinnerung am Tag — und nur,
+            wenn deine Lern-Serie sonst abreißen würde oder Wiederholungen fällig sind.
+            Verarbeitet werden deine E-Mail-Adresse, deine Lern-Serie, die Zahl
+            fälliger Wiederholungen und der Zeitpunkt der letzten Erinnerung.
+            Rechtsgrundlage ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO). Du
+            kannst sie jederzeit im Account oder über den Abmeldelink in jeder
+            Erinnerung widerrufen. Der Versand erfolgt über den in Abschnitt 9
+            genannten Dienstleister.
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Empfehlungsprogramm und Creator-Codes">
+          <p>
+            Du kannst Freunde über deinen persönlichen Einladungslink einladen. Öffnet
+            jemand den Link, speichern wir den Code für bis zu 30 Tage in einem Cookie
+            und ordnen ein danach angelegtes Konto dir zu. Sobald die eingeladene
+            Person ihre E-Mail-Adresse bestätigt und 20 Fragen beantwortet hat,
+            schreiben wir euch beiden Pro-Zeit gut. Du siehst dabei nur, wie viele
+            Personen du eingeladen hast und wie viele Einladungen belohnt wurden —
+            nicht, wer sie sind. Dasselbe gilt für Creator-Codes von Kooperationspartnern:
+            Diese erhalten von uns nur zusammengefasste Zahlen (Anzahl Registrierungen
+            und zahlender Nutzer), keine Angaben zu einzelnen Personen. Rechtsgrundlage
+            ist Art. 6 Abs. 1 lit. b DSGVO (Gewährung der zugesagten Vorteile); das
+            Cookie ist dafür unbedingt erforderlich (§ 25 Abs. 2 Nr. 2 TDDDG).
+          </p>
+        </LegalSubsection>
+
+        <LegalSubsection title="Produktstatistik ohne Drittanbieter">
+          <p>
+            Um zu verstehen, ob fragenkreuzen beim Lernen hilft, erfassen wir auf
+            unserem eigenen Server einfache Nutzungsereignisse: zum Beispiel, dass eine
+            Frage ausgeliefert oder beantwortet, eine Vertiefung geöffnet, eine Frage
+            geteilt, ein Checkout begonnen oder ein Abo abgeschlossen bzw. beendet
+            wurde, sowie die Installation als App. Bist du angemeldet, ist das Ereignis
+            deinem Konto zugeordnet; ohne Anmeldung wird es ohne jede Kennung
+            gespeichert. Es werden dafür keine Cookies gesetzt und keine Daten an
+            Dritte übermittelt. Wir werten die Ereignisse nur zusammengefasst aus (z. B.
+            wie viele Nutzer nach sieben Tagen wiederkommen). Rechtsgrundlage ist
+            Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an der Verbesserung des
+            Dienstes). Die Ereignisse werden nach 14 Monaten automatisch gelöscht. Du
+            kannst der Verarbeitung nach Art. 21 DSGVO widersprechen.
+          </p>
+        </LegalSubsection>
       </LegalSection>
 
       <LegalSection title="7. KI-gestützte Fragengenerierung (OpenAI)">
@@ -358,6 +461,16 @@ export default function DatenschutzPage() {
           .
         </p>
         <p>
+          Um die Kosten der KI-Nutzung zu steuern und Missbrauch zu erkennen,
+          protokollieren wir zu jedem Aufruf des Sprachmodells den Zweck (z. B.
+          Entwurf, Prüfung, Vertiefung), das verwendete Modell, die Anzahl der
+          verarbeiteten Textbausteine (Tokens), die Dauer und ob der Aufruf erfolgreich
+          war — bei angemeldeten Nutzern zugeordnet zum Konto. Inhalte werden dabei
+          nicht gespeichert. Rechtsgrundlage ist Art. 6 Abs. 1 lit. f DSGVO
+          (wirtschaftlicher Betrieb, Missbrauchsschutz). Die Einträge werden nach 14
+          Monaten automatisch gelöscht.
+        </p>
+        <p>
           <strong>Hinweis:</strong> Die generierten Inhalte werden automatisiert
           durch ein KI-Sprachmodell erstellt und können trotz sorgfältiger
           Konfiguration fachliche Fehler enthalten. Sie dienen ausschließlich
@@ -367,12 +480,13 @@ export default function DatenschutzPage() {
 
       <LegalSection title="8. Zahlungsabwicklung (Stripe)">
         <p>
-          Für die Abwicklung kostenpflichtiger Abonnements nutzen wir den
+          Für die Abwicklung kostenpflichtiger Tarife (Abonnements und Einmalkäufe wie
+          den Examenspass) nutzen wir den
           Zahlungsdienstleister <strong>Stripe Payments Europe, Ltd.</strong>, 1
           Grand Canal Street Lower, Grand Canal Dock, Dublin, Irland.
         </p>
         <p>
-          Schließt du ein Pro-Abonnement ab, werden die für die Zahlungsabwicklung
+          Schließt du ein Pro-Abonnement ab oder kaufst einen Examenspass, werden die für die Zahlungsabwicklung
           erforderlichen Daten (z. B. Name, E-Mail-Adresse, Zahlungsmittel,
           Rechnungsdaten) unmittelbar von Stripe erhoben und verarbeitet. Deine
           vollständigen Zahlungsdaten – etwa die Kreditkartennummer – werden{" "}
@@ -457,8 +571,10 @@ export default function DatenschutzPage() {
             ermöglichen (Session- und Authentifizierungs-Cookies), um deine Sitzung
             abzusichern (z. B. Schutz vor Cross-Site-Request-Forgery), um unsere
             Systeme vor missbräuchlicher Nutzung zu schützen (Zählung der
-            Generierungen, Rate-Limiting) sowie um deine Cookie-Auswahl und deine
-            Anzeigeeinstellungen zu speichern.
+            Generierungen und gekreuzten Fragen, Rate-Limiting), um einen
+            Einladungs- oder Creator-Code bis zur Registrierung vorzumerken (bis zu
+            30 Tage) sowie um deine Cookie-Auswahl und deine Anzeigeeinstellungen zu
+            speichern.
           </p>
           <p>
             Diese Cookies sind für die Bereitstellung der von dir ausdrücklich
@@ -606,6 +722,23 @@ export default function DatenschutzPage() {
           <li>
             <strong>Cookie-Einwilligung:</strong> 6 Monate, danach erneute Abfrage
           </li>
+          <li>
+            <strong>Produktstatistik und KI-Kostenmessung:</strong> 14 Monate
+          </li>
+          <li>
+            <strong>Anmeldesitzungen:</strong> bis zur Abmeldung, spätestens 30 Tage
+            nach der letzten Nutzung
+          </li>
+          <li>
+            <strong>Antworten im Fragenpool:</strong> mit Kontobezug bis zur Löschung
+            des Kontos, danach ohne Personenbezug
+          </li>
+          <li>
+            <strong>Einladungs-Cookie:</strong> 30 Tage
+          </li>
+          <li>
+            <strong>Einwilligung in Lern-Erinnerungen:</strong> bis zum Widerruf
+          </li>
         </ul>
       </LegalSection>
 
@@ -696,7 +829,7 @@ export default function DatenschutzPage() {
 
       <LegalSection title="18. Aktualität und Änderung dieser Datenschutzerklärung">
         <p>
-          Diese Datenschutzerklärung hat den Stand <strong>20. August 2026</strong>.
+          Diese Datenschutzerklärung hat den Stand <strong>23. Oktober 2026</strong>.
           Durch die Weiterentwicklung unserer Plattform oder aufgrund geänderter
           gesetzlicher Vorgaben kann es notwendig werden, diese Erklärung anzupassen.
           Die jeweils aktuelle Fassung findest du stets auf dieser Seite.

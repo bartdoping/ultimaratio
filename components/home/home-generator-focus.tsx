@@ -3,14 +3,16 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { buildLoginHref, buildRegisterHref } from "@/lib/auth-redirect"
 import { PriceNote } from "@/components/legal/price-note"
+import { POOL_LIMIT_ANON, POOL_LIMIT_FREE, GENERATOR_FREE_DAILY_LIMIT, GENERATOR_PRO_DAILY_LIMIT } from "@/lib/generator-plan-config"
 import {
   ArrowRight,
-  BookOpenCheck,
   Check,
   Layers,
   Microscope,
+  Repeat,
   Sparkles,
   Target,
+  WifiOff,
   Zap,
 } from "lucide-react"
 
@@ -20,29 +22,34 @@ type Props = {
 
 const BENEFITS = [
   {
-    icon: BookOpenCheck,
-    title: "Examensnahe Single-Choice-Fragen",
-    text: "Stem, 5 Antwortoptionen A–E und Einzelerklärungen pro Option – wie im echten Staatsexamen.",
+    icon: Zap,
+    title: "Endlos kreuzen, ohne Warten",
+    text: "Thema eintippen, los. Die nächste Frage liegt immer schon bereit — Frage um Frage, so lange du willst.",
   },
   {
-    icon: Layers,
-    title: "Fallvignetten mit 2–5 Teilfragen",
-    text: "Klinische Fälle mit progressiver Informationsstruktur und spoiler-freier Auswertung.",
+    icon: Sparkles,
+    title: "Der Aha-Moment statt Lehrbuch",
+    text: "Falsch gekreuzt? Du siehst zuerst, warum genau deine Wahl nicht passt. Dann ein Satz, der hängen bleibt.",
   },
   {
-    icon: Target,
-    title: "Must-Know & Lernhilfe je Frage",
-    text: "Nach jeder Bestätigung: das eine Kerndetail zum Hängenbleiben. Plus echte Eselsbrücken — aber nur, wenn sie wirklich tragen.",
+    icon: Repeat,
+    title: "Deine Fehler kommen wieder",
+    text: "Was du falsch hattest, taucht automatisch zum richtigen Zeitpunkt erneut auf — bis es sitzt.",
   },
   {
     icon: Microscope,
-    title: "Schwierigkeitsstufen 1–5",
-    text: "Von Basiswissen bis differenzialdiagnostisch eng – wirklich schwer auf Stufe 4 und 5.",
+    title: "Wirklich schwer, wenn du willst",
+    text: "Stufe 1 bis 5 — oben mit den Fallstricken, die im Examen Punkte kosten.",
   },
   {
-    icon: Zap,
-    title: "Direkt kreuzbar, ohne Setup",
-    text: "Keine Decks, kein Tracking, kein Speicher-Aufwand. Thema eingeben, lernen, fertig.",
+    icon: WifiOff,
+    title: "Gemacht fürs Handy",
+    text: "Eine Hand, ein Daumen, auch im Funkloch: Dein Fragenvorrat liegt auf dem Gerät.",
+  },
+  {
+    icon: Layers,
+    title: "Eigene Fallvignetten",
+    text: "Für die Lerngruppe oder das Repetitorium: Fälle mit 2–5 Teilfragen auf Knopfdruck.",
   },
 ] as const
 
@@ -52,11 +59,11 @@ const COMPARISON: Array<{
   pro: string
   highlight?: boolean
 }> = [
-  { label: "Generierungen pro Tag", free: "3", pro: "100", highlight: true },
-  { label: "Fallvignetten mit 2–5 Teilfragen", free: "Im Limit enthalten", pro: "Ohne Limit-Druck" },
+  { label: "Fragen kreuzen pro Tag", free: String(POOL_LIMIT_FREE), pro: "Unbegrenzt", highlight: true },
+  { label: "Eigene Generierungen pro Tag", free: String(GENERATOR_FREE_DAILY_LIMIT), pro: String(GENERATOR_PRO_DAILY_LIMIT) },
+  { label: "Aha-Erklärung & Vertiefung", free: "Verfügbar", pro: "Verfügbar" },
+  { label: "Automatische Wiederholung", free: "Verfügbar", pro: "Verfügbar" },
   { label: "Schwierigkeit 1–5", free: "Verfügbar", pro: "Verfügbar" },
-  { label: "Erklärungen pro Antwort", free: "Verfügbar", pro: "Verfügbar" },
-  { label: "Must-Know & Lernhilfe (wenn hilfreich)", free: "Verfügbar", pro: "Verfügbar" },
 ]
 
 export function HomeGeneratorFocus({ loggedIn }: Props) {
@@ -68,35 +75,35 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
         <div className="relative mx-auto max-w-3xl px-6 py-16 md:py-20 text-center space-y-6">
           <Badge variant="secondary" className="text-xs">
             <Sparkles className="mr-1 h-3 w-3" />
-            KI-Generator für medizinische Prüfungsfragen
+            Prüfungsfragen fürs Medizinstudium
           </Badge>
           {/*
             Typografische Signatur von ultima-rat.io: ein kursives Akzentwort
             im Marken-Petrol innerhalb der ansonsten dunklen Überschrift.
           */}
           <h1 className="text-balance text-4xl font-bold tracking-tight md:text-5xl">
-            Prüfungsfragen generieren. <br className="hidden sm:inline" />
-            <span className="accent-word">Direkt kreuzen.</span>
+            Frage um Frage. <br className="hidden sm:inline" />
+            <span className="accent-word">Bis es sitzt.</span>
           </h1>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed text-pretty">
-            Anspruchsvolle Single-Choice-Fragen und Fallvignetten – mit tiefer Erklärung,
-            klarem Must-Know und einer echten Lernhilfe, wenn es eine gibt. Themenwahl in Sekunden, sofort kreuzbar.
+            Thema eintippen und kreuzen — ohne Wartezeit, mit einem Aha-Satz zu jeder Antwort.
+            Deine Fehler kommen automatisch wieder. Im Bus, in der Pause, vor der Prüfung.
           </p>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
             <Button asChild size="lg">
-              <Link href="/generator">
-                Jetzt erste Frage generieren
+              <Link href="/kreuzen">
+                Jetzt kreuzen — ohne Anmeldung
                 <ArrowRight className="ml-1 h-4 w-4" />
               </Link>
             </Button>
             {!loggedIn && (
               <Button asChild size="lg" variant="ghost">
-                <Link href={buildLoginHref("/generator")}>Anmelden</Link>
+                <Link href={buildLoginHref("/kreuzen")}>Anmelden</Link>
               </Button>
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            3 Generierungen pro Tag kostenlos · Pro erweitert auf 100 pro Tag
+            {POOL_LIMIT_ANON} Fragen sofort ohne Konto · {POOL_LIMIT_FREE} pro Tag mit kostenlosem Konto · Pro unbegrenzt
           </p>
         </div>
       </section>
@@ -104,7 +111,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
       {/* Live-Beispiel einer generierten Frage */}
       <section className="mx-auto max-w-3xl px-2">
         <div className="mb-4 flex items-center justify-between gap-2">
-          <h2 className="text-lg font-semibold tracking-tight">So sieht eine generierte Frage aus</h2>
+          <h2 className="text-lg font-semibold tracking-tight">So sieht eine Frage aus</h2>
           <Badge variant="outline" className="text-xs uppercase tracking-wide">
             Beispiel
           </Badge>
@@ -115,9 +122,9 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
       {/* Vorteile */}
       <section className="mx-auto max-w-5xl px-2 space-y-5">
         <div className="text-center space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">Was den Generator stark macht</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Warum man nicht mehr aufhört</h2>
           <p className="text-sm text-muted-foreground">
-            Fokus auf medizinische Tiefe und Prüfungsnähe – keine Spielereien.
+            Wenige Funktionen — die aber richtig.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -138,7 +145,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
         <div className="text-center space-y-1">
           <h2 className="text-xl font-semibold tracking-tight">Free oder Pro?</h2>
           <p className="text-sm text-muted-foreground">
-            Beide Tarife geben dir denselben Generator. Pro entfernt nur das tägliche Limit.
+            Alles ist in beiden Tarifen drin. Pro entfernt nur das tägliche Limit.
           </p>
         </div>
         <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
@@ -178,11 +185,11 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="ghost" size="sm">
-                <Link href="/generator">Erst mal Free testen</Link>
+                <Link href="/kreuzen">Erst mal testen</Link>
               </Button>
               {!loggedIn ? (
                 <Button asChild size="sm">
-                  <Link href={buildRegisterHref("/generator")}>Kostenlos starten</Link>
+                  <Link href={buildRegisterHref("/kreuzen")}>Kostenlos starten</Link>
                 </Button>
               ) : (
                 <Button asChild size="sm">
@@ -201,18 +208,18 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
           {[
             {
               step: "1",
-              title: "Thema wählen",
-              text: "Einzelfrage oder Fall mit 2–5 Teilfragen. Schwierigkeit 1–5.",
+              title: "Thema eintippen",
+              text: "Oder Prüfungsdatum setzen — dann kommt jeden Tag das passende Thema.",
             },
             {
               step: "2",
-              title: "Generieren",
-              text: "KI erstellt Stem, Optionen, tiefe Erklärungen, Must-Know und ggf. Lernhilfe.",
+              title: "Kreuzen",
+              text: "Antippen, prüfen, Aha lesen, weiter. Die nächste Frage ist schon da.",
             },
             {
               step: "3",
-              title: "Kreuzen & lernen",
-              text: "Direkt beantworten, Erklärungen aufklappen, Markierungen setzen.",
+              title: "Wiederholen",
+              text: "Deine Fehler kommen von selbst wieder, bis sie sitzen. Mit Streak und Tagesziel.",
             },
           ].map((item) => (
             <div key={item.step} className="rounded-xl border bg-card p-5 space-y-2">
@@ -226,8 +233,8 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
         </div>
         <div className="text-center pt-2">
           <Button asChild size="lg">
-            <Link href="/generator">
-              Zum Generator
+            <Link href="/kreuzen">
+              Jetzt kreuzen
               <ArrowRight className="ml-1 h-4 w-4" />
             </Link>
           </Button>

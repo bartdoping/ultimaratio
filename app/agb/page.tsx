@@ -132,7 +132,9 @@ export default function AgbPage() {
         </p>
         <p>
           (5) Pro Person ist nur ein Nutzerkonto zulässig. Eine Weitergabe oder
-          gemeinschaftliche Nutzung des Kontos ist untersagt.
+          gemeinschaftliche Nutzung des Kontos ist untersagt. Gleichzeitig können
+          höchstens zwei Geräte angemeldet sein; bei der Anmeldung auf einem
+          weiteren Gerät wird die älteste Anmeldung beendet.
         </p>
       </LegalSection>
 

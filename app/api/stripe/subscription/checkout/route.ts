@@ -1,10 +1,12 @@
 // app/api/stripe/subscription/checkout/route.ts
 import { NextResponse } from "next/server"
+import { track } from "@/lib/product-events"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
 import { getAppBaseUrl } from "@/lib/app-base-url"
+import { EXAM_PASS_DAYS, isPlanId, priceIdFor } from "@/lib/stripe-plans"
 import {
   assertStripeReadyForCharges,
   getStripeConfig,
@@ -69,7 +71,14 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}))
-    const returnTo = body?.returnTo === "/generator" ? "/generator" : "/dashboard"
+    const plan = isPlanId(body?.plan) ? body.plan : "pro_monthly"
+    const priceId = plan === "pro_monthly" ? cfg.proMonthlyPriceId : priceIdFor(plan)
+    if (!priceId) {
+      return NextResponse.json({ ok: false, error: "plan_unavailable" }, { status: 400 })
+    }
+    // Nur bekannte Ziele — keine frei wählbare Weiterleitung (Open Redirect).
+    const returnTo =
+      body?.returnTo === "/generator" || body?.returnTo === "/kreuzen" ? body.returnTo : "/kreuzen"
 
     // 3) Stripe Customer erstellen oder finden. E-Mail nur an Stripe geben —
     // KEINE Logs mit E-Mail oder PII.
@@ -127,26 +136,30 @@ export async function POST(req: Request) {
     // 4) Checkout Session — ausschließlich mit Dashboard-konfigurierter Price ID,
     // KEIN dynamischer price_data-Fallback mehr (würde Preis im Code erlauben).
     const base = getAppBaseUrl()
-    const checkoutSession = await stripe.checkout.sessions.create({
-      mode: "subscription",
+    const gemeinsam = {
       customer: customerId,
       client_reference_id: user.id,
-      line_items: [{ price: cfg.proMonthlyPriceId!, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${base}${returnTo}?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}${returnTo}?subscription=cancelled`,
       allow_promotion_codes: true,
-      metadata: {
-        userId: user.id,
-        plan: "pro_monthly",
-      },
-      subscription_data: {
-        metadata: {
-          userId: user.id,
-          plan: "pro_monthly",
-        },
-      },
-    })
+      metadata: { userId: user.id, plan },
+    }
+    const checkoutSession =
+      plan === "exam_pass"
+        ? // Examenspass: Einmalzahlung, verlängert sich nicht — kein Abo, nichts zu kündigen.
+          await stripe.checkout.sessions.create({
+            ...gemeinsam,
+            mode: "payment",
+            payment_intent_data: { metadata: { userId: user.id, plan, days: String(EXAM_PASS_DAYS) } },
+          })
+        : await stripe.checkout.sessions.create({
+            ...gemeinsam,
+            mode: "subscription",
+            subscription_data: { metadata: { userId: user.id, plan } },
+          })
 
+    track("checkout_started", { userId: user.id, props: { plan } })
     return NextResponse.json({ ok: true, url: checkoutSession.url })
   } catch (err: unknown) {
     const e = err as { type?: string; message?: string }

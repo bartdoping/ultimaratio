@@ -5,7 +5,6 @@ const EXACT_PATHS = new Set([
   "/generator",
   "/probieren",
   "/pricing",
-  "/coming-soon",
   "/login",
   "/register",
   "/verify",
@@ -16,13 +15,20 @@ const EXACT_PATHS = new Set([
   "/agb",
   "/widerruf",
   // § 312k BGB: Kündigungsseite muss ständig verfügbar und ohne Anmeldung
-  // erreichbar sein — darf daher niemals auf /coming-soon umgeleitet werden.
+  // erreichbar sein — darf daher niemals umgeleitet werden.
   "/kuendigung",
   "/faq",
   "/account",
   "/meine-fragen",
+  "/kreuzen",
   "/subscription",
   "/feedback",
+  "/frage-des-tages",
+  "/site.webmanifest",
+  "/robots.txt",
+  "/sitemap.xml",
+  "/sw.js",
+  "/offline",
 ])
 
 const PREFIX_PATHS = [
@@ -43,6 +49,15 @@ const PREFIX_PATHS = [
   "/api/onboarding",
   "/api/presets",
   "/api/meine-fragen",
+  "/api/events",
+  "/api/kreuzen",
+  "/api/cron/",
+  "/api/reminders/",
+  "/api/referral",
+  "/api/og/",
+  "/f/",
+  "/r/",
+  "/icons/",
   "/blog",
 ]
 
@@ -54,36 +69,3 @@ export function isGeneratorModePathAllowed(pathname: string): boolean {
   if (EXACT_PATHS.has(pathname)) return true
   return PREFIX_PATHS.some((prefix) => pathname.startsWith(prefix))
 }
-
-export const UPCOMING_FEATURES = [
-  {
-    title: "Prüfungsfragen & Probedeck",
-    description: "Realistische Single-Choice-Fragen, Fallvignetten und kostenloses Probedeck im echten Prüfungsmodus.",
-    icon: "📚",
-  },
-  {
-    title: "Prüfungs- & Übungsmodus",
-    description: "Timer, Laborwerte, Bilder und Auswertung – wie in der echten Prüfung.",
-    icon: "⏱️",
-  },
-  {
-    title: "Eigene Decks",
-    description: "Baue persönliche Fragesammlungen und wiederhole gezielt deine Schwächen.",
-    icon: "🗂️",
-  },
-  {
-    title: "Spaced Repetition",
-    description: "Intelligente Wiederholung für langfristiges Behalten – automatisch und effizient.",
-    icon: "🧠",
-  },
-  {
-    title: "Dashboard & Statistiken",
-    description: "Fortschritt, Historie und detaillierte Auswertungen auf einen Blick.",
-    icon: "📊",
-  },
-  {
-    title: "Vollständige Fragenbank",
-    description: "Zugriff auf alle Prüfungen – mit Pro oder als Einzelkauf.",
-    icon: "🎓",
-  },
-] as const

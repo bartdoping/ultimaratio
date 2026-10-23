@@ -10,7 +10,10 @@ import { PriceNote } from "@/components/legal/price-note"
 import {
   GENERATOR_FREE_DAILY_LIMIT,
   GENERATOR_PRO_DAILY_LIMIT,
+  POOL_LIMIT_FREE,
 } from "@/lib/generator-plan-config"
+import { PlanChooser } from "@/components/subscription/plan-chooser"
+import { planChoices } from "@/lib/stripe-plans"
 
 export const dynamic = "force-dynamic"
 
@@ -91,6 +94,8 @@ export default async function PricingPage() {
     }
   }
 
+  const plaene = await planChoices().catch(() => [])
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:py-14">
       <div className="text-center space-y-3">
@@ -113,13 +118,13 @@ export default async function PricingPage() {
           title="Free"
           price="0 €"
           subtitle="Für alle, immer kostenlos."
-          ctaHref={isLoggedIn ? "/generator" : "/register"}
-          ctaLabel={isLoggedIn ? "Zum Generator" : "Kostenlos registrieren"}
+          ctaHref={isLoggedIn ? "/kreuzen" : "/register"}
+          ctaLabel={isLoggedIn ? "Zum Kreuzen" : "Kostenlos registrieren"}
           bullets={[
-            `${GENERATOR_FREE_DAILY_LIMIT} KI-Generierungen pro Tag`,
-            "Volle Erklärungsqualität",
-            "Fallvignetten 2–5 Teilfragen",
-            "Schwierigkeit 1–5",
+            `${POOL_LIMIT_FREE} Fragen pro Tag kreuzen`,
+            `${GENERATOR_FREE_DAILY_LIMIT} eigene Generierungen pro Tag`,
+            "Aha-Erklärung zu jeder Antwort",
+            "Automatische Wiederholung deiner Fehler",
           ]}
         />
         <PlanCard
@@ -136,13 +141,20 @@ export default async function PricingPage() {
             ) : null
           }
           bullets={[
-            `${GENERATOR_PRO_DAILY_LIMIT} KI-Generierungen pro Tag`,
+            "Unbegrenzt kreuzen",
+            `${GENERATOR_PRO_DAILY_LIMIT} eigene Generierungen pro Tag`,
             "Lange Fallvignetten ohne Limit-Druck",
             "Schwierigkeit 4 & 5 als Daily-Driver",
-            "Volle Pro-Erfahrung der KI",
           ]}
         />
       </div>
+
+      {!isPro && plaene.length > 1 && (
+        <section className="mt-6">
+          <h2 className="mb-2 text-sm font-medium text-muted-foreground">Pro buchen — wähle deine Laufzeit</h2>
+          <PlanChooser choices={plaene} isLoggedIn={isLoggedIn} returnTo="/kreuzen" />
+        </section>
+      )}
 
       {trialEndsAt && (
         <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">

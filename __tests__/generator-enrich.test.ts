@@ -16,22 +16,21 @@ function frage(stem: string): BulkQuestion {
 }
 
 /**
- * Antwort mit Texten oberhalb aller Tiefen-Schwellen aus QUESTION_QUALITY —
- * sonst löst der Tiefen-Repass einen zusätzlichen Modellaufruf aus und die
- * Aufruf-Zählungen unten stimmen nicht mehr. Die Erklärung der richtigen
- * Option braucht ≥ 220 Zeichen, die Gesamterklärung ≥ 420.
+ * Antwort im Aha-Format, sicher INNERHALB der Grenzen aus QUESTION_QUALITY
+ * (weder zu knapp noch zu lang) — sonst löst die Formprüfung einen
+ * zusätzlichen Modellaufruf aus und die Aufruf-Zählungen unten stimmen nicht.
  */
 function antwort(marker: string): string {
   const lang = (n: number) => `${marker} `.repeat(n).trim()
   return JSON.stringify({
     questions: [
       {
-        keyTakeaway: lang(6),
-        explanation: [lang(40), lang(40), lang(40)].join("\n\n"),
-        mustKnow: lang(12),
-        highYield: [lang(6), lang(6)],
+        keyTakeaway: lang(8),
+        explanation: "",
+        mustKnow: lang(6),
+        highYield: [],
         mnemonic: "",
-        optionExplanations: Array.from({ length: 5 }, () => lang(45)),
+        optionExplanations: Array.from({ length: 5 }, () => lang(9)),
       },
     ],
   })
@@ -106,7 +105,7 @@ describe("enrichQuestions", () => {
     })
     expect(r.questions).toHaveLength(3)
     expect(r.failedIndices.length).toBeGreaterThanOrEqual(1)
-    expect(r.questions.filter((q) => q.explanation).length).toBeGreaterThanOrEqual(1)
+    expect(r.questions.filter((q) => q.options.every((o) => o.explanation)).length).toBeGreaterThanOrEqual(1)
   })
 
   it("versucht bei formfehlerhafter Antwort genau eine Korrektur", async () => {

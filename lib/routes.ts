@@ -1,1 +1,0 @@
-export const PROTECTED_PATHS = ['/dashboard', '/exams', '/exam-run', '/admin']

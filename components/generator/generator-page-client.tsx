@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowUp, CalendarDays, Layers, Sparkles, Wand2 } from "lucide-react"
+import { ArrowUp, CalendarDays, ChevronDown, Layers, Sparkles, Wand2, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { GeneratorRunner } from "@/components/generator/generator-runner"
@@ -139,6 +139,9 @@ export function GeneratorPageClient({
    * Gesamtschwierigkeit. `perQuestionDifficulty` schaltet den Modus frei.
    */
   const [perQuestionDifficulty, setPerQuestionDifficulty] = useState(false)
+  // Fallfragen, Teilfrage-Stufen und Presets liegen hinter "Mehr Optionen" —
+  // das Formular zeigt standardmäßig nur Thema und Stufe.
+  const [mehrOptionen, setMehrOptionen] = useState(false)
   const [caseDifficulties, setCaseDifficulties] = useState<number[]>([])
   /**
    * Themenquelle: freies Thema oder ein Tag aus dem M2-Lernplan. Im
@@ -941,7 +944,11 @@ export function GeneratorPageClient({
           Was möchtest du heute kreuzen?
         </h1>
         <p className="mx-auto max-w-lg text-sm text-muted-foreground">
-          Thema eingeben, Schwierigkeit wählen, sofort kreuzbar.
+          Eigene Fragen und Fallvignetten erzeugen. Einfach nur kreuzen?{" "}
+          <Link href="/kreuzen" className="inline-flex items-center gap-0.5 font-medium text-primary underline-offset-4 hover:underline">
+            <Zap className="h-3.5 w-3.5" aria-hidden />
+            Kreuz-Modus
+          </Link>
         </p>
       </div>
 
@@ -953,27 +960,6 @@ export function GeneratorPageClient({
             onUpgrade={handleUpgrade}
           />
         </div>
-      )}
-
-      {/* Presets (nur für eingeloggte User) */}
-      {isLoggedIn && (
-        <PresetBar
-          isLoggedIn={isLoggedIn}
-          current={{
-            topic,
-            difficulty,
-            mode,
-            caseQuestionCount: mode === "case" ? caseCount : null,
-          }}
-          onApply={(p) => {
-            setTopic(p.topic ?? "")
-            setDifficulty(p.difficulty ?? 3)
-            setMode(p.mode === "case" ? "case" : "single")
-            if (p.mode === "case" && p.caseQuestionCount) {
-              setCaseCount(p.caseQuestionCount)
-            }
-          }}
-        />
       )}
 
       {/* Command Center */}
@@ -1047,6 +1033,40 @@ export function GeneratorPageClient({
         {/* Toolbar: Mobile gestapelt, Desktop in einer Reihe */}
         <div className="flex flex-col gap-3 border-t bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="flex flex-wrap items-center gap-2">
+            {!(mode === "case" && perQuestionDifficulty) && (
+              <DifficultyPill level={difficulty} section={section} onChange={setDifficulty} />
+            )}
+            <button
+              type="button"
+              onClick={() => setMehrOptionen((v) => !v)}
+              aria-expanded={mehrOptionen || mode === "case"}
+              className="inline-flex h-7 items-center gap-1 rounded-full border bg-background/80 px-3 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              {mode === "case" ? `Fallfrage · ${caseCount} Teilfragen` : "Mehr Optionen"}
+              <ChevronDown
+                className={cn("h-3.5 w-3.5 transition-transform", (mehrOptionen || mode === "case") && "rotate-180")}
+                aria-hidden
+              />
+            </button>
+          </div>
+
+          {/* Generate-Button: Desktop in der Toolbar; Mobile sticky bottom */}
+          <Button
+            type="submit"
+            size="lg"
+            disabled={submitDisabled}
+            className="hidden h-11 gap-2 rounded-full px-5 sm:inline-flex"
+          >
+            <span>{submitLabel}</span>
+            {!loading && !atLimit && remainingSufficient && (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* Mehr Optionen: Fallfrage, Stufe je Teilfrage, Presets */}
+        {(mehrOptionen || mode === "case") && (
+          <div className="flex flex-wrap items-center gap-2 border-t bg-muted/10 px-4 py-3 sm:px-5">
             <SegmentedControl
               value={mode}
               onChange={(v) => setMode(v)}
@@ -1074,9 +1094,6 @@ export function GeneratorPageClient({
                 ))}
               </div>
             )}
-            {!(mode === "case" && perQuestionDifficulty) && (
-              <DifficultyPill level={difficulty} section={section} onChange={setDifficulty} />
-            )}
             {mode === "case" && (
               <button
                 type="button"
@@ -1094,21 +1111,29 @@ export function GeneratorPageClient({
                 Stufe je Teilfrage
               </button>
             )}
-          </div>
-
-          {/* Generate-Button: Desktop in der Toolbar; Mobile sticky bottom */}
-          <Button
-            type="submit"
-            size="lg"
-            disabled={submitDisabled}
-            className="hidden h-11 gap-2 rounded-full px-5 sm:inline-flex"
-          >
-            <span>{submitLabel}</span>
-            {!loading && !atLimit && remainingSufficient && (
-              <ArrowUp className="h-4 w-4" />
+            {isLoggedIn && (
+              <div className="w-full [&>div]:mb-0">
+                <PresetBar
+                  isLoggedIn={isLoggedIn}
+                  current={{
+                    topic,
+                    difficulty,
+                    mode,
+                    caseQuestionCount: mode === "case" ? caseCount : null,
+                  }}
+                  onApply={(p) => {
+                    setTopic(p.topic ?? "")
+                    setDifficulty(p.difficulty ?? 3)
+                    setMode(p.mode === "case" ? "case" : "single")
+                    if (p.mode === "case" && p.caseQuestionCount) {
+                      setCaseCount(p.caseQuestionCount)
+                    }
+                  }}
+                />
+              </div>
             )}
-          </Button>
-        </div>
+          </div>
+        )}
 
         {/* Schwierigkeit je Teilfrage (nur Fallfrage + aktivierter Modus) */}
         {mode === "case" && perQuestionDifficulty && !loading && (

@@ -17,6 +17,7 @@ import {
   streamGeneratorModel,
 } from "@/lib/generator-openai"
 import type { GeneratorSection } from "@/lib/generator-section"
+import { withAiUser } from "@/lib/ai-usage"
 import { finalizeDraft, type FinalizeResult } from "@/lib/generator-finalize"
 import { enrichQuestions, type EnrichResult } from "@/lib/generator-enrich"
 
@@ -36,6 +37,8 @@ export type GeneratorRunContext = {
   section?: GeneratorSection
   expectedCount: number
   signal: AbortSignal
+  /** Für die Kostenzuordnung (lib/ai-usage.ts); bei anonymen Besuchern leer. */
+  userId?: string | null
 }
 
 function promptParams(ctx: GeneratorRunContext) {
@@ -53,7 +56,7 @@ function promptParams(ctx: GeneratorRunContext) {
  * Stufe 1: Frage, Antwortoptionen und Falltext — vollständig geprüft und
  * fachlich gegengelesen, also bereit zur Anzeige.
  */
-export async function runDraftPhase(
+async function runDraftPhaseInner(
   ctx: GeneratorRunContext,
   progress?: {
     /**
@@ -75,6 +78,7 @@ export async function runDraftPhase(
     input,
     maxOutputTokens: draftMaxOutputTokens(ctx.mode, ctx.expectedCount),
     signal: ctx.signal,
+    purpose: "draft" as const,
   }
 
   let rawText: string
@@ -139,7 +143,7 @@ function begrenzt(signal: AbortSignal, ms: number): AbortSignal {
 /**
  * Stufe 2: die Erklärungen. Bei Fallfragen laufen die Teilfragen parallel.
  */
-export async function runEnrichPhase(
+async function runEnrichPhaseInner(
   ctx: GeneratorRunContext,
   draft: BulkQuestion[]
 ): Promise<EnrichResult> {
@@ -157,6 +161,24 @@ export async function runEnrichPhase(
         input,
         maxOutputTokens: enrichMaxOutputTokens(),
         signal: ctx.signal,
+        purpose: "enrich",
       }),
   })
+}
+
+
+/**
+ * Stufe 1, mit Kostenzuordnung zum Nutzer. Alle KI-Aufrufe innerhalb
+ * (Entwurf, Prüfungen, Nachbesserungen) werden ihm zugerechnet.
+ */
+export function runDraftPhase(
+  ctx: GeneratorRunContext,
+  progress?: Parameters<typeof runDraftPhaseInner>[1]
+): Promise<FinalizeResult> {
+  return withAiUser(ctx.userId, () => runDraftPhaseInner(ctx, progress))
+}
+
+/** Stufe 2, mit Kostenzuordnung zum Nutzer. */
+export function runEnrichPhase(ctx: GeneratorRunContext, draft: BulkQuestion[]): Promise<EnrichResult> {
+  return withAiUser(ctx.userId, () => runEnrichPhaseInner(ctx, draft))
 }

@@ -120,8 +120,13 @@ describe("parseEnrichResult", () => {
     expect(r.ok).toBe(false)
   })
 
-  it("lehnt eine fehlende Gesamterklärung ab", () => {
-    const r = parseEnrichResult(JSON.stringify({ ...valid, explanation: "  " }), 5)
+  it("akzeptiert eine leere Vertiefung — sie entsteht nur auf Anforderung", () => {
+    const r = parseEnrichResult(JSON.stringify({ ...valid, explanation: "" }), 5)
+    expect(r.ok).toBe(true)
+  })
+
+  it("lehnt einen fehlenden Aha-Satz ab", () => {
+    const r = parseEnrichResult(JSON.stringify({ ...valid, keyTakeaway: " " }), 5)
     expect(r.ok).toBe(false)
   })
 

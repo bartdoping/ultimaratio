@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server"
+import { addToPool } from "@/lib/pool"
+import { track } from "@/lib/product-events"
 import { assertSameOrigin } from "@/lib/security"
 import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
 import { parseGenerateRequest } from "@/lib/generator-request"
@@ -91,6 +93,10 @@ export async function POST(req: Request) {
     // Verbuche genau so viele Generierungen, wie tatsächlich produziert werden:
     // 1 für Einzelfragen, N für Fallfragen mit N Teilfragen.
     const quotaResult = await consumeGeneratorQuota(quotaSubject, expectedCount)
+    track("generation_requested", {
+      userId: access.user?.id ?? null,
+      props: { mode, units: expectedCount, difficulty: Math.round(difficulty), section, ok: quotaResult.ok },
+    })
 
     if (!quotaResult.ok) {
       return NextResponse.json(limitJson(access, quotaResult, expectedCount), { status: 429 })
@@ -102,6 +108,8 @@ export async function POST(req: Request) {
       if (refunded) return
       refunded = true
       await refundGeneratorQuota(quotaSubject, expectedCount)
+      // Jede Rückerstattung ist eine gescheiterte Generierung.
+      track("generation_failed", { userId: access.user?.id ?? null, props: { mode, units: expectedCount } })
     }
 
     const controller = new AbortController()
@@ -116,6 +124,7 @@ export async function POST(req: Request) {
         difficulties,
         section,
         expectedCount,
+        userId: access.user?.id ?? null,
         signal: controller.signal,
       }
 
@@ -140,6 +149,12 @@ export async function POST(req: Request) {
       const questions = enriched.questions
 
       // Nur für angemeldete Nutzer; best-effort, nie blockierend.
+      // Vollständige Einzelfragen wandern in den gemeinsamen Pool — jede
+      // Generierung macht das Produkt für alle anderen schneller und billiger.
+      if (mode === "single" && enriched.failedIndices.length === 0) {
+        void addToPool(questions, { topic, difficulty, section }).catch(() => {})
+      }
+
       const savedIds = access.user?.id
         ? await saveGeneratedQuestions(access.user.id, questions, {
             topic,

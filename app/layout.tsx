@@ -13,6 +13,7 @@ import {
   isFontScale,
 } from "@/lib/font-scale"
 import { consentModeBootstrapScript } from "@/lib/consent"
+import { RegisterServiceWorker } from "@/components/pwa/register-sw"
 
 /*
  * Schriften wie auf ultima-rat.io: Inter als Fließtext-/UI-Schrift, Fraunces
@@ -80,11 +81,10 @@ export const metadata: Metadata = {
       { url: "/logo/fragenkreuzen logo transparent.png", sizes: "32x32", type: "image/png" },
       { url: "/logo/fragenkreuzen logo transparent.png", sizes: "192x192", type: "image/png" },
     ],
-    apple: [
-      { url: "/logo/fragenkreuzen logo transparent.png", sizes: "180x180", type: "image/png" },
-    ],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" }],
   },
   manifest: "/site.webmanifest",
+  appleWebApp: { capable: true, title: "fragenkreuzen", statusBarStyle: "black-translucent" },
   openGraph: {
     type: "website",
     url: metadataBase,
@@ -217,6 +217,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             <LayoutSwitch>{children}</LayoutSwitch>
           </ScreenshotProtection>
         </Providers>
+        <RegisterServiceWorker />
       </body>
     </html>
   )

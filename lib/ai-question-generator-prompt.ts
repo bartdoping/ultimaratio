@@ -148,28 +148,26 @@ Deine Erklärung soll für den Lernerfolg BESSER sein als Anki, Amboss, YouTube,
 - Vernetze mit Nachbarwissen (Differenzialdiagnose, verwandte Cut-Offs, angrenzendes High-Yield-Fakt), damit isolierte Fakten zu einem Netz werden — genau das, was Transfer erzeugt.
 - Schreibe aktiv, konkret, zahlengestützt. Ein exemplarischer Wert schlägt eine vage Umschreibung.
 
-ERKLÄRUNGS-MANDAT (Knappheit = Defekt):
+ERKLÄRUNGS-MANDAT — DER AHA-MOMENT (Präzision statt Länge):
+Der Studierende kreuzt unterwegs, oft auf dem Handy, Frage um Frage. Er liest die Erklärung in 15 Sekunden — nicht in drei Minuten. Jede Zeile muss sitzen. Lang ist nicht gründlich, sondern ein Defekt: Wer einen Absatz braucht, hat den Kern nicht gefunden. Die Didaktik der Lern-Transfer-Philosophie (Warum aus ersten Prinzipien, Denkkette, Denkfehler benennen) bleibt verbindlich — sie wird nur verdichtet.
 
-(a) "keyTakeaway" (PFLICHT, ein Satz):
-  Die EINE zentrale Einsicht der Frage in einem prägnanten, vollständigen Satz — die Überschrift der Erklärung, die man sich merkt, wenn man nur eine Zeile behält. Konkret und aussagekräftig, kein Titel-Fragment. Beispiel: "Im 4,5-h-Fenster entscheidet nicht das Alter, sondern die Kontraindikationsliste über die Lyse — ein INR < 1,7 erlaubt rtPA trotz vorheriger Antikoagulation."
+(a) "keyTakeaway" (PFLICHT, der Aha-Satz, höchstens 2 Sätze, höchstens 40 Wörter):
+  Das EINE entscheidende Warum: die Denkkette, die von der Konstellation zur Lösung führt. Er macht aus "ach so" ein "natürlich!". Beispiel: "Unter 4,5 h entscheidet nicht das Alter, sondern die Kontraindikationsliste — ein INR < 1,7 erlaubt die Lyse trotz pausiertem Marcumar."
 
-(b) "explanation" (Gesamterklärung):
-  Strukturierter Fließtext, mindestens 6 inhaltsvolle Sätze (Ziel: 8–14 Sätze). Drei Abschnitte, im Text durch Absätze (\\n\\n) getrennt:
-    1) Pathophysiologisch-mechanistische Einordnung aus ersten Prinzipien: warum entsteht dieses Krankheitsbild / dieser Effekt. Konkret, nicht "ist multifaktoriell".
-    2) Klinischer Algorithmus / Entscheidungsweg als explizite Denk-Kette: warum gerade DIESE Antwort und nicht eine andere — mit Bezug auf Leitlinien-Empfehlungen, Cut-Off-Werte, Zeitfenster, Klassifikationen.
-    3) Klinische Perle / Take-Home: ein konkretes Detail, das selbst gute Studierende übersehen. Kein Filler.
+(b) "explanation" (Vertiefung):
+  In diesem Schritt IMMER leerer String "". Die ausführliche Vertiefung (Pathophysiologie, Algorithmus, Take-Home) entsteht nur, wenn der Studierende sie ausdrücklich anfordert.
 
-(c) "explanation" der korrekten Option:
-  Mindestens 4 Sätze. Genau: (1) was macht diese Option pathophysiologisch korrekt, (2) warum genau hier im klinischen Algorithmus, (3) welche etablierte Empfehlung / welcher Cut-Off stützt sie, (4) welche Falle wäre der "Standard-Reflex" und warum führt er in die Irre.
+(c) Erklärung der RICHTIGEN Option (genau 1 Satz, höchstens 30 Wörter):
+  Das entscheidende Argument, warum genau diese Option hier stimmt — mit dem konkreten Kriterium (Cut-Off, Zeitfenster, Mechanismus). Keine Wiederholung des Aha-Satzes.
 
-(d) "explanation" jeder falschen Antwortoption:
-  Mindestens 3 Sätze. Genau: (1) warum hier präzise falsch (nicht "weil X richtig ist"), (2) in welcher konkreten anderen klinischen Konstellation WÄRE diese Option die richtige Entscheidung (Differenzialwissen), (3) eine konkrete Verwechslungsfalle.
+(d) Erklärung JEDER FALSCHEN Option (genau 1 Satz, höchstens 30 Wörter):
+  Warum sie HIER falsch ist und wann sie richtig WÄRE — nach dem Muster "… — richtig wäre sie bei …". Das verwandelt jeden Fehler in Differenzialwissen. Nie nur "weil eine andere Antwort richtig ist".
 
-(e) "mustKnow" (PFLICHT):
-  1–2 prägnante deutsche Sätze. Das EINE konkret memorierbare Kerndetail/Regel, das über die Frage hinaus trägt (Cut-Off, Kriterium, Zeitfenster, Trennmerkmal) — NICHT wortgleich mit keyTakeaway, sondern die abstrahierbare Faustregel. Format-Beispiele: "Bei … gilt Cut-Off X, weil …" / "Z unterscheidet sich von ähnlich präsentierendem W durch …". Niemals "Verständnis von …", niemals "Kennen, dass …" als bloße Floskel.
+(e) "mustKnow" (PFLICHT, die Merkregel, 1 Satz, höchstens 25 Wörter):
+  Die abstrahierte Faustregel, die über die Frage hinaus trägt — nicht wortgleich mit dem Aha-Satz. Format-Beispiele: "Bei … gilt Cut-Off X." / "Z unterscheidet sich von W durch …". Niemals Floskeln wie "Verständnis von …".
 
-(f) "highYield" (PFLICHT, Array mit 2–4 Punkten):
-  2–4 kurze, prüfungsrelevante Transfer-Punkte, die über die konkrete Frage hinausgehen und Wissen vernetzen. Jeder Punkt ist ein eigenständiger, konkreter Fakt (nicht die Antwort wiederholen). Erlaubte Typen: verwandte Differenzialdiagnose mit Trennmerkmal, typische Verwechslung/Prüfungsfalle, benachbarter Cut-Off/Score, klinische Konsequenz, häufig gemeinsam gefragtes Nachbarwissen. Beispiele: "STEMI vs. NSTE-ACS: Lyse ist nur beim STEMI ohne PCI-Verfügbarkeit indiziert, beim NSTE-ACS kontraindiziert." / "rtPA-Zeitfenster 4,5 h; mechanische Thrombektomie bis 6 h Standard, mit Bildgebungsselektion bis 24 h." Jeder Punkt ein knapper Satz, kein Aufsatz.
+(f) "highYield" (OPTIONAL, 0–2 Punkte, je höchstens 20 Wörter):
+  Nur wenn ein Nachbarfakt wirklich prüfungsrelevant und nicht schon gesagt ist — eine Verwechslung oder ein benachbarter Cut-Off. Im Zweifel leeres Array [].
 
 (g) "mnemonic" (OPTIONAL):
   Eine ECHTE Lernhilfe / Eselsbrücke / Akronym / Bildbrücke — ABER NUR, wenn sie a) substanziell, b) inhaltlich treffend und c) für deutsche Studierende eingängig ist. Beispiele für GUT: "ACHT-S-Kriterien beim Wernicke-Korsakow", "FAST-Schema beim Schlaganfall (Face Arms Speech Time)", "BANANA-Regel zur ASS-Pause vor Operation". Beispiele für SCHLECHT (verboten): irgendwelche zufällig zusammengesetzten Anfangsbuchstaben, Wortspiele ohne klinischen Halt, "merke dir: X führt zu Y" (kein Memory-Hook).
@@ -280,11 +278,11 @@ const SCHEMA_FULL = `Schema:
 Regeln zum Schema:
 - "questions" enthält die angeforderte Anzahl.
 ${SCHEMA_RULES_COMMON}
-- "stem", "keyTakeaway", "explanation", "mustKnow" und alle Option-"explanation" sind nicht leer.
-- "highYield" ist ein Array mit 2–4 nicht-leeren Strings.
+- "stem", "keyTakeaway", "mustKnow" und alle Option-"explanation" sind nicht leer; "explanation" ist "".
+- Jede Option-"explanation" ist genau ein Satz (höchstens 30 Wörter); "highYield" hat 0–2 Einträge.
 - "mnemonic" darf leer sein ("") — und SOLL leer bleiben, wenn keine wirklich starke Eselsbrücke existiert. Schwache, holprige oder konstruierte Eselsbrücken sind verboten.
 
-Vor der Ausgabe (intern): Überprüfe jede Frage gegen die Qualitäts-Messlatte, die Lern-Transfer-Philosophie, die Anti-Cliché-Liste, die Schwierigkeits-Kalibrierung mit Wer-kennt-das-Anker, das Erklärungs-Mandat (keyTakeaway + Drei-Abschnitts-Erklärung + mustKnow + 2–4 highYield-Punkte), die deutsche medizinische Fachsprache. Wenn auch nur ein Punkt nicht erfüllt ist, überarbeite intern, bevor du antwortest.`
+Vor der Ausgabe (intern): Überprüfe jede Frage gegen die Qualitäts-Messlatte, die Lern-Transfer-Philosophie, die Anti-Cliché-Liste, die Schwierigkeits-Kalibrierung mit Wer-kennt-das-Anker, das Erklärungs-Mandat (Aha-Satz, je Option genau ein Satz, Merkregel), die deutsche medizinische Fachsprache. Wenn auch nur ein Punkt nicht erfüllt ist, überarbeite intern, bevor du antwortest.`
 
 /**
  * Stufe 1 von 2: nur das, was der Studierende zum Beantworten braucht.
@@ -355,8 +353,9 @@ const SCHEMA_ENRICH = `Schema (NUR diese Felder — keine weiteren):
 Regeln zum Schema:
 - "questions" enthält GENAU so viele Elemente wie die Vorlage, in derselben Reihenfolge.
 - "optionExplanations" enthält genau 5 Strings, in der Reihenfolge der Optionen A–E der Vorlage.
-- "keyTakeaway", "explanation", "mustKnow" und alle "optionExplanations" sind nicht leer.
-- "highYield" ist ein Array mit 2–4 nicht-leeren Strings.
+- "keyTakeaway", "mustKnow" und alle "optionExplanations" sind nicht leer; "explanation" ist "".
+- Jeder Eintrag in "optionExplanations" ist GENAU EIN Satz (höchstens 30 Wörter): bei der richtigen Option das entscheidende Argument, bei jeder falschen "warum hier falsch — richtig wäre sie bei …".
+- "highYield" hat 0–2 Einträge; im Zweifel [].
 - "mnemonic" darf leer sein ("") — und SOLL leer bleiben, wenn keine wirklich starke Eselsbrücke existiert. Schwache, holprige oder konstruierte Eselsbrücken sind verboten.
 - JSON muss syntaktisch valide und direkt maschinenlesbar sein.
 
@@ -365,10 +364,9 @@ richtigen Antwort zu ändern, umzuformulieren, zu ergänzen oder neu zu sortiere
 Der Studierende sieht die Frage bereits. Gib diese Felder gar nicht erst aus.
 Deine Aufgabe ist ausschließlich, die vorgegebene Frage zu erklären.
 
-Vor der Ausgabe (intern): Prüfe gegen das Erklärungs-Mandat (Drei-Abschnitts-
-Erklärung, ≥4 Sätze für die richtige Option, ≥3 Sätze je falscher Option,
-mustKnow, 2–4 highYield-Punkte) und die Lern-Transfer-Philosophie. Überarbeite
-intern, bevor du antwortest.`
+Vor der Ausgabe (intern): Prüfe gegen das Erklärungs-Mandat (Aha-Satz ≤ 40
+Wörter, je Option genau ein Satz, Merkregel, Vertiefung leer). Ist etwas länger
+als nötig, kürze es. Überarbeite intern, bevor du antwortest.`
 
 export type GeneratorRequestParams = {
   topic: string
@@ -754,7 +752,7 @@ function buildVariabilityBlock(
 function selfCheckLine(levels: number[]): string {
   const maxLevel = Math.max(...levels)
   const gemeinsam =
-    "das Erklärungs-Mandat (keyTakeaway als ein prägnanter Satz, Drei-Abschnitts-Struktur in der Gesamterklärung mit Mindest-Satzanzahl, mustKnow konkret, 2–4 highYield-Transfer-Punkte), die deutsche medizinische Fachsprache. Ist 'mnemonic' nur dann gefüllt, wenn die Eselsbrücke wirklich stark ist (sonst leerer String)?"
+    "das Erklärungs-Mandat (Aha-Satz höchstens 40 Wörter, je Antwortoption genau ein Satz, Merkregel konkret, Vertiefung leer), die deutsche medizinische Fachsprache. Ist 'mnemonic' nur dann gefüllt, wenn die Eselsbrücke wirklich stark ist (sonst leerer String)?"
 
   if (maxLevel <= 2) {
     return `Selbst-Check vor Ausgabe (intern, nicht im Output): Ist die Frage WIRKLICH so leicht wie angefordert? Prüfe konkret: Würde die Zielgruppe der Stufe (Stufe 1 = medizinischer Laie, Stufe 2 = Vorklinikstudent) sie ohne Umweg lösen? Ist die naheliegende Antwort die richtige? Sind die Distraktoren für Wissende klar falsch, für Unwissende aber ebenso plausibel wie die richtige Antwort? BLINDTEST: Könnte jemand, der nur die fünf Optionen ohne Stem sieht, die richtige an Länge, Begründungszusätzen, Dringlichkeitswörtern, Absicherungen oder Wortecho erkennen? Wenn ja — Optionen angleichen. Fehlt jede Verkomplizierung? Wenn die Frage sich "clever" anfühlt, ist sie ZU SCHWER — vereinfache sie. Erfüllt sie außerdem ${gemeinsam} Wenn nicht — überarbeite intern, bevor du antwortest. Die ausführliche Erklärung bleibt auch auf leichten Stufen vollständig.`

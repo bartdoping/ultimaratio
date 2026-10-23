@@ -9,6 +9,8 @@ import {
 } from "@/lib/generator-ai-config"
 import { extractJsonFromModelText } from "@/lib/question-bulk-json"
 import { MEDICAL_REVIEW_INSTRUCTIONS } from "@/lib/generator-medical-review"
+import { recordAiUsage, type AiPurpose } from "@/lib/ai-usage"
+import { sendOpsAlert } from "@/lib/ops-alert"
 
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -17,6 +19,8 @@ export type GeneratorCallParams = {
   input: string
   maxOutputTokens: number
   signal?: AbortSignal
+  /** Wofür der Aufruf ist — für die Kostenauswertung (lib/ai-usage.ts). */
+  purpose?: AiPurpose
 }
 
 /**
@@ -95,6 +99,7 @@ function classifyOpenAIError(err: unknown): GeneratorModelError {
   }
 
   if (status === 401 || status === 403 || msg.includes("invalid api key")) {
+    sendOpsAlert("openai_auth", e?.message)
     return new GeneratorModelError(
       "KI-Authentifizierung fehlgeschlagen.",
       "auth",
@@ -115,6 +120,7 @@ function classifyOpenAIError(err: unknown): GeneratorModelError {
     console.error(
       "[generator] OpenAI-Guthaben erschöpft — alle KI-Funktionen fallen aus, bis unter platform.openai.com → Billing nachgeladen wird."
     )
+    sendOpsAlert("openai_quota", e?.message)
     return new GeneratorModelError(
       "Der KI-Dienst ist vorübergehend nicht verfügbar. Bitte versuche es später erneut.",
       "quota",
@@ -151,16 +157,20 @@ async function createResponseWithModel(
   repairHint?: string
 ): Promise<string> {
   let resp
+  const t0 = Date.now()
+  const purpose = params.purpose ?? (repairHint ? "repair" : "other")
   try {
     resp = await client.responses.create(
       buildRequestBody(model, params, repairHint),
       params.signal ? { signal: params.signal } : undefined
     )
   } catch (err) {
+    recordAiUsage({ purpose, model, usage: null, durationMs: Date.now() - t0, ok: false })
     // Abort einfach durchreichen — Route übersetzt es in 504.
     if ((err as { name?: string })?.name === "AbortError") throw err
     throw classifyOpenAIError(err)
   }
+  recordAiUsage({ purpose, model, usage: resp.usage, durationMs: Date.now() - t0, ok: true })
 
   const text = resp.output_text ?? ""
   if (!text.trim()) {
@@ -186,6 +196,7 @@ export async function callMedicalReviewer(
     input,
     maxOutputTokens: 1200,
     signal,
+    purpose: "review",
   }
   return createResponseWithModel(GENERATOR_MODEL, params)
 }
@@ -206,6 +217,7 @@ export async function callOptionExclusionCheck(
     input,
     maxOutputTokens: 600,
     signal,
+    purpose: "exclusion",
   }
   return createResponseWithModel(GENERATOR_MODEL, params)
 }
@@ -222,6 +234,8 @@ export async function streamGeneratorModel(
   onDelta: (text: string) => void
 ): Promise<string> {
   let full = ""
+  const t0 = Date.now()
+  const purpose = params.purpose ?? "draft"
   try {
     const stream = await client.responses.create(
       { ...buildRequestBody(GENERATOR_MODEL, params), stream: true },
@@ -236,9 +250,13 @@ export async function streamGeneratorModel(
           full += delta
           onDelta(delta)
         }
+      } else if (event.type === "response.completed") {
+        const usage = (event as { response?: { usage?: Parameters<typeof recordAiUsage>[0]["usage"] } }).response?.usage
+        recordAiUsage({ purpose, model: GENERATOR_MODEL, usage, durationMs: Date.now() - t0, ok: true })
       }
     }
   } catch (err) {
+    recordAiUsage({ purpose, model: GENERATOR_MODEL, usage: null, durationMs: Date.now() - t0, ok: false })
     if ((err as { name?: string })?.name === "AbortError") throw err
     throw classifyOpenAIError(err)
   }
@@ -363,7 +381,7 @@ export async function callGeneratorRepair(
 
   // Der ursprüngliche User-Prompt entfällt bewusst: Der Repair-Kontext ist
   // vollständig und kürzer, die System-Instructions bleiben erhalten.
-  return createResponseWithModel(GENERATOR_MODEL, { ...params, input: repairInput })
+  return createResponseWithModel(GENERATOR_MODEL, { ...params, input: repairInput, purpose: "repair" })
 }
 
 export async function callGeneratorModelWithRetry(
