@@ -9,7 +9,7 @@
  * einem Ausfall scheitert JEDE Anfrage, ohne Drossel käme eine Mail pro Nutzer.
  */
 
-export type OpsAlertKind = "openai_quota" | "openai_auth" | "generator_failing"
+export type OpsAlertKind = "openai_quota" | "openai_auth" | "generator_failing" | "kreuzen_cap"
 
 const zuletzt = new Map<OpsAlertKind, number>()
 const SPERRE_MS = 60 * 60 * 1000
@@ -22,6 +22,10 @@ const TEXTE: Record<OpsAlertKind, { betreff: string; text: string }> = {
   openai_auth: {
     betreff: "OpenAI-Schlüssel abgelehnt — Generator fällt aus",
     text: "Die OpenAI-API lehnt den API-Schlüssel ab (401/403). OPENAI_API_KEY in Vercel prüfen.",
+  },
+  kreuzen_cap: {
+    betreff: "Kreuz-Modus: Tagesgrenze für neue Fragen erreicht",
+    text: "Die globale Tagesgrenze für Neugenerierungen im Kreuz-Modus ist erreicht. Nutzer bekommen weiter Fragen aus dem Pool, aber keine neuen Themen. Grenze anheben über KREUZEN_GEN_DAILY_CAP in Vercel (Standard 2000 pro 24 h).",
   },
   generator_failing: {
     betreff: "Fragengenerator: auffällig viele Fehler",

@@ -29,7 +29,7 @@ export type KreuzenNextResponse =
       ok: true
       items: KreuzenItem[]
       /** Warum weniger kam als angefragt — für einen ehrlichen Hinweis statt endlosem Laden. */
-      grenze: null | "pool_limit" | "gen_limit" | "keine_themen" | "generierung_fehlgeschlagen"
+      grenze: null | "pool_limit" | "gen_limit" | "keine_themen" | "generierung_fehlgeschlagen" | "kapazitaet"
       quota: { pool: { remaining: number; unlimited: boolean }; gen: { remaining: number; unlimited: boolean } }
       isLoggedIn: boolean
       isPro: boolean

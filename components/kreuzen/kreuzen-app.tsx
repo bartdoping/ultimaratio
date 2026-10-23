@@ -764,6 +764,21 @@ function LeerZustand({
     )
   }
 
+  if (grenze === "kapazitaet") {
+    return (
+      <div className={box}>
+        <div className="text-lg font-semibold">Zu diesem Thema gerade keine neuen Fragen</div>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Alles, was es dazu schon gibt, hast du gekreuzt. Neue Fragen kommen später — probier solange ein anderes Thema
+          oder eine andere Stufe.
+        </p>
+        <button type="button" onClick={onHome} className="mt-4 h-11 rounded-full bg-foreground px-6 text-sm font-semibold text-background">
+          Anderes Thema
+        </button>
+      </div>
+    )
+  }
+
   if (grenze === "generierung_fehlgeschlagen") {
     return (
       <div className={box}>

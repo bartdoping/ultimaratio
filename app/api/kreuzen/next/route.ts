@@ -3,9 +3,7 @@ import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
 import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
 import {
-  consumeGeneratorQuota,
   getGeneratorQuota,
-  refundGeneratorQuota,
   signVisitorId,
   GENERATOR_VISITOR_COOKIE,
   visitorCookieOptions,
@@ -13,6 +11,8 @@ import {
 import { consumePoolQuota, getPoolQuota } from "@/lib/pool-quota"
 import { markServed, pickFromPool } from "@/lib/pool"
 import { generateIntoPool } from "@/lib/pool-generate"
+import { poolRefillAllowed } from "@/lib/pool-refill"
+import { sendOpsAlert } from "@/lib/ops-alert"
 import { generatableTopics, isLearnPlanId, LEARN_PLANS } from "@/lib/learn-plans"
 import { payloadToQuestion, themenBilanz } from "@/lib/saved-questions"
 import { shuffleOptions } from "@/lib/option-order"
@@ -132,26 +132,31 @@ export async function POST(req: Request) {
 
   // ---- 3. Neugenerierung, nur wenn der Pool nichts mehr hat ----
   const poolLeer = source.type !== "due" && topics.length > 0 && items.filter((i) => i.kind === "pool").length === 0
-  if (poolLeer && allowGenerate && grenze !== "pool_limit") {
-    const quota = await consumeGeneratorQuota(subject, 1)
-    if (!quota.ok) {
-      grenze = "gen_limit"
+  // Zählt NICHT gegen das Generator-Kontingent, sondern als eine Frage des
+  // Kreuz-Kontingents (siehe lib/pool-refill.ts).
+  const kreuzKontingentFrei = poolUnlimited || poolRemaining > 0
+  if (poolLeer && allowGenerate && grenze !== "pool_limit" && kreuzKontingentFrei) {
+    const freigabe = await poolRefillAllowed({ userId, isPro: access.isPro })
+    if (!freigabe.ok) {
+      grenze = freigabe.grund
+      if (freigabe.global) sendOpsAlert("kreuzen_cap", `Tagesgrenze für Neugenerierungen im Kreuz-Modus erreicht (KREUZEN_GEN_DAILY_CAP).`)
     } else {
       const topic = topics[Math.floor(Math.random() * topics.length)]
       const abort = new AbortController()
       const timer = setTimeout(() => abort.abort(), 110_000)
+      // Vor dem Aufruf zählen: Auch ein gescheiterter Versuch kostet Guthaben.
+      track("generation_requested", { userId, props: { mode: "single", units: 1, difficulty, section, via: "kreuzen" } })
       try {
         const neu = await generateIntoPool({ topic, difficulty, section, userId, signal: abort.signal })
         if (neu) {
           items.push({ key: `p:${neu.poolQuestionId}`, kind: "pool", poolQuestionId: neu.poolQuestionId, savedId: null, topic: neu.topic, difficulty: neu.difficulty, section: neu.section, question: neu.question })
-          track("generation_requested", { userId, props: { mode: "single", units: 1, difficulty, section, ok: true, via: "kreuzen" } })
+          await consumePoolQuota(subject, 1)
+          if (!poolUnlimited) poolRemaining = Math.max(0, poolRemaining - 1)
         } else {
-          await refundGeneratorQuota(subject, 1)
           grenze = "generierung_fehlgeschlagen"
           track("generation_failed", { userId, props: { mode: "single", via: "kreuzen" } })
         }
       } catch (e) {
-        await refundGeneratorQuota(subject, 1)
         grenze = "generierung_fehlgeschlagen"
         track("generation_failed", { userId, props: { mode: "single", via: "kreuzen" } })
         console.error("[kreuzen] Generierung fehlgeschlagen:", (e as Error)?.message)
