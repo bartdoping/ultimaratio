@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { PriceNote } from "@/components/legal/price-note"
 import { toast } from "sonner"
+import { PlanChooser, type PlanChoice } from "@/components/subscription/plan-chooser"
 
 interface SubscriptionData {
   status: "free" | "pro"
@@ -47,7 +48,7 @@ function formatDate(value?: string) {
   })
 }
 
-export function SubscriptionManagement() {
+export function SubscriptionManagement({ plaene = [] }: { plaene?: PlanChoice[] }) {
   const [subscription, setSubscription] = useState<SubscriptionData | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState(false)
@@ -289,7 +290,7 @@ export function SubscriptionManagement() {
             </p>
           </div>
 
-          {!subscription.isPro && (
+          {!subscription.isPro && plaene.length <= 1 && (
             <div className="shrink-0">
               <div className="text-2xl font-bold text-primary sm:text-3xl">9,99 €</div>
               <div className="text-xs text-muted-foreground">pro Monat · monatlich kündbar</div>
@@ -342,6 +343,15 @@ export function SubscriptionManagement() {
           </p>
         )}
 
+        {!subscription.isPro && plaene.length > 1 && (
+          <div className="mt-5 border-t pt-4">
+            <div className="mb-2 text-sm font-medium">Wähle deine Laufzeit</div>
+            <PlanChooser choices={plaene} isLoggedIn returnTo="/kreuzen" />
+            {/* Pflichtangabe nach § 3 PAngV */}
+            <PriceNote className="mt-2" />
+          </div>
+        )}
+
         <div className="mt-5 flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground max-w-md">
             {subscription.isPro
@@ -378,7 +388,7 @@ export function SubscriptionManagement() {
                   </Button>
                 )}
               </>
-            ) : (
+            ) : plaene.length > 1 ? null : (
               <Button
                 onClick={handleUpgrade}
                 disabled={actionLoading}

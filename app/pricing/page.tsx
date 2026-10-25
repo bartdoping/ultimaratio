@@ -133,8 +133,8 @@ export default async function PricingPage() {
           priceSuffix="/Monat"
           subtitle="Monatlich kündbar, kein Setup."
           highlighted
-          ctaHref="/subscription"
-          ctaLabel={isPro ? "Abo verwalten" : "Auf Pro upgraden"}
+          ctaHref={!isPro && plaene.length > 1 ? "#laufzeit" : "/subscription"}
+          ctaLabel={isPro ? "Abo verwalten" : plaene.length > 1 ? "Laufzeit wählen" : "Auf Pro upgraden"}
           extraCta={
             trialEligible ? (
               <TrialStartButton size="sm" variant="outline" className="mt-2" />
@@ -150,7 +150,7 @@ export default async function PricingPage() {
       </div>
 
       {!isPro && plaene.length > 1 && (
-        <section className="mt-6">
+        <section id="laufzeit" className="mt-6 scroll-mt-20">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">Pro buchen — wähle deine Laufzeit</h2>
           <PlanChooser choices={plaene} isLoggedIn={isLoggedIn} returnTo="/kreuzen" />
         </section>
