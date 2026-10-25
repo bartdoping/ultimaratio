@@ -145,6 +145,10 @@ export default function DatenschutzPage() {
               (Abschnitt 4)
             </li>
             <li>
+              <strong>Neon, Inc.</strong> – Betrieb unserer Datenbank, Serverstandort
+              Frankfurt am Main (Abschnitt 4)
+            </li>
+            <li>
               <strong>OpenAI Ireland Ltd.</strong> – KI-Fragengenerierung
               (Abschnitt 7)
             </li>
@@ -166,7 +170,7 @@ export default function DatenschutzPage() {
         <LegalSubsection title="Datenübermittlung in Drittländer">
           <p>
             Wir setzen unter anderem Dienste ein, deren Mutterkonzerne in den USA
-            sitzen (Vercel, OpenAI, Stripe, Google). Dabei können personenbezogene
+            sitzen (Vercel, Neon, OpenAI, Stripe, Google). Dabei können personenbezogene
             Daten in die USA übermittelt und dort verarbeitet werden. Die
             Übermittlung erfolgt, soweit der jeweilige Anbieter nach dem{" "}
             <strong>EU-U.S. Data Privacy Framework</strong> zertifiziert ist, auf
@@ -247,6 +251,17 @@ export default function DatenschutzPage() {
             vercel.com/legal/privacy-policy
           </a>
           .
+        </p>
+        <p>
+          <strong>Datenbank (Neon):</strong> Die Daten deines Nutzerkontos, deine
+          gespeicherten Fragen, Antworten und die übrigen in dieser Erklärung
+          genannten Daten liegen in einer Datenbank, die die Neon, Inc. (USA) für
+          uns betreibt. Die Server stehen in der EU (Frankfurt am Main,
+          Region eu-central-1). Mit Neon besteht ein Vertrag über
+          Auftragsverarbeitung nach Art. 28 DSGVO; soweit ein Zugriff aus den USA
+          nicht ausgeschlossen werden kann, gelten die Standardvertragsklauseln
+          der EU-Kommission. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und f DSGVO
+          (Erbringung des Dienstes, sicherer und zuverlässiger Betrieb).
         </p>
       </LegalSection>
 
@@ -494,12 +509,12 @@ export default function DatenschutzPage() {
       <LegalSection title="8. Zahlungsabwicklung (Stripe)">
         <p>
           Für die Abwicklung kostenpflichtiger Tarife (Abonnements und Einmalkäufe wie
-          den Examenspass) nutzen wir den
+          Examens- und Jahrespass) nutzen wir den
           Zahlungsdienstleister <strong>Stripe Payments Europe, Ltd.</strong>, 1
           Grand Canal Street Lower, Grand Canal Dock, Dublin, Irland.
         </p>
         <p>
-          Schließt du ein Pro-Abonnement ab oder kaufst einen Examenspass, werden die für die Zahlungsabwicklung
+          Schließt du ein Pro-Abonnement ab oder kaufst einen Examens- oder Jahrespass, werden die für die Zahlungsabwicklung
           erforderlichen Daten (z. B. Name, E-Mail-Adresse, Zahlungsmittel,
           Rechnungsdaten) unmittelbar von Stripe erhoben und verarbeitet. Deine
           vollständigen Zahlungsdaten – etwa die Kreditkartennummer – werden{" "}
@@ -525,6 +540,7 @@ export default function DatenschutzPage() {
       <LegalSection title="9. E-Mail-Versand">
         <p>
           Für den Versand von System-E-Mails (Bestätigung der Registrierung,
+          Bestell- und Vertragsbestätigungen samt AGB und Widerrufsbelehrung,
           Passwort-Zurücksetzung, Kündigungsbestätigung, wichtige Service-Hinweise)
           nutzen wir einen E-Mail-Dienstleister der{" "}
           <strong>Zoho Corporation B.V.</strong>, Beneluxlaan 4B, 3527 HT Utrecht,

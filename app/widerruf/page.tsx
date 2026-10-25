@@ -15,8 +15,8 @@ export default function WiderrufPage() {
   return (
     <LegalShell
       title="Widerrufsbelehrung"
-      description="Belehrung über das Widerrufsrecht für Verbraucher bei kostenpflichtigen Verträgen (Pro-Tarif)."
-      lastUpdated="31. Mai 2026"
+      description="Belehrung über das Widerrufsrecht für Verbraucher bei kostenpflichtigen Verträgen (Pro-Monatsabo, Examenspass, Jahrespass)."
+      lastUpdated="25. Oktober 2026"
     >
       <LegalSection title="1. Widerrufsrecht">
         <p>
@@ -25,8 +25,8 @@ export default function WiderrufPage() {
         </p>
         <p>
           Die Widerrufsfrist beträgt vierzehn Tage ab dem Tag des Vertrags­schlusses
-          (das heißt: ab dem Tag, an dem du den Pro-Tarif kostenpflichtig bestellt
-          hast und wir den Vertrags­schluss bestätigt haben).
+          (das heißt: ab dem Tag, an dem du ein Pro-Monatsabo, einen Examenspass
+          oder einen Jahrespass kostenpflichtig bestellt hast).
         </p>
         <p>
           Um dein Widerrufsrecht auszuüben, musst du uns
@@ -60,10 +60,7 @@ export default function WiderrufPage() {
       <LegalSection title="2. Folgen des Widerrufs">
         <p>
           Wenn du diesen Vertrag widerrufst, haben wir dir alle Zahlungen, die
-          wir von dir erhalten haben, einschließlich der Lieferkosten (mit
-          Ausnahme der zusätzlichen Kosten, die sich daraus ergeben, dass du
-          eine andere Art der Lieferung als die von uns angebotene, günstigste
-          Standard­lieferung gewählt hast), unverzüglich und spätestens binnen
+          wir von dir erhalten haben, unverzüglich und spätestens binnen
           vierzehn Tagen ab dem Tag zurückzuzahlen, an dem die Mitteilung über
           deinen Widerruf dieses Vertrags bei uns eingegangen ist.
         </p>
@@ -74,50 +71,25 @@ export default function WiderrufPage() {
           werden dir wegen dieser Rückzahlung Entgelte berechnet.
         </p>
         <p>
-          Hast du verlangt, dass die Dienstleistungen während der Widerrufs­frist
-          beginnen sollen, so hast du uns einen angemessenen Betrag zu zahlen,
-          der dem Anteil der bis zu dem Zeitpunkt, zu dem du uns von der
-          Ausübung des Widerrufs­rechts hinsichtlich dieses Vertrags
-          unterrichtest, bereits erbrachten Dienstleistungen im Vergleich zum
-          Gesamtumfang der im Vertrag vorgesehenen Dienstleistungen entspricht.
+          Das gilt auch, wenn du den Pro-Zugang während der Widerrufs­frist
+          bereits genutzt hast: Wir erstatten dir den <strong>vollen Betrag</strong>{" "}
+          und verlangen keinen Wertersatz für die genutzte Zeit.
         </p>
       </LegalSection>
 
-      <LegalSection title="3. Vorzeitiges Erlöschen des Widerrufsrechts (digitale Dienste)">
+      <LegalSection title="3. Beginn der Leistung">
         <p>
-          Der Pro-Tarif stellt einen <strong>digitalen Dienst</strong> im Sinne
-          des § 327 Abs. 1 BGB dar (Bereitstellung der Generator-Funktion über
-          die Plattform).
-        </p>
-        <p>
-          Dein Widerrufsrecht erlischt bei einem Vertrag über die Bereitstellung
-          eines digitalen Dienstes vorzeitig, wenn wir mit der Vertrags­ausführung
-          begonnen haben, nachdem du
-        </p>
-        <ul className="list-inside list-disc space-y-1">
-          <li>
-            ausdrücklich zugestimmt hast, dass wir mit der Vertrags­ausführung
-            vor Ablauf der Widerrufs­frist beginnen, und
-          </li>
-          <li>
-            deine Kenntnis davon bestätigt hast, dass du durch deine Zustimmung
-            mit Beginn der Vertrags­ausführung dein Widerrufs­recht verlierst.
-          </li>
-        </ul>
-        <p>
-          Diese Bestätigungen erfolgen ausschließlich durch das aktive Setzen
-          einer entsprechenden Checkbox im Bestellprozess. Ohne dieses
-          ausdrückliche Einverständnis beginnen wir mit der Bereitstellung des
-          Pro-Tarifs erst nach Ablauf der Widerrufs­frist.
+          Wir schalten den Pro-Zugang unmittelbar nach Vertragsschluss frei. Dein
+          Widerrufsrecht bleibt davon unberührt.
         </p>
       </LegalSection>
 
       <LegalSection title="4. Ende der Widerrufsbelehrung">
         <p className="text-xs text-muted-foreground">
           Die vorstehende Widerrufsbelehrung entspricht dem amtlichen Muster
-          nach Anlage 1 zu Artikel 246a § 1 Abs. 2 Satz 2 EGBGB, angepasst auf
-          die Besonderheiten eines digitalen Abonnements (§ 327 BGB i. V. m.
-          § 356 Abs. 4 BGB).
+          nach Anlage 1 zu Artikel 246a § 1 Abs. 2 Satz 2 EGBGB; zu deinen
+          Gunsten verzichten wir auf einen Wertersatz für bereits genutzte
+          Leistungen.
         </p>
       </LegalSection>
 
@@ -155,7 +127,7 @@ export default function WiderrufPage() {
                 die Erbringung der folgenden Dienstleistung (*):
               </p>
               <p className="border-l-2 border-border pl-3 italic text-muted-foreground">
-                Pro-Abonnement fragenkreuzen.de
+                Pro-Monatsabo / Examenspass / Jahrespass (*) fragenkreuzen.de
               </p>
             </LegalSubsection>
 
@@ -188,10 +160,11 @@ export default function WiderrufPage() {
       <LegalSection title="6. Abgrenzung: Widerruf und Kündigung">
         <p>
           Der <strong>Widerruf</strong> beendet den Vertrag rückwirkend innerhalb der
-          14-tägigen Frist und führt zur Rückerstattung bereits gezahlter Beträge
-          (abzüglich eines etwaigen Wertersatzes nach Ziffer 2). Die{" "}
-          <strong>Kündigung</strong> beendet den Vertrag dagegen für die Zukunft zum
-          Ende der laufenden Abrechnungs­periode.
+          14-tägigen Frist und führt zur vollständigen Rückerstattung bereits
+          gezahlter Beträge. Die <strong>Kündigung</strong> beendet ein Pro-Monatsabo
+          dagegen für die Zukunft zum Ende der laufenden Abrechnungs­periode.
+          Examenspass und Jahrespass enden automatisch und müssen nicht gekündigt
+          werden.
         </p>
         <p>
           Möchtest du dein Abonnement lediglich beenden, ohne die Widerrufsfrist in

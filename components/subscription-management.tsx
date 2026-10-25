@@ -22,14 +22,18 @@ interface SubscriptionData {
   periodEnd?: string
   daysRemaining?: number | null
   isSimulated?: boolean
+  /** Woher Pro kommt: Abo, Testphase oder Pass/Bonuszeit (ohne Abrechnung). */
+  proKind?: "subscription" | "trial" | "bonus" | "none"
+  bonusUntil?: string | null
+  trial?: { active: boolean; endsAt?: string | null }
 }
 
 const PRO_FEATURES = [
-  "Bis zu 100 KI-Generierungen pro Tag",
+  "Kreuzen, so viel du willst (Fair Use)",
+  "Probeklausuren und Prüfungsreife je Fach",
+  "Bis zu 100 eigene Generierungen pro Tag",
   "Fallfragen mit bis zu 5 Teilfragen",
-  "Hohe Schwierigkeitsstufen (4 & 5) ohne Limit-Druck",
-  "Tiefere Erklärungen, Lernziele und Prüfungsfallen pro Frage",
-  "Direkt kreuzbar, kein Speicher- oder Setup-Aufwand",
+  "Automatische Wiederholung deiner Fehler",
 ] as const
 
 function formatDate(value?: string) {
@@ -233,6 +237,32 @@ export function SubscriptionManagement() {
   const isCancelling =
     subscription.cancelAtPeriodEnd || subscription.subscriptionDetails?.cancelAtPeriodEnd
 
+  // Pro ohne Abo (Pass, Bonuszeit, Testphase): keine Abrechnung, nichts zu kündigen.
+  const ohneAbo = subscription.isPro && (subscription.proKind === "bonus" || subscription.proKind === "trial")
+  if (ohneAbo) {
+    const bis = formatDate(subscription.proKind === "bonus" ? subscription.bonusUntil ?? undefined : subscription.trial?.endsAt ?? undefined)
+    return (
+      <div className="space-y-6">
+        <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
+          <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Aktueller Tarif</div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <h2 className="text-2xl font-semibold tracking-tight">Pro</h2>
+            <Badge>{subscription.proKind === "trial" ? "Testphase" : "Pass"}</Badge>
+          </div>
+          <p className="mt-2 max-w-xl text-sm text-muted-foreground">
+            {bis ? `Dein Pro-Zugang läuft bis ${bis}` : "Dein Pro-Zugang ist aktiv"} und endet dann automatisch — es gibt
+            keine Verlängerung und nichts zu kündigen. Danach kannst du jederzeit verlängern.
+          </p>
+          <div className="mt-4">
+            <Button asChild variant="outline">
+              <a href="/pricing">Optionen zum Verlängern</a>
+            </Button>
+          </div>
+        </section>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <section className="rounded-xl border bg-card p-4 shadow-sm sm:p-5">
@@ -254,8 +284,8 @@ export function SubscriptionManagement() {
             </div>
             <p className="max-w-xl text-sm text-muted-foreground">
               {subscription.isPro
-                ? "Bis zu 100 KI-Generierungen pro Tag, längere Fallvignetten und intensive Lernsessions."
-                : "Mit Pro: mehr KI-Generierungen pro Tag und längere Fallfragen ohne Limit-Druck."}
+                ? "Kreuzen, so viel du willst, Probeklausuren und bis zu 100 eigene Generierungen pro Tag."
+                : "Mit Pro: kreuzen, so viel du willst, und mehr eigene Generierungen pro Tag."}
             </p>
           </div>
 

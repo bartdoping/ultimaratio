@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { trackClient } from "@/lib/track-client"
 
 export type PlanChoice = {
-  plan: "pro_monthly" | "pro_yearly" | "exam_pass"
+  plan: "pro_monthly" | "exam_pass" | "year_pass"
   /** z. B. "9,99 €" — leer, wenn Stripe den Betrag nicht geliefert hat. */
   price: string
   suffix: string
@@ -16,8 +16,8 @@ export type PlanChoice = {
 
 const TITEL: Record<PlanChoice["plan"], string> = {
   pro_monthly: "Monatlich",
-  pro_yearly: "Jährlich",
   exam_pass: "Examenspass",
+  year_pass: "Jahrespass",
 }
 
 /**
@@ -57,7 +57,13 @@ export function PlanChooser({
         window.location.href = d.url
         return
       }
-      toast.error(d.error === "already_pro" ? "Du hast bereits ein Pro-Abo." : "Checkout konnte nicht gestartet werden.")
+      toast.error(
+        d.error === "already_pro"
+          ? "Du hast bereits ein Pro-Abo."
+          : d.error === "pass_active"
+            ? `Dein Pro-Zugang läuft noch bis ${new Date(d.bis).toLocaleDateString("de-DE")} — ein Abo kannst du danach abschließen.`
+            : "Checkout konnte nicht gestartet werden."
+      )
     } catch {
       toast.error("Checkout konnte nicht gestartet werden.")
     } finally {

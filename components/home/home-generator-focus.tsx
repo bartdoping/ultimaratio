@@ -59,7 +59,7 @@ const COMPARISON: Array<{
   pro: string
   highlight?: boolean
 }> = [
-  { label: "Fragen kreuzen pro Tag", free: String(POOL_LIMIT_FREE), pro: "Unbegrenzt", highlight: true },
+  { label: "Fragen kreuzen pro Tag", free: String(POOL_LIMIT_FREE), pro: "So viel du willst*", highlight: true },
   { label: "Eigene Generierungen pro Tag", free: String(GENERATOR_FREE_DAILY_LIMIT), pro: String(GENERATOR_PRO_DAILY_LIMIT) },
   { label: "Aha-Erklärung & Vertiefung", free: "Verfügbar", pro: "Verfügbar" },
   { label: "Automatische Wiederholung", free: "Verfügbar", pro: "Verfügbar" },
@@ -103,7 +103,7 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
             )}
           </div>
           <p className="text-xs text-muted-foreground">
-            {POOL_LIMIT_ANON} Fragen sofort ohne Konto · {POOL_LIMIT_FREE} pro Tag mit kostenlosem Konto · Pro unbegrenzt
+            {POOL_LIMIT_ANON} Fragen sofort ohne Konto · {POOL_LIMIT_FREE} pro Tag mit kostenlosem Konto · Pro: so viel du willst
           </p>
         </div>
       </section>
@@ -182,6 +182,12 @@ export function HomeGeneratorFocus({ loggedIn }: Props) {
               </p>
               {/* Pflichtangabe nach § 3 PAngV */}
               <PriceNote />
+              <p className="text-xs text-muted-foreground">
+                * im Rahmen der Fair-Use-Grenzen nach § 2 der{" "}
+                <Link href="/agb" className="underline underline-offset-2">
+                  AGB
+                </Link>
+              </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="ghost" size="sm">

@@ -19,8 +19,8 @@ export type StripeConfig = {
   webhookSecret: string | null
   /** Konfigurierter Live/Test-Pro-Monthly-Price (price_…). */
   proMonthlyPriceId: string | null
-  /** Optional: Jahresabo (wiederkehrend, jährlich). */
-  proYearlyPriceId: string | null
+  /** Optional: Jahrespass (Einmalzahlung, 12 Monate Pro, keine Verlängerung). */
+  yearPassPriceId: string | null
   /** Optional: Examenspass (Einmalzahlung, 90 Tage Pro, keine Verlängerung). */
   examPassPriceId: string | null
   /** Erkannter Modus anhand des Secret-Keys. */
@@ -73,7 +73,7 @@ export function getStripeConfig(): StripeConfig {
     (process.env.STRIPE_PRICE_ID_PRO_MONTHLY ?? "").trim() ||
     (process.env.STRIPE_PRICE_ID ?? "").trim() ||
     null
-  const proYearlyPriceId = (process.env.STRIPE_PRICE_ID_PRO_YEARLY ?? "").trim() || null
+  const yearPassPriceId = (process.env.STRIPE_PRICE_ID_YEAR_PASS ?? "").trim() || null
   const examPassPriceId = (process.env.STRIPE_PRICE_ID_EXAM_PASS ?? "").trim() || null
   const isProduction = process.env.NODE_ENV === "production"
 
@@ -110,7 +110,7 @@ export function getStripeConfig(): StripeConfig {
     secretKey,
     webhookSecret,
     proMonthlyPriceId,
-    proYearlyPriceId,
+    yearPassPriceId,
     examPassPriceId,
     mode,
     publishableMode,

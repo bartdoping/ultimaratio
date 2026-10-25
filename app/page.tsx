@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic"
 export const metadata: Metadata = {
   title: "Medizin-Prüfungsfragen kreuzen – ohne Warten | fragenkreuzen.de",
   description:
-    "Medizinische Prüfungsfragen endlos kreuzen – ohne Wartezeit, mit kurzer Aha-Erklärung und automatischer Wiederholung deiner Fehler. Kostenlos starten, Pro unbegrenzt.",
+    "Medizinische Prüfungsfragen endlos kreuzen – ohne Wartezeit, mit kurzer Aha-Erklärung und automatischer Wiederholung deiner Fehler. Kostenlos starten, mit Pro so viel du willst.",
   alternates: { canonical: "/" },
 }
 

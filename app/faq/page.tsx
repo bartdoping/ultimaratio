@@ -3,6 +3,8 @@ import Link from "next/link"
 import {
   GENERATOR_FREE_DAILY_LIMIT,
   GENERATOR_PRO_DAILY_LIMIT,
+  POOL_LIMIT_ANON,
+  POOL_LIMIT_FREE,
 } from "@/lib/generator-plan-config"
 
 export const dynamic = "force-static"
@@ -66,23 +68,37 @@ const FAQ: FaqItem[] = [
         fachliche Fehler machen. Die Inhalte dienen ausschließlich der
         Prüfungsvorbereitung und stellen <strong>keine medizinische Beratung</strong>{" "}
         dar. Verlass dich für verbindliche Informationen immer auf Lehrbücher und
-        aktuelle Leitlinien – und melde uns fehlerhafte Fragen gern über das
-        Feedback-Widget, damit wir besser werden.
+        aktuelle Leitlinien – und melde fehlerhafte Fragen über „Frage melden“
+        unter jeder Auflösung. Wie wir die Fragen prüfen, steht unter{" "}
+        <Link href="/so-entstehen-unsere-fragen">So entstehen unsere Fragen</Link>.
       </>
     ),
   },
   {
     q: "Was kostet fragenkreuzen.de?",
-    plain: `Der Free-Tarif ist dauerhaft kostenlos und erlaubt ${GENERATOR_FREE_DAILY_LIMIT} Generierungen pro Tag. Der Pro-Tarif kostet 9,99 Euro pro Monat als Endpreis; als Kleinunternehmer nach § 19 UStG erheben wir keine Umsatzsteuer. Pro bietet ${GENERATOR_PRO_DAILY_LIMIT} Generierungen pro Tag.`,
+    plain: `Ohne Konto kreuzt du ${POOL_LIMIT_ANON} Fragen pro Tag, mit kostenlosem Konto ${POOL_LIMIT_FREE} Fragen pro Tag plus ${GENERATOR_FREE_DAILY_LIMIT} eigene Generierungen. Mit Pro kreuzt du so viel du willst (Fair Use) und erzeugst bis zu ${GENERATOR_PRO_DAILY_LIMIT} eigene Fragen pro Tag. Pro gibt es als Monatsabo für 9,99 Euro, als Examenspass für 24,99 Euro einmalig (90 Tage) oder als Jahrespass für 79,99 Euro einmalig (12 Monate). Alles Endpreise; als Kleinunternehmer nach § 19 UStG erheben wir keine Umsatzsteuer.`,
     a: (
       <>
-        Der Free-Tarif ist dauerhaft kostenlos und erlaubt{" "}
-        {GENERATOR_FREE_DAILY_LIMIT} Generierungen pro Tag. Der Pro-Tarif kostet{" "}
-        <strong>9,99 € pro Monat</strong> und bietet {GENERATOR_PRO_DAILY_LIMIT}{" "}
-        Generierungen pro Tag, lange Fallvignetten und die vollen
-        Schwierigkeitsstufen. Endpreis – gemäß § 19 UStG erheben wir als
-        Kleinunternehmer keine Umsatzsteuer und weisen daher keine aus.{" "}
-        <Link href="/pricing">Zum Preisvergleich</Link>.
+        Ohne Konto kreuzt du {POOL_LIMIT_ANON} Fragen pro Tag, mit kostenlosem Konto{" "}
+        {POOL_LIMIT_FREE} Fragen plus {GENERATOR_FREE_DAILY_LIMIT} eigene Generierungen. Mit{" "}
+        <strong>Pro</strong> kreuzt du so viel du willst (im Rahmen der Fair-Use-Grenzen
+        aus § 2 der <Link href="/agb">AGB</Link>) und erzeugst bis zu{" "}
+        {GENERATOR_PRO_DAILY_LIMIT} eigene Fragen pro Tag. Pro gibt es als{" "}
+        <strong>Monatsabo für 9,99 €</strong>, als <strong>Examenspass für 24,99 €</strong>{" "}
+        einmalig (90 Tage) oder als <strong>Jahrespass für 79,99 €</strong> einmalig (12
+        Monate). Endpreise – gemäß § 19 UStG erheben wir als Kleinunternehmer keine
+        Umsatzsteuer und weisen daher keine aus. <Link href="/pricing">Zu den Preisen</Link>.
+      </>
+    ),
+  },
+  {
+    q: "Muss ich Examenspass oder Jahrespass kündigen?",
+    plain:
+      "Nein. Beide werden einmalig bezahlt, laufen 90 Tage bzw. 12 Monate und enden dann automatisch. Es gibt keine Verlängerung und keine Folgekosten.",
+    a: (
+      <>
+        Nein. Beide werden <strong>einmalig</strong> bezahlt, laufen 90 Tage bzw. 12
+        Monate und enden dann automatisch — ohne Verlängerung und ohne Folgekosten.
       </>
     ),
   },

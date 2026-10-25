@@ -9,7 +9,7 @@ import { getStripeConfig } from "@/lib/stripe-config"
  * was angezeigt wird.
  */
 
-export type PlanId = "pro_monthly" | "pro_yearly" | "exam_pass"
+export type PlanId = "pro_monthly" | "exam_pass" | "year_pass"
 
 export type PlanOffer = {
   plan: PlanId
@@ -20,10 +20,26 @@ export type PlanOffer = {
   interval: "month" | "year" | null
 }
 
-/** Examenspass: so lange gilt Pro nach der Einmalzahlung. */
+/** Pässe: so lange gilt Pro nach der Einmalzahlung (keine Verlängerung). */
 export const EXAM_PASS_DAYS = 90
+export const YEAR_PASS_DAYS = 365
 
-export const PLAN_IDS: readonly PlanId[] = ["pro_monthly", "pro_yearly", "exam_pass"]
+export const PLAN_IDS: readonly PlanId[] = ["pro_monthly", "exam_pass", "year_pass"]
+
+/** Einmalzahlung mit fester Laufzeit statt Abo. */
+export function istPass(plan: PlanId): plan is "exam_pass" | "year_pass" {
+  return plan === "exam_pass" || plan === "year_pass"
+}
+
+export function passTage(plan: "exam_pass" | "year_pass"): number {
+  return plan === "exam_pass" ? EXAM_PASS_DAYS : YEAR_PASS_DAYS
+}
+
+export const PLAN_NAME: Record<PlanId, string> = {
+  pro_monthly: "Pro-Monatsabo",
+  exam_pass: "Examenspass (90 Tage)",
+  year_pass: "Jahrespass (12 Monate)",
+}
 
 export function isPlanId(v: unknown): v is PlanId {
   return typeof v === "string" && (PLAN_IDS as readonly string[]).includes(v)
@@ -31,7 +47,7 @@ export function isPlanId(v: unknown): v is PlanId {
 
 export function priceIdFor(plan: PlanId): string | null {
   const cfg = getStripeConfig()
-  return plan === "pro_monthly" ? cfg.proMonthlyPriceId : plan === "pro_yearly" ? cfg.proYearlyPriceId : cfg.examPassPriceId
+  return plan === "pro_monthly" ? cfg.proMonthlyPriceId : plan === "year_pass" ? cfg.yearPassPriceId : cfg.examPassPriceId
 }
 
 let cache: { at: number; offers: PlanOffer[] } | null = null
@@ -66,7 +82,7 @@ export function formatAmount(cents: number | null, currency = "eur"): string {
   return new Intl.NumberFormat("de-DE", { style: "currency", currency: currency.toUpperCase() }).format(cents / 100)
 }
 
-/** Ersparnis des Jahresabos gegenüber 12 Monaten, in ganzen Prozent. */
+/** Ersparnis des Jahrespasses gegenüber 12 Monaten Monatsabo, in ganzen Prozent. */
 export function yearlySavingPercent(monthlyCents: number | null, yearlyCents: number | null): number | null {
   if (!monthlyCents || !yearlyCents) return null
   const p = Math.round((1 - yearlyCents / (monthlyCents * 12)) * 100)
@@ -74,22 +90,22 @@ export function yearlySavingPercent(monthlyCents: number | null, yearlyCents: nu
 }
 
 /**
- * Aufbereitung für die Oberfläche (serialisierbar). Reihenfolge nach Nutzen:
- * Jahresabo zuerst, wenn es spart; sonst Monatsabo.
+ * Aufbereitung für die Oberfläche (serialisierbar). Reihenfolge: Monatsabo,
+ * Examenspass, Jahrespass.
  */
 export async function planChoices(): Promise<
   { plan: PlanId; price: string; suffix: string; hint?: string }[]
 > {
   const offers = await getPlanOffers().catch(() => [] as PlanOffer[])
   const monat = offers.find((o) => o.plan === "pro_monthly")
-  const jahr = offers.find((o) => o.plan === "pro_yearly")
   const pass = offers.find((o) => o.plan === "exam_pass")
+  const jahr = offers.find((o) => o.plan === "year_pass")
   const out: { plan: PlanId; price: string; suffix: string; hint?: string }[] = []
   if (monat) out.push({ plan: "pro_monthly", price: formatAmount(monat.amountCents, monat.currency), suffix: "/ Monat", hint: "monatlich kündbar" })
+  if (pass) out.push({ plan: "exam_pass", price: formatAmount(pass.amountCents, pass.currency), suffix: `einmalig · ${EXAM_PASS_DAYS} Tage`, hint: "kein Abo" })
   if (jahr) {
     const spar = yearlySavingPercent(monat?.amountCents ?? null, jahr.amountCents)
-    out.push({ plan: "pro_yearly", price: formatAmount(jahr.amountCents, jahr.currency), suffix: "/ Jahr", hint: spar ? `${spar} % gespart` : undefined })
+    out.push({ plan: "year_pass", price: formatAmount(jahr.amountCents, jahr.currency), suffix: "einmalig · 12 Monate", hint: spar ? `${spar} % gespart` : "kein Abo" })
   }
-  if (pass) out.push({ plan: "exam_pass", price: formatAmount(pass.amountCents, pass.currency), suffix: `einmalig · ${EXAM_PASS_DAYS} Tage`, hint: "kein Abo" })
   return out
 }

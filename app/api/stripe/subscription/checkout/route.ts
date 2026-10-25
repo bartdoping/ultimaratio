@@ -6,7 +6,7 @@ import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import stripe from "@/lib/stripe"
 import { getAppBaseUrl } from "@/lib/app-base-url"
-import { EXAM_PASS_DAYS, isPlanId, priceIdFor } from "@/lib/stripe-plans"
+import { formatAmount, getPlanOffers, isPlanId, istPass, passTage, PLAN_NAME, priceIdFor } from "@/lib/stripe-plans"
 import {
   assertStripeReadyForCharges,
   getStripeConfig,
@@ -53,6 +53,7 @@ export async function POST(req: Request) {
         id: true,
         email: true,
         subscriptionStatus: true,
+        proBonusUntil: true,
         subscription: {
           select: {
             stripeCustomerId: true,
@@ -75,6 +76,14 @@ export async function POST(req: Request) {
     const priceId = plan === "pro_monthly" ? cfg.proMonthlyPriceId : priceIdFor(plan)
     if (!priceId) {
       return NextResponse.json({ ok: false, error: "plan_unavailable" }, { status: 400 })
+    }
+    // Kein Doppelbezahlen (AGB § 5 Abs. 3): Während ein Pass oder Bonuszeit
+    // läuft, kein Monatsabo — das Abo würde parallel abgebucht.
+    if (!istPass(plan) && user.proBonusUntil && user.proBonusUntil.getTime() > Date.now()) {
+      return NextResponse.json(
+        { ok: false, error: "pass_active", bis: user.proBonusUntil.toISOString() },
+        { status: 400 }
+      )
     }
     // Nur bekannte Ziele — keine frei wählbare Weiterleitung (Open Redirect).
     const returnTo =
@@ -143,21 +152,45 @@ export async function POST(req: Request) {
       success_url: `${base}${returnTo}?subscription=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${base}${returnTo}?subscription=cancelled`,
       allow_promotion_codes: true,
+      // Deutsche Oberfläche — die Bestell-Schaltfläche muss auf Deutsch auf die
+      // Zahlungspflicht hinweisen (§ 312j Abs. 3 BGB).
+      locale: "de" as const,
       metadata: { userId: user.id, plan },
     }
-    const checkoutSession =
-      plan === "exam_pass"
-        ? // Examenspass: Einmalzahlung, verlängert sich nicht — kein Abo, nichts zu kündigen.
-          await stripe.checkout.sessions.create({
-            ...gemeinsam,
-            mode: "payment",
-            payment_intent_data: { metadata: { userId: user.id, plan, days: String(EXAM_PASS_DAYS) } },
-          })
-        : await stripe.checkout.sessions.create({
-            ...gemeinsam,
-            mode: "subscription",
-            subscription_data: { metadata: { userId: user.id, plan } },
-          })
+    const pass = istPass(plan)
+    const angebot = (await getPlanOffers().catch(() => [])).find((o) => o.plan === "pro_monthly")
+    const monatspreis = angebot?.amountCents ? formatAmount(angebot.amountCents, angebot.currency) : null
+    const checkoutSession = pass
+      ? // Pässe: Einmalzahlung mit fester Laufzeit — kein Abo, nichts zu kündigen.
+        await stripe.checkout.sessions.create({
+          ...gemeinsam,
+          mode: "payment",
+          submit_type: "pay",
+          payment_intent_data: { metadata: { userId: user.id, plan, days: String(passTage(plan)) } },
+          // Rechnung auch für Einmalzahlungen (AGB § 4 Abs. 6).
+          invoice_creation: {
+            enabled: true,
+            invoice_data: {
+              description: `${PLAN_NAME[plan]} — Pro-Zugang auf fragenkreuzen.de`,
+              footer: "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
+            },
+          },
+          custom_text: {
+            submit: {
+              message: `Mit Klick auf „Bezahlen“ kaufst du zahlungspflichtig den ${PLAN_NAME[plan]}. Einmalige Zahlung, keine Verlängerung. 14 Tage Widerrufsrecht mit voller Erstattung.`,
+            },
+          },
+        })
+      : await stripe.checkout.sessions.create({
+          ...gemeinsam,
+          mode: "subscription",
+          subscription_data: { metadata: { userId: user.id, plan } },
+          custom_text: {
+            submit: {
+              message: `Mit Klick auf „Abonnieren“ schließt du ein zahlungspflichtiges Abo${monatspreis ? ` über ${monatspreis} pro Monat` : ""} ab. Monatlich kündbar, 14 Tage Widerrufsrecht mit voller Erstattung.`,
+            },
+          },
+        })
 
     track("checkout_started", { userId: user.id, props: { plan } })
     return NextResponse.json({ ok: true, url: checkoutSession.url })

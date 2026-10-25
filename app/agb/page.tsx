@@ -4,15 +4,15 @@ import { LegalShell, LegalSection } from "@/components/legal/legal-shell"
 export const metadata: Metadata = {
   title: "AGB | fragenkreuzen.de",
   description:
-    "Allgemeine Geschäftsbedingungen für die Nutzung des KI-Fragengenerators auf fragenkreuzen.de.",
+    "Allgemeine Geschäftsbedingungen für die Nutzung von fragenkreuzen.de — Kreuz-Modus, Generator, Pro-Monatsabo, Examenspass und Jahrespass.",
 }
 
 export default function AgbPage() {
   return (
     <LegalShell
       title="Allgemeine Geschäftsbedingungen (AGB)"
-      description="Für die Nutzung des KI-Fragengenerators auf fragenkreuzen.de."
-      lastUpdated="31. Mai 2026"
+      description="Für die Nutzung von fragenkreuzen.de (Kreuz-Modus und Generator)."
+      lastUpdated="25. Oktober 2026"
     >
       <LegalSection title="§ 1 Geltungsbereich und Anbieter">
         <p>
@@ -58,39 +58,71 @@ export default function AgbPage() {
       </LegalSection>
 
       <LegalSection title="§ 2 Leistungsbeschreibung">
-        <p>
-          (1) Die Anbieterin stellt einen KI-gestützten Generator für
-          medizinische Single-Choice-Fragen zur Verfügung. Nach Eingabe eines
-          Sachthemas, einer Schwierigkeitsstufe und eines Frage-Typs erzeugt der
-          Dienst Single-Choice-Fragen mit Antwortoptionen und Erklärungen
-          (Einzelfragen oder Fallfragen mit 2–5 Teilfragen).
-        </p>
-        <p>(2) Es bestehen die folgenden Tarife:</p>
+        <p>(1) Die Anbieterin stellt über die Plattform insbesondere bereit:</p>
         <ul className="list-inside list-disc space-y-1">
           <li>
-            <strong>Free:</strong> kostenlos. Bis zu drei (3) Generierungen pro
-            Kalendertag (jede Teilfrage einer Fallfrage zählt als eigene
-            Generierung).
+            den <strong>Kreuz-Modus</strong>: medizinische Single-Choice-Übungsfragen
+            aus einem gemeinsamen Fragenpool, die bei Bedarf KI-gestützt neu erzeugt
+            werden, mit Auflösung und Erklärung, Wiederholung falsch beantworteter
+            Fragen, Probeklausuren und Auswertungen des Lernstands;
           </li>
           <li>
-            <strong>Pro:</strong> 9,99 € pro Monat (Endpreis; gemäß § 19 UStG
-            erheben wir als Kleinunternehmer keine Umsatzsteuer und weisen daher
-            keine aus). Bis zu einhundert (100) Generierungen pro Kalendertag.
+            den <strong>Generator</strong>: die Erstellung eigener Fragen zu einem
+            frei gewählten Sachthema (Einzelfragen oder Fallfragen mit 2–5
+            Teilfragen).
           </li>
         </ul>
         <p>
-          (3) Die inhaltlichen Funktionen des Generators (Fragetypen,
-          Schwierigkeitsstufen, Fallfragen, Erklärungen, Lernziele,
-          Prüfungsfallen) sind in beiden Tarifen identisch. Der Pro-Tarif
-          unterscheidet sich allein durch das erhöhte Tageskontingent.
+          (2) Sämtliche Fragen und Erklärungen werden durch ein KI-Sprachmodell
+          erzeugt und automatisiert geprüft; es gilt § 10.
+        </p>
+        <p>(3) Es bestehen die folgenden Nutzungsstufen:</p>
+        <ul className="list-inside list-disc space-y-1">
+          <li>
+            <strong>Ohne Konto:</strong> bis zu zehn (10) beantwortete Fragen im
+            Kreuz-Modus und bis zu drei (3) Generierungen pro Kalendertag.
+          </li>
+          <li>
+            <strong>Free</strong> (kostenloses Konto): bis zu fünfundzwanzig (25)
+            beantwortete Fragen im Kreuz-Modus und bis zu drei (3) Generierungen
+            pro Kalendertag (jede Teilfrage einer Fallfrage zählt als eigene
+            Generierung).
+          </li>
+          <li>
+            <strong>Pro:</strong> Kreuz-Modus ohne festes Tageskontingent im Rahmen
+            von Absatz 5 (Fair Use) sowie bis zu einhundert (100) Generierungen pro
+            Kalendertag.
+          </li>
+        </ul>
+        <p>
+          (4) Pro-Zugang kann erworben werden als <strong>Pro-Monatsabo</strong>,
+          als <strong>Examenspass</strong> (90 Tage) oder als{" "}
+          <strong>Jahrespass</strong> (12 Monate); Preise und Laufzeiten ergeben
+          sich aus §§ 4 und 5. Daneben kann Pro-Zugang aus der einmaligen
+          Testphase (§ 3 Abs. 6) oder als Bonuszeit aus dem Empfehlungsprogramm
+          (§ 5a) bestehen. Die inhaltlichen Funktionen sind in allen Stufen
+          identisch; die Stufen unterscheiden sich durch die Kontingente.
         </p>
         <p>
-          (4) Die täglichen Kontingente setzen sich um 00:00 Uhr
+          (5) <strong>Fair Use.</strong> Pro-Zugang dient der persönlichen
+          Nutzung durch den Kontoinhaber. Zum Schutz vor Missbrauch und zur
+          Sicherung der Verfügbarkeit für alle Nutzer gelten folgende technische
+          Grenzen: höchstens einhundert (100) Generierungen pro Kalendertag,
+          höchstens einhundertfünfzig (150) automatische Neuerzeugungen von
+          Fragen im Kreuz-Modus pro Kalendertag (Fragen aus dem bestehenden
+          Fragenpool sind davon nicht betroffen) sowie höchstens zwei (2)
+          gleichzeitig angemeldete Geräte (§ 3 Abs. 5). Bei außergewöhnlich hoher
+          Gesamtauslastung kann die Neuerzeugung von Fragen vorübergehend für alle
+          Nutzer ausgesetzt werden; bereits vorhandene Fragen bleiben verfügbar.
+        </p>
+        <p>
+          (6) Die täglichen Kontingente setzen sich um 00:00 Uhr
           Mitteleuropäische Zeit (Europe/Berlin) zurück. Nicht verbrauchte
-          Kontingente verfallen und werden nicht in den Folgetag übertragen.
+          Kontingente verfallen. Im Kreuz-Modus zählen beantwortete Fragen;
+          fällige Wiederholungen bereits gespeicherter Fragen zählen nicht.
         </p>
         <p>
-          (5) Die Anbieterin behält sich vor, das Leistungsangebot
+          (7) Die Anbieterin behält sich vor, das Leistungsangebot
           weiterzuentwickeln, anzupassen oder einzelne Funktionen zu ergänzen,
           zu modifizieren oder einzustellen. Wesentliche Änderungen am
           vertraglichen Leistungsumfang werden gemäß § 13 dieser AGB
@@ -100,8 +132,8 @@ export default function AgbPage() {
 
       <LegalSection title="§ 3 Registrierung und Vertragsschluss">
         <p>
-          (1) Die Nutzung der Plattform setzt im Free-Tarif teilweise und im
-          Pro-Tarif vollständig die Anlage eines Nutzerkontos voraus. Hierfür
+          (1) Die Nutzung der Plattform setzt im Free-Tarif teilweise und für
+          Pro-Zugang vollständig die Anlage eines Nutzerkontos voraus. Hierfür
           sind eine gültige E-Mail-Adresse sowie ein selbstgewähltes Passwort
           erforderlich. Die Registrierung ist nur Personen erlaubt, die das 16.
           Lebensjahr vollendet haben.
@@ -115,13 +147,12 @@ export default function AgbPage() {
           durch die Anbieterin (Aktivierung des Kontos) zustande.
         </p>
         <p>
-          (3) Der Vertrag über den <strong>Pro-Tarif</strong> kommt zustande,
-          sobald der Nutzer im Bestellprozess auf den Bestell-Button mit der
-          Beschriftung „<strong>Zahlungspflichtig bestellen</strong>" oder einer
-          gleichwertigen Formulierung (z. B. „Kostenpflichtig abonnieren")
-          klickt und die Anbieterin den Vertragsschluss per E-Mail bestätigt.
-          Die Abwicklung der Zahlung erfolgt über den Zahlungsdienstleister
-          Stripe (siehe § 4).
+          (3) Der Vertrag über ein <strong>Pro-Monatsabo</strong>, einen{" "}
+          <strong>Examenspass</strong> oder einen <strong>Jahrespass</strong>{" "}
+          kommt zustande, sobald der Nutzer im Bestellprozess des
+          Zahlungsdienstleisters Stripe (siehe § 4) auf die Schaltfläche zur
+          zahlungspflichtigen Bestellung klickt. Die Anbieterin bestätigt den
+          Vertragsschluss unverzüglich per E-Mail.
         </p>
         <p>
           (4) Der Nutzer ist verpflichtet, bei der Registrierung wahrheitsgemäße
@@ -136,25 +167,45 @@ export default function AgbPage() {
           höchstens zwei Geräte angemeldet sein; bei der Anmeldung auf einem
           weiteren Gerät wird die älteste Anmeldung beendet.
         </p>
+        <p>
+          (6) <strong>Testphase.</strong> Jedes Konto kann einmalig eine
+          kostenlose Testphase von sieben (7) Tagen mit Pro-Zugang starten. Dafür
+          sind keine Zahlungsdaten erforderlich; die Testphase endet automatisch
+          und geht nicht in einen kostenpflichtigen Vertrag über.
+        </p>
       </LegalSection>
 
       <LegalSection title="§ 4 Preise, Zahlung und Abrechnung">
         <p>
-          (1) Der Free-Tarif ist kostenlos. Für den Pro-Tarif gilt der zum
-          Zeitpunkt der Bestellung auf der Plattform angegebene Preis,
-          gegenwärtig <strong>9,99 € pro Monat</strong>. Es handelt sich um einen
-          Endpreis im Sinne der Preisangabenverordnung; weitere Kosten fallen
-          nicht an. Die Anbieterin macht von der Kleinunternehmer­regelung nach
-          § 19 UStG Gebrauch und erhebt daher keine Umsatzsteuer; ein
-          Umsatzsteuer­ausweis erfolgt nicht.
+          (1) Der Free-Tarif ist kostenlos. Für Pro-Zugang gelten die zum
+          Zeitpunkt der Bestellung auf der Plattform angegebenen Preise,
+          gegenwärtig:
+        </p>
+        <ul className="list-inside list-disc space-y-1">
+          <li>
+            <strong>Pro-Monatsabo:</strong> 9,99 € pro Monat;
+          </li>
+          <li>
+            <strong>Examenspass:</strong> 24,99 € einmalig für 90 Tage;
+          </li>
+          <li>
+            <strong>Jahrespass:</strong> 79,99 € einmalig für 12 Monate.
+          </li>
+        </ul>
+        <p>
+          Es handelt sich um Endpreise im Sinne der Preisangabenverordnung;
+          weitere Kosten fallen nicht an. Die Anbieterin macht von der
+          Kleinunternehmer­regelung nach § 19 UStG Gebrauch und erhebt daher keine
+          Umsatzsteuer; ein Umsatzsteuer­ausweis erfolgt nicht.
         </p>
         <p>
-          (2) Die Zahlung wird im Voraus jeweils zu Beginn der Abrechnungs­periode
-          fällig (Prepaid). Die Abrechnung erfolgt automatisch monatlich über
-          den Zahlungsdienstleister Stripe Payments Europe Limited, Block 4,
-          Harcourt Centre, Harcourt Road, Dublin 2, Irland (nachfolgend
-          „<strong>Stripe</strong>"). Es gelten zusätzlich die Geschäfts- und
-          Datenschutz­bedingungen von Stripe.
+          (2) Die Zahlung erfolgt über den Zahlungsdienstleister Stripe Payments
+          Europe Limited, Block 4, Harcourt Centre, Harcourt Road, Dublin 2, Irland
+          (nachfolgend „<strong>Stripe</strong>"). Es gelten zusätzlich die
+          Geschäfts- und Datenschutz­bedingungen von Stripe. Das Pro-Monatsabo
+          wird jeweils zu Beginn der monatlichen Abrechnungs­periode im Voraus
+          abgerechnet (Prepaid). Examenspass und Jahrespass werden einmalig bei
+          der Bestellung im Voraus bezahlt.
         </p>
         <p>
           (3) Akzeptiert werden alle von Stripe für den deutschen Markt
@@ -162,23 +213,24 @@ export default function AgbPage() {
           Zahlungsmethoden werden im Bestellprozess angezeigt.
         </p>
         <p>
-          (4) Das Pro-Abonnement verlängert sich nach Ablauf der
+          (4) Das Pro-Monatsabo verlängert sich nach Ablauf der
           Abrechnungs­periode automatisch um jeweils einen weiteren Monat zu den
-          dann gültigen Konditionen, sofern es nicht gemäß § 5 fristgerecht
-          gekündigt wird.
+          dann gültigen Konditionen, sofern es nicht gemäß § 5 gekündigt wird.
+          Examenspass und Jahrespass verlängern sich nicht.
         </p>
         <p>
           (5) Bei einer fehlgeschlagenen Zahlung (z. B. mangels Deckung)
           unternimmt Stripe in einem von der Anbieterin festgelegten Rahmen
           erneute Einzugsversuche. Bleibt die Zahlung dauerhaft erfolglos, ist
-          die Anbieterin berechtigt, den Pro-Status zu deaktivieren und den
+          die Anbieterin berechtigt, den Pro-Zugang zu deaktivieren und den
           Nutzer auf den Free-Tarif zurückzustufen, ohne dass dies eine
           Beendigung des Nutzungs­vertrags darstellt.
         </p>
         <p>
-          (6) Rechnungen werden in elektronischer Form über das
-          Stripe-Kundenportal bereitgestellt. Der Nutzer stimmt der
-          elektronischen Rechnungs­stellung zu.
+          (6) Rechnungen werden ausschließlich in elektronischer Form bereitgestellt
+          — für das Pro-Monatsabo über das Stripe-Kundenportal, für Examenspass
+          und Jahrespass per E-Mail. Der Nutzer stimmt der elektronischen
+          Rechnungs­stellung zu.
         </p>
       </LegalSection>
 
@@ -189,16 +241,24 @@ export default function AgbPage() {
           gekündigt werden.
         </p>
         <p>
-          (2) Der Vertrag über den Pro-Tarif hat eine Mindestlaufzeit von einem
-          Monat. Er verlängert sich nach Ablauf der jeweils laufenden
-          Abrechnungs­periode automatisch um jeweils einen weiteren Monat und
-          kann mit einer Frist von <strong>einem Tag zum Ende der jeweils
-          laufenden Abrechnungs­periode</strong> ordentlich gekündigt werden.
-          Die Kündigung wirkt zum Ende der laufenden Periode; bis dahin bleibt
-          der Pro-Zugang erhalten.
+          (2) Das Pro-Monatsabo hat eine Mindestlaufzeit von einem Monat. Es
+          verlängert sich nach Ablauf der jeweils laufenden Abrechnungs­periode
+          automatisch um jeweils einen weiteren Monat und kann mit einer Frist von{" "}
+          <strong>einem Tag zum Ende der jeweils laufenden Abrechnungs­periode</strong>{" "}
+          ordentlich gekündigt werden. Die Kündigung wirkt zum Ende der laufenden
+          Periode; bis dahin bleibt der Pro-Zugang erhalten.
         </p>
         <p>
-          (3) Die Kündigung des Pro-Abonnements ist jederzeit über die hierfür
+          (3) <strong>Examenspass und Jahrespass</strong> haben eine feste
+          Laufzeit von 90 Tagen bzw. 12 Monaten ab Vertragsschluss und enden
+          automatisch, ohne dass es einer Kündigung bedarf. Besteht beim Kauf
+          bereits Pro-Zugang aus einem Pass oder aus Bonuszeit, schließt sich die
+          neue Laufzeit an. Solange ein Pro-Monatsabo läuft, kann kein Pass
+          erworben werden; solange ein Pass oder eine Bonuszeit läuft, kann kein
+          Pro-Monatsabo abgeschlossen werden.
+        </p>
+        <p>
+          (4) Die Kündigung des Pro-Monatsabos ist jederzeit über die hierfür
           eingerichtete Kündigungs­schaltfläche{" "}
           <strong>„Verträge hier kündigen"</strong> möglich. Diese ist auf jeder
           Seite im Fußbereich verlinkt, ständig verfügbar sowie unmittelbar und
@@ -215,11 +275,11 @@ export default function AgbPage() {
           weiterhin in der Abo-Verwaltung kündigen.
         </p>
         <p>
-          (4) Eine Kündigung ist zusätzlich in Textform (z. B. per E-Mail an{" "}
+          (5) Eine Kündigung ist zusätzlich in Textform (z. B. per E-Mail an{" "}
           <a href="mailto:info@ultima-rat.io">info@ultima-rat.io</a>) möglich.
         </p>
         <p>
-          (5) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund
+          (6) Das Recht zur außerordentlichen Kündigung aus wichtigem Grund
           bleibt für beide Seiten unberührt. Ein wichtiger Grund für die
           Anbieterin liegt insbesondere bei wesentlichem Verstoß des Nutzers
           gegen diese AGB, gegen geltendes Recht oder gegen die Pflichten aus
@@ -227,13 +287,49 @@ export default function AgbPage() {
         </p>
       </LegalSection>
 
+      <LegalSection title="§ 5a Empfehlungsprogramm und Creator-Codes">
+        <p>
+          (1) Jeder Nutzer mit Konto erhält einen persönlichen Einladungslink.
+          Legt eine eingeladene Person über diesen Link ein neues Konto an,
+          bestätigt ihre E-Mail-Adresse und beantwortet im Kreuz-Modus zwanzig
+          (20) Fragen, erhalten beide jeweils <strong>30 Tage Pro-Zugang</strong>{" "}
+          als Bonuszeit.
+        </p>
+        <p>
+          (2) Je einladendem Konto werden höchstens zwölf (12) Einladungen
+          belohnt. Die eingeladene Person erhält ihre Bonuszeit unabhängig davon.
+        </p>
+        <p>
+          (3) Bonuszeit endet automatisch, ist nicht übertragbar und kann nicht
+          ausgezahlt werden. Sie schließt sich an bestehende Bonuszeit oder einen
+          laufenden Pass an; neben einem laufenden Pro-Monatsabo läuft sie
+          parallel.
+        </p>
+        <p>
+          (4) Einladungen an sich selbst, über mehrfach angelegte Konten oder auf
+          automatisierte oder gekaufte Weise sind unzulässig. In diesen Fällen
+          entfällt die Belohnung; bereits gewährte Bonuszeit kann entzogen werden.
+        </p>
+        <p>
+          (5) Die Anbieterin kann das Empfehlungsprogramm mit Wirkung für die
+          Zukunft ändern oder beenden; bereits erworbene Bonuszeit bleibt
+          erhalten.
+        </p>
+        <p>
+          (6) Creator-Codes von Kooperationspartnern ordnen eine Registrierung
+          dem jeweiligen Partner zu. Für den Nutzer sind damit weder Vor- noch
+          Nachteile verbunden.
+        </p>
+      </LegalSection>
+
       <LegalSection title="§ 6 Preisanpassungen">
         <p>
-          (1) Die Anbieterin kann das Entgelt für den Pro-Tarif nach billigem
+          (1) Die Anbieterin kann das Entgelt für das Pro-Monatsabo nach billigem
           Ermessen (§ 315 BGB) ändern, insbesondere um Änderungen der Kosten
           (z. B. Hosting-, Zahlungsdienstleister- oder Drittanbieter-KI-Kosten),
           der gesetzlichen Rahmenbedingungen oder der Marktbedingungen
-          weiterzugeben.
+          weiterzugeben. Für Examenspass und Jahrespass gilt der beim Kauf
+          gezahlte Preis für die gesamte Laufzeit.
         </p>
         <p>
           (2) Preiserhöhungen werden dem Nutzer mindestens{" "}
@@ -241,7 +337,7 @@ export default function AgbPage() {
           per E-Mail an die hinterlegte Adresse) angekündigt.
         </p>
         <p>
-          (3) Der Nutzer hat das Recht, den Pro-Vertrag aus Anlass der
+          (3) Der Nutzer hat das Recht, das Pro-Monatsabo aus Anlass der
           Preiserhöhung mit einer Frist von{" "}
           <strong>einem Tag zum Wirksamwerden der Preiserhöhung</strong>{" "}
           außerordentlich zu kündigen (Sonderkündigungsrecht). Wird das
@@ -254,20 +350,17 @@ export default function AgbPage() {
 
       <LegalSection title="§ 7 Widerrufsrecht für Verbraucher">
         <p>
-          Verbrauchern im Sinne des § 13 BGB steht beim Abschluss von
-          kostenpflichtigen Verträgen (Pro-Tarif) ein gesetzliches
-          Widerrufs­recht zu. Die Einzelheiten sind in unserer{" "}
-          <a href="/widerruf">Widerrufsbelehrung</a> geregelt, die diesem
-          Vertrag als Anlage beigefügt gilt.
+          (1) Verbrauchern im Sinne des § 13 BGB steht beim Abschluss eines
+          Pro-Monatsabos, eines Examenspasses oder eines Jahrespasses ein
+          gesetzliches Widerrufs­recht von vierzehn Tagen zu. Die Einzelheiten
+          sind in unserer <a href="/widerruf">Widerrufsbelehrung</a> geregelt.
         </p>
         <p>
-          Da der Pro-Tarif einen digitalen Dienst im Sinne des § 327 Abs. 1 BGB
-          darstellt, kann das Widerrufsrecht unter den Voraussetzungen des
-          § 356 Abs. 4 BGB vorzeitig erlöschen, wenn der Nutzer dem Beginn der
-          Vertragsausführung vor Ablauf der Widerrufsfrist ausdrücklich zustimmt
-          und seine Kenntnis vom Erlöschen des Widerrufsrechts bestätigt. Diese
-          Bestätigung erfolgt durch das aktive Setzen einer entsprechenden
-          Checkbox im Bestellprozess.
+          (2) Die Anbieterin stellt den Pro-Zugang unmittelbar nach
+          Vertragsschluss bereit. Widerruft der Verbraucher fristgerecht,
+          erstattet die Anbieterin — über die gesetzliche Pflicht hinaus — den{" "}
+          <strong>vollen gezahlten Betrag</strong> und verlangt keinen Wertersatz
+          für die bis zum Widerruf genutzte Zeit.
         </p>
       </LegalSection>
 
@@ -284,9 +377,9 @@ export default function AgbPage() {
             Berechtigung in die Plattform einzugeben,
           </li>
           <li>
-            patienten- oder personenbezogene Gesundheitsdaten realer Personen in
-            den Generator einzugeben (medizinische Echtdaten sind aus
-            Datenschutzgründen ausdrücklich untersagt),
+            personenbezogene Daten, insbesondere Gesundheitsdaten realer
+            Personen, in Themen- oder Freitextfelder einzugeben (medizinische
+            Echtdaten sind aus Datenschutzgründen ausdrücklich untersagt),
           </li>
           <li>
             die Plattform in einer Weise zu nutzen, die geeignet ist, deren
@@ -315,7 +408,7 @@ export default function AgbPage() {
 
       <LegalSection title="§ 9 Nutzungsrechte an generierten Inhalten">
         <p>
-          (1) Die mit dem Generator erstellten Fragen, Antwortoptionen und
+          (1) Die auf der Plattform bereitgestellten Fragen, Antwortoptionen und
           Erklärungen werden durch ein Sprachmodell (KI) automatisch erzeugt.
           Die rechtliche Einordnung KI-generierter Inhalte ist gegenwärtig
           uneinheitlich; die Anbieterin macht keine Zusicherungen über das
@@ -323,14 +416,15 @@ export default function AgbPage() {
           ähnlicher Rechte an einzelnen generierten Ausgaben.
         </p>
         <p>
-          (2) Die Anbieterin räumt dem Nutzer für die von ihm angeforderten
-          Generierungen ein einfaches, nicht ausschließliches, nicht
+          (2) Die Anbieterin räumt dem Nutzer an den ihm bereitgestellten Fragen
+          ein einfaches, nicht ausschließliches, nicht
           unter­lizenzierbares, zeitlich auf die Vertragsdauer und örtlich
           unbeschränktes Recht zur Nutzung der generierten Inhalte zu eigenen,
           nicht-kommerziellen Lern- und Prüfungs­vorbereitungs­zwecken ein. Eine
           gewerbliche Weiterverbreitung, eine Veröffentlichung in vergleichbaren
           Lernplattformen oder die Nutzung zu Trainingszwecken für eigene
-          KI-Modelle ist nicht gestattet.
+          KI-Modelle ist nicht gestattet. Das Teilen einzelner Fragen über die
+          dafür vorgesehene Teilen-Funktion ist erlaubt.
         </p>
         <p>
           (3) Die Plattform selbst (Software, Design, Texte, Marken, Logos und
@@ -338,11 +432,18 @@ export default function AgbPage() {
           KI-Ausgaben) ist urheberrechtlich geschützt und verbleibt bei der
           Anbieterin oder den jeweiligen Rechteinhabern.
         </p>
+        <p>
+          (4) Einzelfragen, die im Kreuz-Modus oder über den Generator erzeugt
+          werden, können ohne Bezug zur Person des Nutzers in den gemeinsamen
+          Fragenpool aufgenommen, anderen Nutzern angezeigt und über öffentliche
+          Links geteilt werden. Auch deshalb dürfen Themeneingaben keine
+          personenbezogenen Daten enthalten (§ 8 Abs. 1).
+        </p>
       </LegalSection>
 
       <LegalSection title="§ 10 Medizinischer Haftungsausschluss">
         <p>
-          (1) Die mit dem Generator erstellten Fragen, Antwortoptionen,
+          (1) Die auf der Plattform bereitgestellten Fragen, Antwortoptionen,
           Erklärungen, Lernziele und Prüfungsfallen dienen ausschließlich
           akademischen Lern- und Prüfungs­vorbereitungs­zwecken im Rahmen des
           Medizin- oder Zahnmedizinstudiums.
@@ -441,7 +542,7 @@ export default function AgbPage() {
           Vertrag mit einer Frist von einem Monat zum Ende der laufenden
           Abrechnungs­periode kündigen. Wesentliche Änderungen, die das
           Vertrags­gleichgewicht zwischen Hauptleistung und Gegenleistung
-          betreffen (z. B. Reduzierung des Tages­kontingents im Pro-Tarif),
+          betreffen (z. B. Reduzierung der Kontingente bei Pro-Zugang),
           erfolgen nur mit ausdrücklicher Zustimmung des Nutzers.
         </p>
       </LegalSection>
@@ -452,8 +553,10 @@ export default function AgbPage() {
           AGB, in der <a href="/widerruf">Widerrufs­belehrung</a> sowie in der{" "}
           <a href="/datenschutz">Datenschutz­erklärung</a> enthalten und werden
           dem Nutzer im Bestellprozess zugänglich gemacht. Nach Vertrags­schluss
-          erhält der Nutzer eine Bestätigung des Vertrags inklusive dieser AGB
-          per E-Mail (Vertrags­bestätigung in Textform gemäß § 312f Abs. 2 BGB).
+          erhält der Nutzer eine Bestätigung des Vertrags per E-Mail, der diese
+          AGB und die Widerrufsbelehrung als Datei beigefügt sind
+          (Vertrags­bestätigung auf einem dauerhaften Datenträger gemäß § 312f
+          Abs. 2 BGB).
         </p>
         <p>
           (2) Die Anbieterin ist nicht bereit und nicht verpflichtet, an

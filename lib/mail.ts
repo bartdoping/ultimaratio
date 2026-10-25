@@ -74,6 +74,8 @@ export async function sendMail(opts: {
   subject: string
   text?: string
   html?: string
+  /** Dateianhänge (z. B. AGB zur Vertragsbestätigung nach § 312f BGB). */
+  attachments?: { filename: string; content: string; contentType?: string }[]
 }) {
   const transporter = getTransporter()
 
@@ -84,6 +86,7 @@ export async function sendMail(opts: {
       subject: opts.subject,
       text: opts.text,
       html: opts.html,
+      attachments: opts.attachments,
     })
     // Bewusst KEIN to/email/MessageId loggen (PII). Status reicht.
     if (process.env.MAIL_DEBUG === "1") {

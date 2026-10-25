@@ -212,7 +212,7 @@ export function KreuzenApp({
         }).catch(() => null)
       }
       window.dispatchEvent(new CustomEvent("fragenkreuzen:subscription-updated"))
-      toast.success("Pro aktiviert — unbegrenzt kreuzen.")
+      toast.success("Pro aktiviert — kreuze, so viel du willst.")
       setIsPro(true)
       buffer.erneut()
       router.replace("/kreuzen", { scroll: false })
@@ -1003,7 +1003,7 @@ function LeerZustand({
         <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
           {!isLoggedIn
             ? "Mit einem kostenlosen Konto kreuzt du mehr Fragen am Tag und bekommst deine Fehler automatisch zur Wiederholung."
-            : "Mit Pro kreuzt du unbegrenzt — so viele Fragen, wie dein Kopf schafft."}
+            : "Mit Pro kreuzt du, so viel du willst — so viele Fragen, wie dein Kopf schafft."}
         </p>
         <div className="mt-4 flex flex-col gap-2">
           {!isLoggedIn ? (

@@ -141,7 +141,7 @@ export default async function PricingPage() {
             ) : null
           }
           bullets={[
-            "Unbegrenzt kreuzen",
+            "Kreuzen, so viel du willst (Fair Use, AGB § 2)",
             `${GENERATOR_PRO_DAILY_LIMIT} eigene Generierungen pro Tag`,
             "Lange Fallvignetten ohne Limit-Druck",
             "Schwierigkeit 4 & 5 als Daily-Driver",

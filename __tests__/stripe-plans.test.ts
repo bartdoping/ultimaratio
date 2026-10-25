@@ -4,7 +4,8 @@ import { formatAmount, isPlanId, yearlySavingPercent } from "@/lib/stripe-plans"
 
 describe("Tarife", () => {
   it("kennt nur gültige Tarife", () => {
-    expect(isPlanId("pro_yearly")).toBe(true)
+    expect(isPlanId("year_pass")).toBe(true)
+    expect(isPlanId("pro_yearly")).toBe(false)
     expect(isPlanId("exam_pass")).toBe(true)
     expect(isPlanId("gratis_fuer_immer")).toBe(false)
   })

@@ -6,7 +6,8 @@
 // die DB zu ändern.
 import { NextResponse } from "next/server"
 import { extendBonus } from "@/lib/subscription"
-import { EXAM_PASS_DAYS } from "@/lib/stripe-plans"
+import { isPlanId, istPass, passTage, type PlanId } from "@/lib/stripe-plans"
+import { sendeVertragsbestaetigung } from "@/lib/vertragsbestaetigung"
 import { track } from "@/lib/product-events"
 import type Stripe from "stripe"
 import stripe from "@/lib/stripe"
@@ -120,8 +121,28 @@ export async function POST(req: Request) {
           }
         }
 
-        if (userId && s.mode === "payment" && s.metadata?.plan === "exam_pass" && s.payment_status === "paid") {
-          await grantExamPass(userId, s.id)
+        const plan: PlanId = isPlanId(s.metadata?.plan) ? s.metadata.plan : "pro_monthly"
+        let passEnde: Date | null = null
+        if (userId && s.mode === "payment" && istPass(plan) && s.payment_status === "paid") {
+          passEnde = await grantPass(userId, plan, s.id)
+        }
+        // Vertragsbestätigung mit AGB (§ 312f BGB) — darf den Webhook nie scheitern lassen.
+        if (userId && (s.mode === "subscription" || istPass(plan))) {
+          try {
+            const an =
+              s.customer_details?.email ??
+              (await prisma.user.findUnique({ where: { id: userId }, select: { email: true } }))?.email
+            if (an) {
+              await sendeVertragsbestaetigung(an, {
+                plan,
+                betragCents: s.amount_total ?? null,
+                waehrung: s.currency ?? "eur",
+                endetAm: passEnde,
+              })
+            }
+          } catch (e) {
+            console.error("[stripe-webhook] Vertragsbestätigung fehlgeschlagen", (e as Error)?.message?.slice(0, 200))
+          }
         }
 
         if (userId && examId && s.mode === "payment") {
@@ -137,11 +158,24 @@ export async function POST(req: Request) {
         break
       }
 
+      case "charge.refunded": {
+        // Widerruf eines Passes: volle Erstattung → Pass-Laufzeit wieder abziehen.
+        // (Abos: in Stripe sofort kündigen → customer.subscription.deleted.)
+        const ch = event.data.object as Stripe.Charge
+        if (ch.refunded && typeof ch.payment_intent === "string") {
+          const pi = await stripe.paymentIntents.retrieve(ch.payment_intent).catch(() => null)
+          const userId = (pi?.metadata?.userId as string | undefined) || undefined
+          const plan = pi?.metadata?.plan
+          if (userId && isPlanId(plan) && istPass(plan)) await revokePass(userId, plan)
+        }
+        break
+      }
+
       case "checkout.session.async_payment_succeeded": {
         // Verzögerte Zahlarten (z. B. SEPA): Pro erst nach Zahlungseingang.
         const s = event.data.object as Stripe.Checkout.Session
         const userId = (s.metadata?.userId as string | undefined) || undefined
-        if (userId && s.metadata?.plan === "exam_pass") await grantExamPass(userId, s.id)
+        if (userId && isPlanId(s.metadata?.plan) && istPass(s.metadata.plan)) await grantPass(userId, s.metadata.plan, s.id)
         break
       }
 
@@ -238,13 +272,22 @@ export async function POST(req: Request) {
   }
 }
 
-/** Examenspass gutschreiben: 90 Tage Pro, angehängt an laufende Pro-Zeit. */
-async function grantExamPass(userId: string, sessionId: string): Promise<void> {
+/** Pass gutschreiben: 90 Tage bzw. 12 Monate Pro, angehängt an laufende Pro-Zeit. Gibt das neue Ende zurück. */
+async function grantPass(userId: string, plan: "exam_pass" | "year_pass", sessionId: string): Promise<Date | null> {
   const u = await prisma.user.findUnique({ where: { id: userId }, select: { proBonusUntil: true } })
-  if (!u) return
-  await prisma.user.update({
-    where: { id: userId },
-    data: { proBonusUntil: extendBonus(u.proBonusUntil, EXAM_PASS_DAYS) },
-  })
-  track("subscription_started", { userId, props: { plan: "exam_pass", session: sessionId.slice(-8) } })
+  if (!u) return null
+  const ende = extendBonus(u.proBonusUntil, passTage(plan))
+  await prisma.user.update({ where: { id: userId }, data: { proBonusUntil: ende } })
+  track("subscription_started", { userId, props: { plan, session: sessionId.slice(-8) } })
+  return ende
+}
+
+/** Pass nach vollständiger Erstattung zurücknehmen (nie unter "jetzt"). */
+async function revokePass(userId: string, plan: "exam_pass" | "year_pass"): Promise<void> {
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { proBonusUntil: true } })
+  if (!u?.proBonusUntil) return
+  const jetzt = Date.now()
+  const neu = Math.max(jetzt, u.proBonusUntil.getTime() - passTage(plan) * 86_400_000)
+  await prisma.user.update({ where: { id: userId }, data: { proBonusUntil: neu <= jetzt ? null : new Date(neu) } })
+  track("subscription_canceled", { userId, props: { plan, grund: "erstattung" } })
 }
