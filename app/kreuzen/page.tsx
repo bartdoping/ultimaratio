@@ -19,14 +19,14 @@ export const metadata: Metadata = {
   alternates: { canonical: "/kreuzen" },
 }
 
-const LEER: KreuzenStats = { heute: 0, woche: 0, quote7: null, dueCount: 0, schwache: [], dailyGoal: 30 }
+const LEER: KreuzenStats = { heute: 0, woche: 0, quote7: null, dueCount: 0, schwache: [], dailyGoal: 30, reminderOptIn: false }
 
 async function loadStats(): Promise<{ isLoggedIn: boolean; isPro: boolean; stats: KreuzenStats }> {
   const session = await getServerSession(authOptions)
   const email = session?.user?.email?.toLowerCase().trim()
   if (!email) return { isLoggedIn: false, isPro: false, stats: LEER }
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true, dailyGoal: true } })
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true, dailyGoal: true, reminderOptIn: true } })
   if (!user) return { isLoggedIn: false, isPro: false, stats: LEER }
 
   const jetzt = new Date()
@@ -62,6 +62,7 @@ async function loadStats(): Promise<{ isLoggedIn: boolean; isPro: boolean; stats
       dueCount,
       schwache,
       dailyGoal: user.dailyGoal,
+      reminderOptIn: user.reminderOptIn,
     },
   }
 }

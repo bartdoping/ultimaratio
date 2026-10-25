@@ -27,11 +27,14 @@ export function QuestionCard({
   onAnswered,
   onNext,
   canNext,
+  nachAufloesung,
 }: {
   item: KreuzenItem
   onAnswered: (chosenText: string, ms: number, correct: boolean) => void
   onNext: () => void
   canNext: boolean
+  /** Erscheint unter der Auflösung (Serie, Stufenvorschlag). */
+  nachAufloesung?: React.ReactNode
 }) {
   const q = item.question
   const options = useMemo(
@@ -184,6 +187,7 @@ export function QuestionCard({
               </button>
             )}
           </div>
+          {nachAufloesung && <div className="mt-3">{nachAufloesung}</div>}
         </div>
       )}
 

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server"
 import { randomUUID } from "crypto"
 import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
-import { resolveGeneratorAccess } from "@/lib/generator-access"
+import { quotaSubjectFromAccess, resolveGeneratorAccess } from "@/lib/generator-access"
+import { consumePoolAnswer } from "@/lib/pool-quota"
 import { recordPoolAnswer } from "@/lib/pool"
 import { nextReviewState, payloadToQuestion } from "@/lib/saved-questions"
 import { track } from "@/lib/product-events"
@@ -45,12 +46,16 @@ export async function POST(req: Request) {
   const userId = access.user?.id ?? null
 
   let correct: boolean | null = null
+  let thema: string | null = null
   let poolMeta: { topic: string; difficulty: number; section: string; stem: string; payload: unknown } | null = null
 
   if (poolQuestionId) {
     const r = await recordPoolAnswer({ poolQuestionId, chosenText, userId, msToAnswer: ms })
     if (r) {
       correct = r.correct
+      // Kreuz-Kontingent: zählt beantwortete Poolfragen. Fällige Wiederholungen
+      // (savedId) gehören dem Nutzer schon; geteilte Fragen (/f) zählen nicht.
+      if (body.quelle === "kreuzen" && !savedId) await consumePoolAnswer(quotaSubjectFromAccess(access))
       const pq = await prisma.poolQuestion.findUnique({
         where: { id: poolQuestionId },
         select: { topic: true, difficulty: true, section: true, stem: true, payload: true },
@@ -75,6 +80,7 @@ export async function POST(req: Request) {
       if (opt) correct = opt.isCorrect
     }
 
+    thema = vorhanden?.topic ?? poolMeta?.topic ?? null
     if (correct !== null) {
       if (vorhanden) {
         const next = nextReviewState(vorhanden, correct)
@@ -110,5 +116,15 @@ export async function POST(req: Request) {
   // Gekreuzt zählt für den Streak — nicht erst das Generieren.
   const streak = userId ? await recordStreakActivity(userId) : null
   if (userId) void maybeRewardReferral(userId)
-  return NextResponse.json({ ok: true, correct, streak }, { headers: { "Cache-Control": "no-store" } })
+  // Stand im Thema: wie viele der hier gekreuzten Fragen zuletzt richtig waren.
+  // Sichtbarer Fortschritt pro Thema ist der stärkste Grund, "noch eine" zu kreuzen.
+  let themenStand: { topic: string; sicher: number; gesamt: number } | null = null
+  if (userId && thema) {
+    const [gesamt, sicher] = await Promise.all([
+      prisma.savedQuestion.count({ where: { userId, topic: thema, attempts: { gt: 0 } } }),
+      prisma.savedQuestion.count({ where: { userId, topic: thema, lastCorrect: true } }),
+    ])
+    themenStand = { topic: thema, sicher, gesamt }
+  }
+  return NextResponse.json({ ok: true, correct, streak, themenStand }, { headers: { "Cache-Control": "no-store" } })
 }

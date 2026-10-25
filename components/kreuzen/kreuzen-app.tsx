@@ -11,10 +11,13 @@ import { useQuestionBuffer } from "@/components/kreuzen/use-question-buffer"
 import { StreakBadge } from "@/components/streak/streak-badge"
 import { InstallHint } from "@/components/pwa/install-hint"
 import { PlanChooser, type PlanChoice } from "@/components/subscription/plan-chooser"
+import { ErinnerungsAngebot, FlowHinweis, RundenKarte, type ThemenStand } from "@/components/kreuzen/stream-extras"
+import { rundeFaellig, rundenBilanz, serie, serienMeilenstein, stufenVorschlag } from "@/lib/kreuzen-flow"
 import type { KreuzenItem, KreuzenSource } from "@/lib/kreuzen-types"
 import { LEARN_PLANS, LEARN_PLAN_IDS, type LearnPlanId } from "@/lib/learn-plans"
 import { dayForDate, daysBetween, loadProgress, saveProgress, todayIso } from "@/lib/learn-plan-progress"
 import { trackClient } from "@/lib/track-client"
+import { POOL_LIMIT_ANON } from "@/lib/generator-plan-config"
 
 export type KreuzenStats = {
   /** Heute beantwortet (Server, nur angemeldet). */
@@ -26,6 +29,8 @@ export type KreuzenStats = {
   dueCount: number
   schwache: { topic: string; quote: number }[]
   dailyGoal: number
+  /** Lern-Erinnerung bereits eingeschaltet. */
+  reminderOptIn: boolean
 }
 
 const STUFEN = [
@@ -39,6 +44,10 @@ const STUFEN = [
 const STUFE_KEY = "fragenkreuzen:kreuzen:stufe"
 const THEMEN_KEY = "fragenkreuzen:kreuzen:themen"
 const HEUTE_KEY = "fragenkreuzen:kreuzen:heute"
+const MISCHEN_KEY = "fragenkreuzen:kreuzen:wiederholungen"
+const ERINNERUNG_GEFRAGT_KEY = "fragenkreuzen:kreuzen:erinnerung-gefragt"
+/** Nach "Nein danke" frühestens in 14 Tagen erneut fragen. */
+const ERINNERUNG_PAUSE_MS = 14 * 86_400_000
 
 function lesen<T>(key: string, fallback: T): T {
   try {
@@ -96,16 +105,30 @@ export function KreuzenApp({
   const [eingabe, setEingabe] = useState("")
   const [plan, setPlan] = useState<{ planId: LearnPlanId; examDate: string } | null>(null)
   const [heuteLokal, setHeuteLokal] = useState(0)
-  const [sitzung, setSitzung] = useState({ n: 0, richtig: 0 })
+  // Ergebnisse dieser Sitzung (richtig/falsch) — Grundlage für Serien, Runden, Stufenvorschläge.
+  const [ergebnisse, setErgebnisse] = useState<boolean[]>([])
+  const [rundeGezeigtBei, setRundeGezeigtBei] = useState(0)
+  const [zeigeRunde, setZeigeRunde] = useState(false)
+  const [abgelehnt, setAbgelehnt] = useState<Set<number>>(() => new Set())
+  const [staende, setStaende] = useState<Map<string, ThemenStand>>(() => new Map())
+  const [letzterStand, setLetzterStand] = useState<ThemenStand | null>(null)
+  const [erinnerungFrage, setErinnerungFrage] = useState(false)
+  const [erinnerungLaedt, setErinnerungLaedt] = useState(false)
+  const [erinnerungAn, setErinnerungAn] = useState(stats.reminderOptIn)
+  const sitzung = { n: ergebnisse.length, richtig: ergebnisse.filter(Boolean).length }
   const [upgrading, setUpgrading] = useState(false)
+  // Fällige Wiederholungen in den Strom einstreuen (Standard: ja — Abwechslung
+  // festigt besser). Wer bei einem Thema bleiben will, schaltet es ab.
+  const [mischen, setMischen] = useState(true)
 
-  const buffer = useQuestionBuffer({ source, difficulty: stufe, loggedIn: isLoggedIn })
+  const buffer = useQuestionBuffer({ source, difficulty: stufe, loggedIn: isLoggedIn, mischen })
 
   // Gerätezustand laden
   useEffect(() => {
     const s = lesen<number>(STUFE_KEY, 3)
     setStufe(s >= 1 && s <= 5 ? s : 3)
     setThemen(lesen<string[]>(THEMEN_KEY, []))
+    setMischen(lesen<boolean>(MISCHEN_KEY, true) !== false)
     setPlan(aktiverPlan())
     const h = lesen<{ tag: string; n: number }>(HEUTE_KEY, { tag: "", n: 0 })
     setHeuteLokal(h.tag === todayIso() ? h.n : 0)
@@ -117,6 +140,18 @@ export function KreuzenApp({
     } catch {
       // egal
     }
+  }, [])
+
+  // Stand im Thema ("7 von 9 sicher") kommt mit jeder verbuchten Antwort.
+  useEffect(() => {
+    const onStand = (e: Event) => {
+      const d = (e as CustomEvent<ThemenStand>).detail
+      if (!d?.topic) return
+      setStaende((m) => new Map(m).set(d.topic, d))
+      setLetzterStand(d)
+    }
+    window.addEventListener("fragenkreuzen:themenstand", onStand)
+    return () => window.removeEventListener("fragenkreuzen:themenstand", onStand)
   }, [])
 
   // Deep-Link: /kreuzen?thema=… (Done-Karte des Generators, geteilte Links)
@@ -152,7 +187,8 @@ export function KreuzenApp({
   }, [searchParams])
 
   const heute = Math.max(stats.heute, heuteLokal)
-  const ziel = stats.dailyGoal > 0 ? stats.dailyGoal : 30
+  // Ohne Konto ist das Tagesziel das Kontingent — ein unerreichbares Ziel demotiviert.
+  const ziel = !isLoggedIn ? POOL_LIMIT_ANON : stats.dailyGoal > 0 ? stats.dailyGoal : 30
 
   const planHeute = useMemo(() => {
     if (!plan) return null
@@ -163,7 +199,10 @@ export function KreuzenApp({
   }, [plan])
 
   function starten(s: KreuzenSource) {
-    setSitzung({ n: 0, richtig: 0 })
+    setErgebnisse([])
+    setRundeGezeigtBei(0)
+    setZeigeRunde(false)
+    setAbgelehnt(new Set())
     setSource(s)
     if (s.type === "topic") {
       const bisher = lesen<string[]>(THEMEN_KEY, [])
@@ -182,11 +221,16 @@ export function KreuzenApp({
   const beantwortet = useCallback(
     (item: KreuzenItem, chosenText: string, ms: number, correct: boolean) => {
       buffer.antworten(item, chosenText, ms)
-      setSitzung((s) => ({ n: s.n + 1, richtig: s.richtig + (correct ? 1 : 0) }))
+      setErgebnisse((e) => [...e, correct])
       setHeuteLokal((n) => {
         const neu = Math.max(n, stats.heute) + 1
         schreiben(HEUTE_KEY, { tag: todayIso(), n: neu })
-        if (neu === ziel) toast.success(`Tagesziel geschafft: ${ziel} Fragen!`, { description: "Alles ab jetzt ist Vorsprung." })
+        if (neu === ziel) {
+          // Bester Moment für das Erinnerungs-Angebot: gerade etwas geschafft.
+          const zuletzt = lesen<number>(ERINNERUNG_GEFRAGT_KEY, 0)
+          if (isLoggedIn && !erinnerungAn && Date.now() - zuletzt > ERINNERUNG_PAUSE_MS) setErinnerungFrage(true)
+          else toast.success(`Tagesziel geschafft: ${ziel} Fragen!`, { description: "Alles ab jetzt ist Vorsprung." })
+        }
         return neu
       })
       // Plantag als bearbeitet vermerken (gleicher Fortschritt wie im Generator).
@@ -195,8 +239,57 @@ export function KreuzenApp({
         if (!p.done.includes(source.day)) saveProgress(source.planId, { ...p, done: [...p.done, source.day] })
       }
     },
-    [buffer, source, stats.heute, ziel]
+    [buffer, source, stats.heute, ziel, isLoggedIn, erinnerungAn]
   )
+
+  async function erinnerungJa() {
+    setErinnerungLaedt(true)
+    try {
+      const res = await fetch("/api/account/reminders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ optIn: true }),
+      })
+      if (!res.ok) throw new Error()
+      setErinnerungAn(true)
+      setErinnerungFrage(false)
+      toast.success("Erinnerung ist an.", { description: "Abbestellen jederzeit im Account oder per Link in der Mail." })
+    } catch {
+      toast.error("Konnte nicht gespeichert werden.")
+    } finally {
+      setErinnerungLaedt(false)
+    }
+  }
+
+  function erinnerungNein() {
+    schreiben(ERINNERUNG_GEFRAGT_KEY, Date.now())
+    setErinnerungFrage(false)
+  }
+
+  // Flow: Serie feiern, Stufe anbieten.
+  const aktuelleSerie = serie(ergebnisse)
+  const meilenstein = serienMeilenstein(aktuelleSerie)
+  const vorschlag = stufenVorschlag(ergebnisse, stufe, abgelehnt)
+
+  function weiterImStrom() {
+    // Alle 10 Fragen eine kurze Rundenbilanz statt sofort der nächsten Frage.
+    if (rundeFaellig(ergebnisse.length, rundeGezeigtBei)) {
+      setRundeGezeigtBei(ergebnisse.length)
+      setZeigeRunde(true)
+      window.scrollTo({ top: 0 })
+      return
+    }
+    buffer.weiter()
+    window.scrollTo({ top: 0 })
+  }
+
+  function stufeWechseln(neu: number) {
+    stufeSetzen(neu)
+    // Die neue Stufe hat ihren eigenen Vorrat; die Serie beginnt dort neu.
+    setErgebnisse([])
+    setRundeGezeigtBei(0)
+  }
 
   async function upgrade() {
     trackClient("upgrade_clicked", { from: "kreuzen" })
@@ -243,9 +336,13 @@ export function KreuzenApp({
           </button>
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold">{quelleLabel(source)}</div>
-            <div className="text-xs tabular-nums text-muted-foreground">
+            <div className="truncate text-xs tabular-nums text-muted-foreground">
               {sitzung.n > 0 ? `${sitzung.richtig}/${sitzung.n} richtig · ` : ""}
               {heute}/{ziel} heute
+              {(() => {
+                const st = source.type === "topic" ? staende.get(source.topic) : null
+                return st && st.gesamt > 0 ? ` · ${st.sicher} von ${st.gesamt} sicher` : ""
+              })()}
             </div>
           </div>
           {buffer.offline && (
@@ -253,9 +350,13 @@ export function KreuzenApp({
               <WifiOff className="h-3.5 w-3.5" aria-hidden /> {buffer.vorrat + (item ? 1 : 0)} offline
             </span>
           )}
-          {item?.kind === "due" && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-              <Repeat className="h-3.5 w-3.5" aria-hidden /> Wiederholung
+          {item?.kind === "due" && source.type !== "due" && (
+            <span
+              className="inline-flex max-w-[45%] items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
+              title={`Fällige Wiederholung aus „${item.topic}“`}
+            >
+              <Repeat className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              <span className="truncate">Wiederholung · {item.topic}</span>
             </span>
           )}
         </div>
@@ -264,16 +365,48 @@ export function KreuzenApp({
           <div className="h-full bg-primary transition-all" style={{ width: `${Math.min(100, (heute / ziel) * 100)}%` }} />
         </div>
 
-        {item ? (
+        {erinnerungFrage && <ErinnerungsAngebot laedt={erinnerungLaedt} onJa={erinnerungJa} onNein={erinnerungNein} />}
+
+        {zeigeRunde ? (
+          <RundenKarte
+            runde={rundeGezeigtBei / 10}
+            bilanz={rundenBilanz(ergebnisse)}
+            themenStand={(source.type === "topic" ? staende.get(source.topic) : null) ?? letzterStand}
+            stufe={stufe}
+            onWeiter={() => {
+              setZeigeRunde(false)
+              buffer.weiter()
+            }}
+            onSchwerer={
+              stufe < 5
+                ? () => {
+                    setZeigeRunde(false)
+                    stufeWechseln(stufe + 1)
+                  }
+                : null
+            }
+            onHome={() => {
+              setZeigeRunde(false)
+              setSource(null)
+            }}
+          />
+        ) : item ? (
           <QuestionCard
             key={item.key}
             item={item}
             onAnswered={(text, ms, correct) => beantwortet(item, text, ms, correct)}
-            onNext={() => {
-              buffer.weiter()
-              window.scrollTo({ top: 0 })
-            }}
-            canNext={buffer.vorrat > 0}
+            onNext={weiterImStrom}
+            nachAufloesung={
+              <FlowHinweis
+                serie={meilenstein}
+                vorschlag={vorschlag}
+                onAnnehmen={() => vorschlag && stufeWechseln(vorschlag.stufe)}
+                onAblehnen={() => vorschlag && setAbgelehnt((a) => new Set(a).add(vorschlag.stufe))}
+              />
+            }
+            // Auch ohne Vorrat weiter, sobald nichts mehr lädt — dahinter wartet
+            // dann der passende Hinweis (Kontingent, Fehler) statt eines toten Knopfs.
+            canNext={buffer.vorrat > 0 || !buffer.laedt || rundeFaellig(ergebnisse.length, rundeGezeigtBei)}
           />
         ) : (
           <LeerZustand
@@ -408,6 +541,26 @@ export function KreuzenApp({
             </button>
           ))}
         </div>
+        {isLoggedIn && (
+          <label className="mt-3 flex cursor-pointer items-center justify-between gap-3 border-t px-1 pt-3 text-sm">
+            <span>
+              <span className="font-medium">Wiederholungen einstreuen</span>
+              <span className="block text-xs text-muted-foreground">
+                Jede 4. Frage ist eine fällige Wiederholung — auch aus anderen Themen.
+              </span>
+            </span>
+            <input
+              type="checkbox"
+              role="switch"
+              checked={mischen}
+              onChange={(e) => {
+                setMischen(e.target.checked)
+                schreiben(MISCHEN_KEY, e.target.checked)
+              }}
+              className="h-5 w-5 shrink-0 accent-primary"
+            />
+          </label>
+        )}
       </div>
 
       <PruefungsKarte

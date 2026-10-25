@@ -55,6 +55,8 @@ export async function POST(req: Request) {
   const excludePool = exclude.filter((k) => k.startsWith("p:")).map((k) => k.slice(2))
   const excludeSaved = exclude.filter((k) => k.startsWith("s:")).map((k) => k.slice(2))
   const source = (body.source ?? {}) as Record<string, unknown>
+  // Fragen, die der Browser schon vorrätig hat und noch nicht beantwortet sind.
+  const vorrat = Math.min(50, Math.max(0, Math.round(Number(body.vorrat) || 0)))
 
   const access = await resolveGeneratorAccess(req)
   const subject = quotaSubjectFromAccess(access)
@@ -112,8 +114,11 @@ export async function POST(req: Request) {
   }
 
   // ---- 2. Pool ----
-  let poolRemaining = (await getPoolQuota(subject)).remaining
-  const poolUnlimited = poolRemaining < 0
+  const poolQuota = await getPoolQuota(subject)
+  const poolUnlimited = poolQuota.unlimited
+  // Beantwortbar ist, was das Kontingent hergibt, abzüglich des schon
+  // gepufferten Vorrats; ausgeliefert höchstens bis zur Missbrauchsgrenze.
+  let poolRemaining = poolUnlimited ? -1 : Math.max(0, Math.min(poolQuota.remaining - vorrat, poolQuota.serveRemaining))
   if (source.type !== "due" && topics.length > 0) {
     const need = count - items.length
     const erlaubt = poolUnlimited ? need : Math.min(need, poolRemaining)
