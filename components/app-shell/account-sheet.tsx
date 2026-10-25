@@ -90,11 +90,11 @@ export function AccountSheet({
 
         <div className="space-y-4 px-5 py-4">
           {/* Quota-Card */}
-          {isLoggedIn && !plan.unlimited && (
+          {isLoggedIn && !plan.unlimited && !plan.isPro && (
             <div className="rounded-xl border bg-muted/30 p-3 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-medium text-muted-foreground">
-                  Heute verfügbar
+                  Fragen heute
                 </span>
                 <span className="font-semibold tabular-nums">
                   {plan.remaining} / {plan.dailyLimit}
@@ -103,7 +103,7 @@ export function AccountSheet({
               <Progress value={pct} className="h-1.5" />
               <p className="text-xs text-muted-foreground">
                 {plan.remaining > 0
-                  ? `Noch ${plan.remaining} Generierungen heute.`
+                  ? `Noch ${plan.remaining} ${plan.remaining === 1 ? "Frage" : "Fragen"} heute im Kreuz-Modus.`
                   : "Tageslimit erreicht — Reset um Mitternacht (MEZ)."}
               </p>
             </div>

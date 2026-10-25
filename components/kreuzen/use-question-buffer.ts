@@ -77,6 +77,7 @@ async function outboxLeeren(): Promise<void> {
         const d = await res.json().catch(() => null)
         if (d?.streak) window.dispatchEvent(new CustomEvent("fragenkreuzen:streak-updated", { detail: d.streak }))
         if (d?.themenStand) window.dispatchEvent(new CustomEvent("fragenkreuzen:themenstand", { detail: d.themenStand }))
+        window.dispatchEvent(new Event("fragenkreuzen:antwort-verbucht"))
       }
     } catch {
       rest.push(a)

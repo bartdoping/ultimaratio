@@ -61,7 +61,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const refreshPlan = async () => {
     try {
-      const res = await fetch("/api/ai/generate-questions/quota", {
+      // Kreuz-Kontingent (beantwortete Fragen) — das Hauptprodukt. Die
+      // Generierungen zeigt der Generator selbst an.
+      const res = await fetch("/api/kreuzen/quota", {
         credentials: "include",
       })
       const data = await res.json().catch(() => null)
@@ -70,7 +72,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       setPlan({
         loaded: true,
         isPro: !!data.isPro,
-        unlimited: !!q.unlimited,
+        // "unbegrenzt" bleibt dem Admin vorbehalten; Pro hat eine eigene Anzeige.
+        unlimited: !!data.isAdmin,
         remaining: typeof q.remaining === "number" ? q.remaining : 0,
         dailyLimit: typeof q.dailyLimit === "number" ? q.dailyLimit : 0,
         used: typeof q.used === "number" ? q.used : 0,
@@ -90,8 +93,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       void refreshPlan()
     }
     window.addEventListener("fragenkreuzen:subscription-updated", onUpdate)
-    return () =>
+    // Nach jeder verbuchten Antwort im Kreuz-Modus nachziehen (gebündelt).
+    let t: number | undefined
+    function onAntwort() {
+      window.clearTimeout(t)
+      t = window.setTimeout(() => void refreshPlan(), 1500)
+    }
+    window.addEventListener("fragenkreuzen:antwort-verbucht", onAntwort)
+    return () => {
       window.removeEventListener("fragenkreuzen:subscription-updated", onUpdate)
+      window.removeEventListener("fragenkreuzen:antwort-verbucht", onAntwort)
+      window.clearTimeout(t)
+    }
   }, [])
 
   const navItems: NavItem[] = [
@@ -288,14 +301,15 @@ function MobilePlanPill({
       </span>
     )
   }
-  // Free: zeigt verbleibende Generierungen
+  // Free: verbleibende Fragen im Kreuz-Modus
   return (
     <Link
       href="/subscription"
+      title="Fragen heute im Kreuz-Modus"
       className="inline-flex h-9 items-center gap-1.5 rounded-full border bg-card/60 px-3 text-xs font-medium hover:bg-muted"
     >
       <span className="tabular-nums">{plan.remaining}</span>
-      <span className="text-muted-foreground">/ {plan.dailyLimit}</span>
+      <span className="text-muted-foreground">/ {plan.dailyLimit} Fragen</span>
     </Link>
   )
 }
@@ -404,6 +418,16 @@ function PlanCard({ plan }: { plan: PlanState }) {
       </div>
     )
   }
+  if (plan.isPro) {
+    return (
+      <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-1.5">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-primary">
+          <Sparkles className="h-3.5 w-3.5" /> Pro
+        </div>
+        <p className="text-xs text-muted-foreground">Kreuzen, so viel du willst.</p>
+      </div>
+    )
+  }
   const pct =
     plan.dailyLimit > 0
       ? Math.min(100, Math.round((plan.used / plan.dailyLimit) * 100))
@@ -412,10 +436,10 @@ function PlanCard({ plan }: { plan: PlanState }) {
     <div className="rounded-xl border bg-card/60 p-3 space-y-2.5">
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {plan.isPro ? "Pro" : "Kostenlos"}
+          Kostenlos
         </span>
-        <span className="text-xs tabular-nums text-muted-foreground">
-          {plan.remaining}/{plan.dailyLimit}
+        <span className="text-xs tabular-nums text-muted-foreground" title="Fragen heute im Kreuz-Modus">
+          {plan.remaining}/{plan.dailyLimit} Fragen heute
         </span>
       </div>
       <Progress value={pct} className="h-1.5" />
