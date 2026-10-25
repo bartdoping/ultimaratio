@@ -144,7 +144,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-h-dvh">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex w-60 shrink-0 flex-col border-r bg-card/40 backdrop-blur-sm">
+        {/* Auf Bildschirmhöhe festgesetzt: Kontingent und Konto bleiben beim
+            Scrollen langer Seiten unten sichtbar. */}
+        <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col self-start overflow-y-auto border-r bg-card/40 backdrop-blur-sm lg:flex">
           <SidebarContent
             navItems={navItems}
             isActive={isActive}
