@@ -22,7 +22,9 @@ export async function POST(req: Request) {
     // oder ohne konfigurierte Live-Price-ID öffnen.
     let cfg
     try {
-      cfg = assertStripeReadyForCharges()
+      // Der Monatspreis wird erst geprüft, wenn das Monatsabo gewählt ist —
+      // Pässe sollen auch ohne ihn kaufbar sein.
+      cfg = assertStripeReadyForCharges({ requireMonthly: false })
     } catch (err) {
       if (err instanceof StripeConfigError) {
         const inProd = getStripeConfig().isProduction

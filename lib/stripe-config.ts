@@ -138,12 +138,12 @@ export function __resetStripeConfigCache(): void {
  * Wirft, wenn die Konfiguration in Production zu unsicher für Live-Betrieb
  * ist. Aufruf in produktiven Code-Pfaden (Checkout, Customer-Portal).
  */
-export function assertStripeReadyForCharges(): StripeConfig {
+export function assertStripeReadyForCharges(opts: { requireMonthly?: boolean } = {}): StripeConfig {
   const cfg = getStripeConfig()
   if (!cfg.secretKey) {
     throw new StripeConfigError("STRIPE_SECRET_KEY fehlt")
   }
-  if (!cfg.proMonthlyPriceId) {
+  if (opts.requireMonthly !== false && !cfg.proMonthlyPriceId) {
     throw new StripeConfigError(
       "Stripe Pro-Preis nicht konfiguriert (STRIPE_PRICE_ID_PRO_MONTHLY)"
     )

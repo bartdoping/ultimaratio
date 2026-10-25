@@ -53,27 +53,84 @@ export function priceIdFor(plan: PlanId): string | null {
 let cache: { at: number; offers: PlanOffer[] } | null = null
 const TTL_MS = 60 * 60 * 1000
 
+export type PlanDiagnose = {
+  plan: PlanId
+  env: string
+  gesetzt: boolean
+  /** Nur die letzten Zeichen der Preis-ID — genug zum Abgleich mit Stripe. */
+  idEndung: string | null
+  ok: boolean
+  problem: string | null
+  einmalig: boolean | null
+  aktiv: boolean | null
+  livemode: boolean | null
+  betrag: string | null
+  /** Für die Preisanzeige (nur bei ok). */
+  angebot?: PlanOffer
+}
+
+const ENV_NAME: Record<PlanId, string> = {
+  pro_monthly: "STRIPE_PRICE_ID_PRO_MONTHLY",
+  exam_pass: "STRIPE_PRICE_ID_EXAM_PASS",
+  year_pass: "STRIPE_PRICE_ID_YEAR_PASS",
+}
+
+/** Prüft jeden Tarif gegen Stripe und sagt, warum er ggf. nicht angeboten wird. */
+export async function diagnosePlans(): Promise<PlanDiagnose[]> {
+  const out: PlanDiagnose[] = []
+  for (const plan of PLAN_IDS) {
+    const priceId = priceIdFor(plan)
+    const basis = { plan, env: ENV_NAME[plan], gesetzt: !!priceId, idEndung: priceId ? priceId.slice(-6) : null }
+    if (!priceId) {
+      out.push({ ...basis, ok: false, problem: "Variable nicht gesetzt (oder nicht für Production / ohne Redeploy)", einmalig: null, aktiv: null, livemode: null, betrag: null })
+      continue
+    }
+    try {
+      const p = await stripe.prices.retrieve(priceId)
+      const einmalig = !p.recurring
+      let problem: string | null = null
+      if (!p.active) problem = "Preis ist in Stripe archiviert/inaktiv"
+      else if (istPass(plan) && !einmalig) problem = "Preis ist wiederkehrend — für Pässe muss er „Einmalig“ sein"
+      else if (!istPass(plan) && einmalig) problem = "Preis ist einmalig — für das Monatsabo muss er wiederkehrend (monatlich) sein"
+      out.push({
+        ...basis,
+        ok: !problem,
+        problem,
+        einmalig,
+        aktiv: p.active,
+        livemode: p.livemode,
+        betrag: formatAmount(p.unit_amount, p.currency),
+        angebot: {
+          plan,
+          priceId,
+          amountCents: p.unit_amount,
+          currency: p.currency,
+          interval: p.recurring?.interval === "year" ? "year" : p.recurring?.interval === "month" ? "month" : null,
+        },
+      })
+    } catch (e) {
+      out.push({ ...basis, ok: false, problem: `Stripe: ${(e as Error).message.slice(0, 220)}`, einmalig: null, aktiv: null, livemode: null, betrag: null })
+    }
+  }
+  return out
+}
+
 export async function getPlanOffers(): Promise<PlanOffer[]> {
   if (cache && Date.now() - cache.at < TTL_MS) return cache.offers
   const offers: PlanOffer[] = []
-  for (const plan of PLAN_IDS) {
-    const priceId = priceIdFor(plan)
-    if (!priceId) continue
-    try {
-      const p = await stripe.prices.retrieve(priceId)
-      offers.push({
-        plan,
-        priceId,
-        amountCents: p.unit_amount,
-        currency: p.currency,
-        interval: p.recurring?.interval === "year" ? "year" : p.recurring?.interval === "month" ? "month" : null,
-      })
-    } catch {
-      // Preis nicht abrufbar → Tarif nicht anbieten (Monatsabo trotzdem ohne Betrag).
-      if (plan === "pro_monthly") offers.push({ plan, priceId, amountCents: null, currency: "eur", interval: "month" })
+  let fehler = false
+  for (const d of await diagnosePlans()) {
+    if (!d.gesetzt) continue
+    if (!d.ok) {
+      fehler = true
+      console.error(`[stripe-plans] ${d.plan} wird nicht angeboten: ${d.problem}`)
+      continue
     }
+    if (d.angebot) offers.push(d.angebot)
   }
-  cache = { at: Date.now(), offers }
+  // Fehlschläge nicht eine Stunde lang festhalten — nach einer Korrektur in
+  // Stripe soll der Tarif sofort erscheinen.
+  cache = { at: fehler ? Date.now() - TTL_MS + 60_000 : Date.now(), offers }
   return offers
 }
 
