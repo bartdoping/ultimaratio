@@ -6,8 +6,9 @@
  *   online ist.
  * - /_next/static: unveränderlich (Hash im Namen) → aus dem Cache.
  * - /api: nie angefasst. Den Fragenvorrat für Funklöcher hält die App selbst.
+ * - Push: Lern-Erinnerungen (nur nach Zustimmung); Tippen öffnet die App.
  */
-const VERSION = "fk-v1"
+const VERSION = "fk-v2"
 const STATIC = `${VERSION}-static`
 const PAGES = `${VERSION}-pages`
 const PRECACHE = ["/offline", "/icons/icon-192.png"]
@@ -63,4 +64,38 @@ self.addEventListener("fetch", (event) => {
         })
     )
   }
+})
+
+self.addEventListener("push", (event) => {
+  let d = {}
+  try {
+    d = event.data ? event.data.json() : {}
+  } catch (e) {
+    d = { body: event.data ? event.data.text() : "" }
+  }
+  event.waitUntil(
+    self.registration.showNotification(d.title || "fragenkreuzen", {
+      body: d.body || "Zeit für ein paar Fragen.",
+      icon: "/icons/icon-192.png",
+      badge: "/icons/icon-192.png",
+      tag: d.tag || "fragenkreuzen",
+      data: { url: d.url || "/kreuzen" },
+    })
+  )
+})
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close()
+  const ziel = new URL((event.notification.data && event.notification.data.url) || "/kreuzen", self.location.origin).href
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((fenster) => {
+      for (const f of fenster) {
+        if (new URL(f.url).origin === self.location.origin && "focus" in f) {
+          f.navigate(ziel)
+          return f.focus()
+        }
+      }
+      return self.clients.openWindow(ziel)
+    })
+  )
 })

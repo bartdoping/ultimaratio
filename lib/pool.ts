@@ -20,15 +20,8 @@ import { evaluatePoolQuestion, pointBiserial } from "@/lib/pool-quality"
  * Der Pool enthält keine personenbezogenen Daten: nur die Frage selbst.
  */
 
-/** Normalisiertes Thema für die Suche: Kleinschreibung, ohne Satzzeichen. */
-export function normalizeTopic(topic: string): string {
-  return topic
-    .toLowerCase()
-    .normalize("NFC")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-}
+import { normalizeTopic } from "@/lib/topic-key"
+export { normalizeTopic }
 
 /** Inhaltlicher Fingerabdruck — dieselbe Frage landet nur einmal im Pool. */
 export function contentHash(q: Pick<BulkQuestion, "stem" | "options">): string {

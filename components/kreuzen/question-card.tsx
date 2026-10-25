@@ -28,6 +28,7 @@ export function QuestionCard({
   onNext,
   canNext,
   nachAufloesung,
+  pruefungsModus = false,
 }: {
   item: KreuzenItem
   onAnswered: (chosenText: string, ms: number, correct: boolean) => void
@@ -35,6 +36,8 @@ export function QuestionCard({
   canNext: boolean
   /** Erscheint unter der Auflösung (Serie, Stufenvorschlag). */
   nachAufloesung?: React.ReactNode
+  /** Probeklausur: antworten und sofort weiter — Auflösung erst am Ende. */
+  pruefungsModus?: boolean
 }) {
   const q = item.question
   const options = useMemo(
@@ -54,11 +57,16 @@ export function QuestionCard({
 
   const pruefen = useCallback(() => {
     if (!gewaehlteOption || aufgeloest) return
+    if (pruefungsModus) {
+      onAnswered(gewaehlteOption.text, Date.now() - start.current, gewaehlteOption.isCorrect)
+      onNext()
+      return
+    }
     setAufgeloest(true)
     onAnswered(gewaehlteOption.text, Date.now() - start.current, gewaehlteOption.isCorrect)
     // Aha-Block ins Blickfeld holen — auf dem Handy liegt er sonst unter dem Daumen.
     requestAnimationFrame(() => ahaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }))
-  }, [gewaehlteOption, aufgeloest, onAnswered])
+  }, [gewaehlteOption, aufgeloest, onAnswered, pruefungsModus, onNext])
 
   const strich = useCallback((id: string) => {
     setGestrichen((s) => {
@@ -204,7 +212,7 @@ export function QuestionCard({
               disabled={!gewaehlt}
               className="h-12 flex-1 rounded-full bg-primary text-base font-semibold text-primary-foreground transition-opacity disabled:opacity-40"
             >
-              Prüfen
+              {pruefungsModus ? "Antworten →" : "Prüfen"}
             </button>
           ) : (
             <button

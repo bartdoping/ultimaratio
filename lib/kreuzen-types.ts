@@ -11,6 +11,10 @@ export type KreuzenSource =
   | { type: "plan"; planId: "m1" | "m2"; day: number }
   | { type: "weak" }
   | { type: "due" }
+  /** Alle Themen eines Fachs aus dem Lernplan. */
+  | { type: "fach"; planId: "m1" | "m2"; fach: string }
+  /** Probeklausur: quer durch den ganzen Plan, ohne Wiederholungen. */
+  | { type: "probe"; planId: "m1" | "m2" }
 
 /** Eine Frage im Strom. `key` ist eindeutig und dient als Ausschlussmarke. */
 export type KreuzenItem = {

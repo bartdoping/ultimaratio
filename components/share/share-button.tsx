@@ -14,11 +14,14 @@ export function ShareButton({
   text,
   className,
   compact = false,
+  label,
 }: {
   url: string
   text: string
   className?: string
   compact?: boolean
+  /** Beschriftung (Standard: "Frage teilen" bzw. "Teilen"). */
+  label?: string
 }) {
   const [kopiert, setKopiert] = useState(false)
 
@@ -53,7 +56,7 @@ export function ShareButton({
       )}
     >
       {kopiert ? <Check className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden /> : <Share2 className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} aria-hidden />}
-      {kopiert ? "Link kopiert" : compact ? "Teilen" : "Frage teilen"}
+      {kopiert ? "Link kopiert" : (label ?? (compact ? "Teilen" : "Frage teilen"))}
     </button>
   )
 }

@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { iosOhneInstallation, pushAktiv, pushAktivieren, pushDeaktivieren, pushVerfuegbar } from "@/lib/push-client"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
@@ -15,6 +16,38 @@ export function LearningSettings({ initialOptIn, initialGoal }: { initialOptIn: 
   const [optIn, setOptIn] = useState(initialOptIn)
   const [goal, setGoal] = useState(initialGoal)
   const [saving, setSaving] = useState(false)
+  // Push-Status gilt je Gerät und ist nur im Browser bekannt.
+  const [push, setPush] = useState<{ moeglich: boolean; ios: boolean; an: boolean } | null>(null)
+
+  useEffect(() => {
+    void (async () => {
+      setPush({ moeglich: pushVerfuegbar(), ios: iosOhneInstallation(), an: await pushAktiv() })
+    })()
+  }, [])
+
+  async function pushUmschalten(an: boolean) {
+    setSaving(true)
+    try {
+      if (an) {
+        const r = await pushAktivieren()
+        if (r === "an") {
+          setPush((p) => (p ? { ...p, an: true } : p))
+          setOptIn(true)
+          toast.success("Benachrichtigungen auf diesem Gerät sind an.")
+        } else if (r === "abgelehnt") {
+          toast.error("Benachrichtigungen sind im Browser blockiert.", { description: "In den Website-Einstellungen erlauben." })
+        } else {
+          toast.error("Auf diesem Gerät nicht möglich.")
+        }
+      } else {
+        await pushDeaktivieren()
+        setPush((p) => (p ? { ...p, an: false } : p))
+        toast.success("Benachrichtigungen auf diesem Gerät sind aus.")
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
 
   async function speichern(patch: { optIn?: boolean; dailyGoal?: number }) {
     setSaving(true)
@@ -75,13 +108,35 @@ export function LearningSettings({ initialOptIn, initialGoal }: { initialOptIn: 
           className="mt-1 h-4 w-4"
         />
         <span className="text-sm">
-          <span className="font-medium">Lern-Erinnerung per E-Mail</span>
+          <span className="font-medium">Lern-Erinnerung</span>
           <span className="block text-muted-foreground">
-            Höchstens eine Mail am Abend — nur wenn dein Streak reißen würde oder Wiederholungen fällig sind. Jederzeit
-            abbestellbar.
+            Höchstens eine am Abend — nur wenn dein Streak reißen würde oder Wiederholungen fällig sind. Kommt als
+            Benachrichtigung, wenn du sie unten erlaubst, sonst per Mail. Jederzeit abbestellbar.
           </span>
         </span>
       </label>
+
+      {push?.moeglich && !push.ios && (
+        <label className="flex cursor-pointer items-start gap-3 rounded-lg border bg-muted/25 p-3">
+          <input
+            type="checkbox"
+            checked={push.an}
+            disabled={saving}
+            onChange={(e) => pushUmschalten(e.target.checked)}
+            className="mt-1 h-4 w-4"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Als Benachrichtigung auf diesem Gerät</span>
+            <span className="block text-muted-foreground">Statt der Mail kommt die Erinnerung direkt aufs Handy bzw. den Rechner.</span>
+          </span>
+        </label>
+      )}
+      {push?.ios && (
+        <p className="text-xs text-muted-foreground">
+          Erinnerungen als Benachrichtigung aufs iPhone: fragenkreuzen über „Teilen → Zum Home-Bildschirm“ hinzufügen und von
+          dort öffnen.
+        </p>
+      )}
     </section>
   )
 }

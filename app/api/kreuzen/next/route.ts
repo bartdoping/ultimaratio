@@ -14,6 +14,7 @@ import { generateIntoPool } from "@/lib/pool-generate"
 import { poolRefillAllowed } from "@/lib/pool-refill"
 import { sendOpsAlert } from "@/lib/ops-alert"
 import { generatableTopics, isLearnPlanId, LEARN_PLANS } from "@/lib/learn-plans"
+import { faecher } from "@/lib/pruefungsreife"
 import { payloadToQuestion, themenBilanz } from "@/lib/saved-questions"
 import { shuffleOptions } from "@/lib/option-order"
 import { track } from "@/lib/product-events"
@@ -70,6 +71,19 @@ export async function POST(req: Request) {
     if (t.length >= 3) topics = [t]
   } else if (source.type === "plan" && isLearnPlanId(source.planId)) {
     topics = generatableTopics(source.planId, Math.round(Number(source.day) || 1))
+    section = LEARN_PLANS[source.planId].section
+  } else if (source.type === "fach" && isLearnPlanId(source.planId)) {
+    topics = faecher(source.planId).find((f) => f.fach === source.fach)?.topics ?? []
+    section = LEARN_PLANS[source.planId].section
+  } else if (source.type === "probe" && isLearnPlanId(source.planId)) {
+    // Je Abruf eine zufällige Auswahl quer durch den Plan — wie im Examen
+    // folgt kein Thema dem anderen.
+    const alle = faecher(source.planId).flatMap((f) => f.topics)
+    for (let i = alle.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[alle[i], alle[j]] = [alle[j], alle[i]]
+    }
+    topics = alle.slice(0, 40)
     section = LEARN_PLANS[source.planId].section
   } else if (source.type === "weak" && userId) {
     const rows = await prisma.savedQuestion.findMany({

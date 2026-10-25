@@ -13,6 +13,12 @@ import { InstallHint } from "@/components/pwa/install-hint"
 import { PlanChooser, type PlanChoice } from "@/components/subscription/plan-chooser"
 import { ErinnerungsAngebot, FlowHinweis, RundenKarte, type ThemenStand } from "@/components/kreuzen/stream-extras"
 import { rundeFaellig, rundenBilanz, serie, serienMeilenstein, stufenVorschlag } from "@/lib/kreuzen-flow"
+import type { Reife } from "@/lib/pruefungsreife"
+import { Einstieg, type EinstiegErgebnis } from "@/components/kreuzen/einstieg"
+import { PruefungsreifeKarte } from "@/components/kreuzen/pruefungsreife-karte"
+import { ProbeKlausur } from "@/components/kreuzen/probe-klausur"
+import { TrialStartButton } from "@/components/subscription/trial-start-button"
+import { iosOhneInstallation, pushAktivieren, pushVerfuegbar, type PushErgebnis } from "@/lib/push-client"
 import type { KreuzenItem, KreuzenSource } from "@/lib/kreuzen-types"
 import { LEARN_PLANS, LEARN_PLAN_IDS, type LearnPlanId } from "@/lib/learn-plans"
 import { dayForDate, daysBetween, loadProgress, saveProgress, todayIso } from "@/lib/learn-plan-progress"
@@ -31,6 +37,10 @@ export type KreuzenStats = {
   dailyGoal: number
   /** Lern-Erinnerung bereits eingeschaltet. */
   reminderOptIn: boolean
+  /** Prüfungsreife je Plan (nur angemeldet). */
+  reife: Record<LearnPlanId, Reife> | null
+  /** 7-Tage-Pro-Testphase noch nicht genutzt. */
+  trialEligible: boolean
 }
 
 const STUFEN = [
@@ -65,19 +75,37 @@ function schreiben(key: string, v: unknown) {
   }
 }
 
-/** Aktiver Lernplan = der mit gesetztem Prüfungsdatum (zuletzt bevorzugt M2). */
-function aktiverPlan(): { planId: LearnPlanId; examDate: string } | null {
+const PLAN_KEY = "fragenkreuzen:kreuzen:plan"
+const EINSTIEG_KEY = "fragenkreuzen:kreuzen:einstieg"
+
+type AktiverPlan = { planId: LearnPlanId; examDate: string | null }
+
+/**
+ * Aktiver Lernplan: der mit gesetztem Prüfungsdatum, sonst der im Einstieg
+ * gewählte (dann ohne Countdown, Tag für Tag in Reihenfolge).
+ */
+function aktiverPlan(): AktiverPlan | null {
   for (const id of LEARN_PLAN_IDS) {
     const p = loadProgress(id)
     if (p.examDate) return { planId: id, examDate: p.examDate }
   }
-  return null
+  const gewaehlt = lesen<string | null>(PLAN_KEY, null)
+  return gewaehlt === "m1" || gewaehlt === "m2" ? { planId: gewaehlt, examDate: null } : null
+}
+
+/** Ohne Prüfungsdatum: der erste noch nicht bearbeitete Tag. */
+function naechsterOffenerTag(planId: LearnPlanId): number {
+  const erledigt = new Set(loadProgress(planId).done)
+  const tage = LEARN_PLANS[planId].days.map((d) => d.day)
+  return tage.find((d) => !erledigt.has(d)) ?? tage[tage.length - 1] ?? 1
 }
 
 function quelleLabel(s: KreuzenSource): string {
   if (s.type === "topic") return s.topic
   if (s.type === "plan") return `${LEARN_PLANS[s.planId].shortLabel} · Tag ${s.day}`
   if (s.type === "weak") return "Schwächen"
+  if (s.type === "fach") return s.fach
+  if (s.type === "probe") return `Probeklausur · ${LEARN_PLANS[s.planId].shortLabel}`
   return "Wiederholung"
 }
 
@@ -103,7 +131,11 @@ export function KreuzenApp({
   const [stufe, setStufe] = useState(3)
   const [themen, setThemen] = useState<string[]>([])
   const [eingabe, setEingabe] = useState("")
-  const [plan, setPlan] = useState<{ planId: LearnPlanId; examDate: string } | null>(null)
+  const [plan, setPlan] = useState<AktiverPlan | null>(null)
+  const [geladen, setGeladen] = useState(false)
+  const [einstiegFertig, setEinstiegFertig] = useState(true)
+  // Neue Probeklausur = neue Instanz (Timer, Ergebnisse), auch bei gleichem Plan.
+  const [probeNr, setProbeNr] = useState(0)
   const [heuteLokal, setHeuteLokal] = useState(0)
   // Ergebnisse dieser Sitzung (richtig/falsch) — Grundlage für Serien, Runden, Stufenvorschläge.
   const [ergebnisse, setErgebnisse] = useState<boolean[]>([])
@@ -130,6 +162,8 @@ export function KreuzenApp({
     setThemen(lesen<string[]>(THEMEN_KEY, []))
     setMischen(lesen<boolean>(MISCHEN_KEY, true) !== false)
     setPlan(aktiverPlan())
+    setEinstiegFertig(lesen<boolean>(EINSTIEG_KEY, false))
+    setGeladen(true)
     const h = lesen<{ tag: string; n: number }>(HEUTE_KEY, { tag: "", n: 0 })
     setHeuteLokal(h.tag === todayIso() ? h.n : 0)
     try {
@@ -192,11 +226,51 @@ export function KreuzenApp({
 
   const planHeute = useMemo(() => {
     if (!plan) return null
+    if (!plan.examDate) return { ...plan, tag: naechsterOffenerTag(plan.planId), rest: null as number | null }
     const tag = dayForDate(plan.planId, plan.examDate, todayIso())
     const rest = daysBetween(todayIso(), plan.examDate)
     if (tag === null || rest === null) return null
-    return { ...plan, tag, rest }
+    return { ...plan, tag, rest: rest as number | null }
   }, [plan])
+
+  function planSetzen(planId: LearnPlanId, examDate: string | null) {
+    const p = loadProgress(planId)
+    saveProgress(planId, { ...p, examDate })
+    // Nur ein Plan ist aktiv: Datum beim anderen entfernen.
+    for (const id of LEARN_PLAN_IDS) {
+      if (id !== planId) {
+        const o = loadProgress(id)
+        if (o.examDate) saveProgress(id, { ...o, examDate: null })
+      }
+    }
+    schreiben(PLAN_KEY, planId)
+    setPlan({ planId, examDate })
+  }
+
+  function einstiegAbschliessen(e: EinstiegErgebnis) {
+    schreiben(EINSTIEG_KEY, true)
+    setEinstiegFertig(true)
+    trackClient("session_start", { via: "einstieg", art: e.art })
+    if (e.art === "stoebern") return
+    planSetzen(e.planId, e.examDate)
+    stufeSetzen(e.stufe)
+    if (isLoggedIn) {
+      void fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ examTarget: e.planId === "m1" ? "Physikum" : "M2" }),
+      }).catch(() => {})
+    }
+    // Ohne Umweg in die erste Frage.
+    const tag = e.examDate ? (dayForDate(e.planId, e.examDate, todayIso()) ?? 1) : naechsterOffenerTag(e.planId)
+    starten({ type: "plan", planId: e.planId, day: tag })
+  }
+
+  function probeStarten(planId: LearnPlanId) {
+    setProbeNr((n) => n + 1)
+    starten({ type: "probe", planId })
+  }
 
   function starten(s: KreuzenSource) {
     setErgebnisse([])
@@ -245,16 +319,28 @@ export function KreuzenApp({
   async function erinnerungJa() {
     setErinnerungLaedt(true)
     try {
-      const res = await fetch("/api/account/reminders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ optIn: true }),
-      })
-      if (!res.ok) throw new Error()
+      // Bevorzugt aufs Handy (Push); wo das nicht geht, per Mail.
+      let push: PushErgebnis = "nicht_verfuegbar"
+      if (pushVerfuegbar() && !iosOhneInstallation()) push = await pushAktivieren()
+      if (push !== "an") {
+        const res = await fetch("/api/account/reminders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ optIn: true }),
+        })
+        if (!res.ok) throw new Error()
+      }
       setErinnerungAn(true)
       setErinnerungFrage(false)
-      toast.success("Erinnerung ist an.", { description: "Abbestellen jederzeit im Account oder per Link in der Mail." })
+      toast.success(push === "an" ? "Erinnerung aufs Handy ist an." : "Erinnerung per Mail ist an.", {
+        description:
+          push === "abgelehnt"
+            ? "Benachrichtigungen sind im Browser blockiert — deshalb per Mail. Abschalten jederzeit im Account."
+            : iosOhneInstallation()
+              ? "Tipp: Zum Home-Bildschirm hinzufügen, dann geht es auch als Benachrichtigung."
+              : "Abschalten jederzeit im Account.",
+      })
     } catch {
       toast.error("Konnte nicht gespeichert werden.")
     } finally {
@@ -321,6 +407,19 @@ export function KreuzenApp({
   // ------------------------------------------------------------------
   // Strom
   // ------------------------------------------------------------------
+  if (source?.type === "probe") {
+    return (
+      <ProbeKlausur
+        key={probeNr}
+        planId={source.planId}
+        buffer={buffer}
+        onHome={() => setSource(null)}
+        onNeu={() => probeStarten(source.planId)}
+        onFachUeben={(fach) => starten({ type: "fach", planId: source.planId, fach })}
+      />
+    )
+  }
+
   if (source) {
     const item = buffer.current
     return (
@@ -418,6 +517,11 @@ export function KreuzenApp({
             isLoggedIn={isLoggedIn}
             isPro={isPro}
             plaene={plaene}
+            trialEligible={stats.trialEligible && !isPro}
+            onTrialStarted={() => {
+              setIsPro(true)
+              buffer.erneut()
+            }}
             upgrading={upgrading}
             onUpgrade={upgrade}
             onRetry={buffer.erneut}
@@ -431,8 +535,14 @@ export function KreuzenApp({
   // ------------------------------------------------------------------
   // Heute
   // ------------------------------------------------------------------
+  // Erster Besuch ohne Plan und ohne Verlauf: geführter Einstieg statt leerer Seite.
+  if (geladen && !einstiegFertig && !plan && themen.length === 0 && heute === 0) {
+    return <Einstieg onFertig={einstiegAbschliessen} />
+  }
+
   const anteil = Math.min(1, heute / ziel)
   const proTag = stats.woche / 7
+  const reife = planHeute && stats.reife ? stats.reife[planHeute.planId] : null
   return (
     <div className="mx-auto w-full max-w-2xl space-y-4 px-4 pb-16 pt-6">
       <div className="flex items-end justify-between gap-3">
@@ -476,7 +586,11 @@ export function KreuzenApp({
           </div>
           <div className="mt-1 text-xl font-semibold">Weiterkreuzen</div>
           <div className="mt-1 text-sm opacity-90">
-            {planHeute.rest > 0 ? `Noch ${planHeute.rest} Tage bis zur Prüfung` : "Prüfungstag — viel Erfolg!"}
+            {planHeute.rest === null
+              ? `${LEARN_PLANS[planHeute.planId].days.find((d) => d.day === planHeute.tag)?.subject ?? ""}`
+              : planHeute.rest > 0
+                ? `Noch ${planHeute.rest} Tage bis zur Prüfung`
+                : "Prüfungstag — viel Erfolg!"}
           </div>
         </button>
       ) : themen[0] ? (
@@ -517,6 +631,29 @@ export function KreuzenApp({
           onClick={() => starten({ type: "weak" })}
         />
       </div>
+
+      {planHeute &&
+        (isLoggedIn && reife ? (
+          <PruefungsreifeKarte
+            planId={planHeute.planId}
+            reife={reife}
+            onUeben={(fach) => starten({ type: "fach", planId: planHeute.planId, fach })}
+            onProbe={() => probeStarten(planHeute.planId)}
+          />
+        ) : (
+          <div className="flex items-center gap-3 rounded-2xl border bg-card p-4">
+            <div className="min-w-0 flex-1 text-sm">
+              <div className="font-semibold">Probeklausur {LEARN_PLANS[planHeute.planId].shortLabel}</div>
+              <div className="text-muted-foreground">20 Fragen, 30 Minuten, Auswertung je Fach — mit kostenlosem Konto.</div>
+            </div>
+            <Link
+              href="/register?callbackUrl=%2Fkreuzen"
+              className="inline-flex h-10 shrink-0 items-center rounded-full bg-foreground px-4 text-sm font-semibold text-background"
+            >
+              Konto anlegen
+            </Link>
+          </div>
+        ))}
 
       {/* Schwierigkeit */}
       <div className="rounded-2xl border bg-card p-3">
@@ -567,18 +704,7 @@ export function KreuzenApp({
         plan={planHeute}
         proTag={proTag}
         quote7={stats.quote7}
-        onSetzen={(planId, examDate) => {
-          const p = loadProgress(planId)
-          saveProgress(planId, { ...p, examDate })
-          // Nur ein Plan ist aktiv: Datum beim anderen entfernen.
-          for (const id of LEARN_PLAN_IDS) {
-            if (id !== planId) {
-              const o = loadProgress(id)
-              if (o.examDate) saveProgress(id, { ...o, examDate: null })
-            }
-          }
-          setPlan(examDate ? { planId, examDate } : null)
-        }}
+        onSetzen={planSetzen}
       />
 
       {heute >= 5 && <InstallHint />}
@@ -731,7 +857,7 @@ function PruefungsKarte({
   quote7,
   onSetzen,
 }: {
-  plan: { planId: LearnPlanId; examDate: string; tag: number; rest: number } | null
+  plan: { planId: LearnPlanId; examDate: string | null; tag: number; rest: number | null } | null
   proTag: number
   quote7: number | null
   onSetzen: (planId: LearnPlanId, examDate: string | null) => void
@@ -740,7 +866,13 @@ function PruefungsKarte({
   const [planId, setPlanId] = useState<LearnPlanId>(plan?.planId ?? "m2")
   const [datum, setDatum] = useState(plan?.examDate ?? "")
 
-  if (plan && !bearbeiten) {
+  function oeffnen() {
+    setPlanId(plan?.planId ?? "m2")
+    setDatum(plan?.examDate ?? "")
+    setBearbeiten(true)
+  }
+
+  if (plan && plan.rest !== null && !bearbeiten) {
     const hoch = Math.round(proTag * Math.max(0, plan.rest))
     return (
       <div className="rounded-2xl border bg-card p-4">
@@ -748,7 +880,7 @@ function PruefungsKarte({
           <div className="flex items-center gap-1.5 text-sm font-semibold">
             <CalendarClock className="h-4 w-4" aria-hidden /> {LEARN_PLANS[plan.planId].shortLabel} in {Math.max(0, plan.rest)} Tagen
           </div>
-          <button type="button" onClick={() => setBearbeiten(true)} className="text-xs text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={oeffnen} className="text-xs text-muted-foreground hover:text-foreground">
             Ändern
           </button>
         </div>
@@ -766,7 +898,7 @@ function PruefungsKarte({
     return (
       <button
         type="button"
-        onClick={() => setBearbeiten(true)}
+        onClick={oeffnen}
         className="flex w-full items-center gap-2 rounded-2xl border border-dashed p-4 text-left text-sm text-muted-foreground hover:bg-muted/40"
       >
         <CalendarClock className="h-4 w-4" aria-hidden /> Prüfungsdatum setzen — dann kommt jeden Tag das passende Thema.
@@ -840,6 +972,8 @@ function LeerZustand({
   isLoggedIn,
   isPro,
   plaene,
+  trialEligible,
+  onTrialStarted,
   upgrading,
   onUpgrade,
   onRetry,
@@ -853,6 +987,8 @@ function LeerZustand({
   isLoggedIn: boolean
   isPro: boolean
   plaene: PlanChoice[]
+  trialEligible: boolean
+  onTrialStarted: () => void
   upgrading: boolean
   onUpgrade: () => void
   onRetry: () => void
@@ -877,6 +1013,19 @@ function LeerZustand({
             >
               Kostenlos anmelden
             </Link>
+          ) : !isPro && trialEligible ? (
+            // Erst die Testphase ohne Zahlungsdaten — der kleinste Schritt zu Pro.
+            <>
+              <TrialStartButton
+                size="lg"
+                className="h-12 w-full rounded-full"
+                label="7 Tage Pro gratis — ohne Zahlungsdaten"
+                onStarted={onTrialStarted}
+              />
+              {plaene.length > 1 ? (
+                <PlanChooser choices={plaene} isLoggedIn={isLoggedIn} returnTo="/kreuzen" className="text-left" />
+              ) : null}
+            </>
           ) : !isPro && plaene.length > 1 ? (
             <PlanChooser choices={plaene} isLoggedIn={isLoggedIn} returnTo="/kreuzen" className="text-left" />
           ) : !isPro ? (

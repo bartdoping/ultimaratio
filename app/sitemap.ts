@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/kreuzen", priority: 0.95, changeFrequency: "weekly" },
     { path: "/generator", priority: 0.95, changeFrequency: "weekly" },
     { path: "/frage-des-tages", priority: 0.8, changeFrequency: "daily" },
+    { path: "/so-entstehen-unsere-fragen", priority: 0.6, changeFrequency: "monthly" },
     { path: "/pricing", priority: 0.9, changeFrequency: "monthly" },
     { path: "/faq", priority: 0.8, changeFrequency: "monthly" },
     { path: "/login", priority: 0.4, changeFrequency: "yearly" },

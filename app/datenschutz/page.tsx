@@ -388,6 +388,19 @@ export default function DatenschutzPage() {
             Erinnerung widerrufen. Der Versand erfolgt über den in Abschnitt 9
             genannten Dienstleister.
           </p>
+          <p>
+            <strong>Als Benachrichtigung (Web-Push):</strong> Erlaubst du in deinem
+            Browser Benachrichtigungen, kommt die Erinnerung stattdessen als
+            Push-Nachricht auf dein Gerät. Dafür speichern wir die von deinem Browser
+            erzeugte Push-Adresse samt zugehörigem Schlüssel und den Zeitpunkt der
+            letzten Zustellung. Die Nachricht wird über den Push-Dienst deines
+            Browser-Herstellers zugestellt (z. B. Google bei Chrome, Apple bei Safari,
+            Mozilla bei Firefox); ihr Inhalt ist dabei verschlüsselt. Rechtsgrundlage
+            ist deine Einwilligung (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG). Du
+            kannst sie im Account oder in den Website-Einstellungen deines Browsers
+            jederzeit widerrufen; ungültig gewordene Push-Adressen löschen wir
+            automatisch, alle übrigen mit deinem Konto.
+          </p>
         </LegalSubsection>
 
         <LegalSubsection title="Empfehlungsprogramm und Creator-Codes">
@@ -737,7 +750,8 @@ export default function DatenschutzPage() {
             <strong>Einladungs-Cookie:</strong> 30 Tage
           </li>
           <li>
-            <strong>Einwilligung in Lern-Erinnerungen:</strong> bis zum Widerruf
+            <strong>Einwilligung in Lern-Erinnerungen und Push-Adressen:</strong> bis
+            zum Widerruf bzw. bis die Push-Adresse ungültig wird
           </li>
         </ul>
       </LegalSection>
@@ -829,7 +843,7 @@ export default function DatenschutzPage() {
 
       <LegalSection title="18. Aktualität und Änderung dieser Datenschutzerklärung">
         <p>
-          Diese Datenschutzerklärung hat den Stand <strong>23. Oktober 2026</strong>.
+          Diese Datenschutzerklärung hat den Stand <strong>25. Oktober 2026</strong>.
           Durch die Weiterentwicklung unserer Plattform oder aufgrund geänderter
           gesetzlicher Vorgaben kann es notwendig werden, diese Erklärung anzupassen.
           Die jeweils aktuelle Fassung findest du stets auf dieser Seite.

@@ -35,6 +35,8 @@ function sourceKey(source: KreuzenSource, difficulty: number): string {
   const s =
     source.type === "topic" ? `t:${source.topic.toLowerCase().trim()}`
     : source.type === "plan" ? `p:${source.planId}:${source.day}`
+    : source.type === "fach" ? `f:${source.planId}:${source.fach.toLowerCase()}`
+    : source.type === "probe" ? `x:${source.planId}`
     : source.type
   return `fragenkreuzen:buffer:${s}:${difficulty}`
 }
@@ -141,7 +143,7 @@ export function useQuestionBuffer(opts: {
     const count = Math.min(3, fehlend)
     // Jeder 4. Platz ist eine fällige Wiederholung (falls vorhanden).
     let dueSlots = 0
-    if (loggedIn && mischen && source.type !== "due") {
+    if (loggedIn && mischen && source.type !== "due" && source.type !== "probe") {
       for (let i = geholt.current; i < geholt.current + count; i++) if ((i + 1) % 4 === 0) dueSlots++
     }
     geholt.current += count

@@ -4,6 +4,7 @@ import { getGeneratorDayKey } from "@/lib/generator-limits"
 import { getAppBaseUrl } from "@/lib/app-base-url"
 import { reminderMail, reminderReason } from "@/lib/reminders"
 import { track } from "@/lib/product-events"
+import { sendPushToUser } from "@/lib/push"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -66,9 +67,16 @@ export async function GET(req: Request) {
         unsubscribe: `${base}/api/reminders/unsubscribe?t=${encodeURIComponent(u.reminderToken!)}`,
       })
       try {
-        await sendMail({ to: u.email, ...mail })
+        // Zuerst aufs Handy; nur wenn kein Gerät erreichbar ist, per Mail.
+        const perPush = await sendPushToUser(u.id, {
+          title: reason.kind === "streak" ? `🔥 ${reason.streak} Tage — nicht abreißen lassen` : "Deine Wiederholungen warten",
+          body: mail.subject,
+          url: "/kreuzen",
+          tag: "erinnerung",
+        }).catch(() => 0)
+        if (perPush === 0) await sendMail({ to: u.email, ...mail })
         await prisma.user.update({ where: { id: u.id }, data: { lastReminderAt: now } })
-        track("reminder_sent", { userId: u.id, props: { kind: reason.kind } })
+        track("reminder_sent", { userId: u.id, props: { kind: reason.kind, kanal: perPush > 0 ? "push" : "mail" } })
         gesendet++
       } catch {
         // Einzelner Fehlschlag stoppt den Lauf nicht.

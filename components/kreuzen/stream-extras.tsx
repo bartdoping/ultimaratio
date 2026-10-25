@@ -136,8 +136,8 @@ export function ErinnerungsAngebot({
         <BellRing className="h-4 w-4 text-primary" aria-hidden /> Tagesziel geschafft!
       </div>
       <p className="mt-1 text-muted-foreground">
-        Soll ich dich abends kurz per Mail erinnern, falls du an einem Tag noch nicht gekreuzt hast? Höchstens einmal am Tag,
-        jederzeit abbestellbar.
+        Soll ich dich abends kurz erinnern, falls du an einem Tag noch nicht gekreuzt hast? Aufs Handy oder per Mail,
+        höchstens einmal am Tag, jederzeit abschaltbar.
       </p>
       <div className="mt-3 flex gap-2">
         <button

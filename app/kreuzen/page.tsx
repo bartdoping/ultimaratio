@@ -9,6 +9,7 @@ import { themenBilanz } from "@/lib/saved-questions"
 import { KreuzenApp, type KreuzenStats } from "@/components/kreuzen/kreuzen-app"
 import { REFERRAL, attributionForCode } from "@/lib/referral"
 import { planChoices } from "@/lib/stripe-plans"
+import { pruefungsreife } from "@/lib/pruefungsreife"
 
 export const dynamic = "force-dynamic"
 
@@ -19,14 +20,24 @@ export const metadata: Metadata = {
   alternates: { canonical: "/kreuzen" },
 }
 
-const LEER: KreuzenStats = { heute: 0, woche: 0, quote7: null, dueCount: 0, schwache: [], dailyGoal: 30, reminderOptIn: false }
+const LEER: KreuzenStats = {
+  heute: 0,
+  woche: 0,
+  quote7: null,
+  dueCount: 0,
+  schwache: [],
+  dailyGoal: 30,
+  reminderOptIn: false,
+  reife: null,
+  trialEligible: false,
+}
 
 async function loadStats(): Promise<{ isLoggedIn: boolean; isPro: boolean; stats: KreuzenStats }> {
   const session = await getServerSession(authOptions)
   const email = session?.user?.email?.toLowerCase().trim()
   if (!email) return { isLoggedIn: false, isPro: false, stats: LEER }
 
-  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true, dailyGoal: true, reminderOptIn: true } })
+  const user = await prisma.user.findUnique({ where: { email }, select: { id: true, role: true, dailyGoal: true, reminderOptIn: true, proTrialStartedAt: true } })
   if (!user) return { isLoggedIn: false, isPro: false, stats: LEER }
 
   const jetzt = new Date()
@@ -42,8 +53,8 @@ async function loadStats(): Promise<{ isLoggedIn: boolean; isPro: boolean; stats
     prisma.savedQuestion.count({ where: { userId: user.id, mode: "single", dueAt: { lte: jetzt } } }),
     prisma.savedQuestion.findMany({
       where: { userId: user.id, attempts: { gt: 0 } },
-      select: { topic: true, attempts: true, correctCount: true },
-      take: 2000,
+      select: { topic: true, attempts: true, correctCount: true, lastCorrect: true },
+      take: 5000,
     }),
   ])
 
@@ -63,6 +74,9 @@ async function loadStats(): Promise<{ isLoggedIn: boolean; isPro: boolean; stats
       schwache,
       dailyGoal: user.dailyGoal,
       reminderOptIn: user.reminderOptIn,
+      // Prüfungsreife für beide Pläne — welcher aktiv ist, weiß nur der Browser.
+      reife: { m1: pruefungsreife("m1", bilanzZeilen), m2: pruefungsreife("m2", bilanzZeilen) },
+      trialEligible: !isPro && !user.proTrialStartedAt,
     },
   }
 }

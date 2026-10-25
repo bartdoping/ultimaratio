@@ -106,6 +106,7 @@ model User {
   poolAnswers          PoolAnswer[]
   poolSeen             PoolSeen[]
   sessions             UserSession[]
+  pushSubscriptions    PushSubscription[]
   referredBy           User?                 @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
   referrals            User[]                @relation("Referrals")
   creatorCode          CreatorCode?          @relation(fields: [creatorCodeId], references: [id], onDelete: SetNull)
@@ -850,4 +851,18 @@ model CreatorCode {
   active            Boolean  @default(true)
   createdAt         DateTime @default(now())
   users             User[]
+}
+
+/// Web-Push-Abo eines Geräts (nur nach ausdrücklicher Zustimmung im Browser).
+model PushSubscription {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String    @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+
+  @@index([userId])
 }

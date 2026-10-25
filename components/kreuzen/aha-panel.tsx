@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { Check, ChevronDown, Lightbulb, Sparkles, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { BulkQuestion } from "@/lib/question-bulk-json"
@@ -125,6 +126,13 @@ export function AhaPanel({
           )}
         </div>
       )}
+      {/* Transparenzhinweis für KI-Inhalte (Art. 50 KI-VO) */}
+      <p className="pt-1 text-center text-xs text-muted-foreground">
+        KI-erzeugte Übungsfrage ·{" "}
+        <Link href="/so-entstehen-unsere-fragen" className="underline underline-offset-2 hover:text-foreground">
+          so prüfen wir sie
+        </Link>
+      </p>
     </div>
   )
 }
