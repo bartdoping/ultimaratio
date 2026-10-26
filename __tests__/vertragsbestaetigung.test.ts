@@ -33,4 +33,17 @@ describe("Vertragsbestätigung (§ 312f BGB)", () => {
     const { text } = bestaetigungsText({ plan: "year_pass", betragCents: 7999, waehrung: "eur", endetAm: null, jetzt })
     expect(text).toContain("ab Zahlungseingang")
   })
+
+  it("Abo in der Testphase: nennt die erste Abbuchung", () => {
+    const { text } = bestaetigungsText({
+      plan: "pro_monthly",
+      betragCents: 999,
+      waehrung: "eur",
+      endetAm: null,
+      abrechnungAb: new Date("2026-11-01T10:00:00Z"),
+      jetzt,
+    })
+    expect(text).toContain("Erste Abbuchung: am 1. November 2026")
+    expect(text.replace(/\s/g, " ")).toContain("9,99 € pro Monat")
+  })
 })

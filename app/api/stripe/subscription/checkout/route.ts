@@ -56,6 +56,7 @@ export async function POST(req: Request) {
         email: true,
         subscriptionStatus: true,
         proBonusUntil: true,
+        proTrialEndsAt: true,
         subscription: {
           select: {
             stripeCustomerId: true,
@@ -160,6 +161,8 @@ export async function POST(req: Request) {
       metadata: { userId: user.id, plan },
     }
     const pass = istPass(plan)
+    const testphaseBis =
+      user.proTrialEndsAt && user.proTrialEndsAt.getTime() > Date.now() + 48 * 3600 * 1000 ? user.proTrialEndsAt : null
     const angebot = (await getPlanOffers().catch(() => [])).find((o) => o.plan === "pro_monthly")
     const monatspreis = angebot?.amountCents ? formatAmount(angebot.amountCents, angebot.currency) : null
     const checkoutSession = pass
@@ -186,10 +189,15 @@ export async function POST(req: Request) {
       : await stripe.checkout.sessions.create({
           ...gemeinsam,
           mode: "subscription",
-          subscription_data: { metadata: { userId: user.id, plan } },
+          subscription_data: {
+            metadata: { userId: user.id, plan },
+            // In der Testphase abgeschlossen: erste Abbuchung erst zum Testphasen-
+            // Ende. Stripe verlangt dafür mindestens 48 h Vorlauf, sonst sofort.
+            ...(testphaseBis ? { trial_end: Math.floor(testphaseBis.getTime() / 1000) } : {}),
+          },
           custom_text: {
             submit: {
-              message: `Mit Klick auf „Abonnieren“ schließt du ein zahlungspflichtiges Abo${monatspreis ? ` über ${monatspreis} pro Monat` : ""} ab. Monatlich kündbar, 14 Tage Widerrufsrecht mit voller Erstattung.`,
+              message: `Mit Klick auf „Abonnieren“ schließt du ein zahlungspflichtiges Abo${monatspreis ? ` über ${monatspreis} pro Monat` : ""} ab.${testphaseBis ? ` Die erste Abbuchung erfolgt erst am ${testphaseBis.toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })}, wenn deine Testphase endet.` : ""} Monatlich kündbar, 14 Tage Widerrufsrecht mit voller Erstattung.`,
             },
           },
         })

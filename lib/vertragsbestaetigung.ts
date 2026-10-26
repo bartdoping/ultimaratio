@@ -15,6 +15,8 @@ export type Bestaetigung = {
   waehrung: string
   /** Bei Pässen: Ende des Pro-Zugangs (null, solange die Zahlung noch aussteht). */
   endetAm: Date | null
+  /** Monatsabo in der Testphase abgeschlossen: erste Abbuchung erst ab diesem Tag. */
+  abrechnungAb?: Date | null
   jetzt?: Date
 }
 
@@ -31,7 +33,9 @@ export function bestaetigungsText(b: Bestaetigung): { subject: string; text: str
     "vielen Dank für deine Bestellung. Hiermit bestätigen wir den Vertrag:",
     "",
     `Leistung: ${PLAN_NAME[b.plan]} — Pro-Zugang auf fragenkreuzen.de`,
-    istPass(b.plan) ? `Preis: ${preis} einmalig (Endpreis)` : `Preis: ${preis} pro Monat (Endpreis)`,
+    istPass(b.plan)
+      ? `Preis: ${preis} einmalig (Endpreis)`
+      : `Preis: ${b.betragCents !== null ? `${preis} pro Monat` : "laut Bestellung pro Monat"} (Endpreis)`,
     "Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.",
     `Vertragsschluss: ${datum(jetzt)}`,
   ]
@@ -42,6 +46,9 @@ export function bestaetigungsText(b: Bestaetigung): { subject: string; text: str
         : "Laufzeit: ab Zahlungseingang. Der Pass endet automatisch, es gibt keine Verlängerung und nichts zu kündigen."
     )
   } else {
+    if (b.abrechnungAb) {
+      zeilen.push(`Erste Abbuchung: am ${datum(b.abrechnungAb)}, mit Ende deiner kostenlosen Testphase. Bis dahin zahlst du nichts.`)
+    }
     zeilen.push(
       "Laufzeit: monatlich; das Abo verlängert sich jeweils um einen Monat.",
       `Kündigung: jederzeit zum Ende des laufenden Monats, ohne Anmeldung unter ${getAppBaseUrl()}/kuendigung`

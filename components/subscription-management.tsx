@@ -252,13 +252,31 @@ export function SubscriptionManagement({ plaene = [] }: { plaene?: PlanChoice[] 
           </div>
           <p className="mt-2 max-w-xl text-sm text-muted-foreground">
             {bis ? `Dein Pro-Zugang läuft bis ${bis}` : "Dein Pro-Zugang ist aktiv"} und endet dann automatisch — es gibt
-            keine Verlängerung und nichts zu kündigen. Danach kannst du jederzeit verlängern.
+            keine Verlängerung und nichts zu kündigen.
           </p>
-          <div className="mt-4">
-            <Button asChild variant="outline">
-              <a href="/pricing">Optionen zum Verlängern</a>
-            </Button>
-          </div>
+
+          {/* Schon jetzt für danach buchen — gekaufte Zeit schließt sich an. */}
+          {(() => {
+            const testphase = subscription.proKind === "trial"
+            // Während eines Passes ist kein Monatsabo möglich (AGB § 5 Abs. 3).
+            const auswahl = testphase ? plaene : plaene.filter((p) => p.plan !== "pro_monthly")
+            if (auswahl.length === 0) return null
+            return (
+              <div className="mt-5 border-t pt-4">
+                <div className="text-sm font-medium">
+                  {testphase ? "Schon jetzt sichern, wie es danach weitergeht" : "Verlängern"}
+                </div>
+                <p className="mb-3 mt-1 text-xs text-muted-foreground">
+                  {testphase
+                    ? "Du verlierst keinen Testtag: Beim Monatsabo erfolgt die erste Abbuchung erst zum Ende der Testphase, ein Pass beginnt erst danach."
+                    : "Ein weiterer Pass schließt sich nahtlos an deinen laufenden an. Ein Monatsabo kannst du nach Ablauf abschließen."}
+                </p>
+                <PlanChooser choices={auswahl} isLoggedIn returnTo="/kreuzen" />
+                {/* Pflichtangabe nach § 3 PAngV */}
+                <PriceNote className="mt-2" />
+              </div>
+            )
+          })()}
         </section>
       </div>
     )

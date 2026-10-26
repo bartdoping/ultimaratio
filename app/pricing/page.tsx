@@ -66,6 +66,8 @@ export default async function PricingPage() {
   const session = await getServerSession(authOptions)
   let isLoggedIn = false
   let isPro = false
+  // Buchen kann jeder ohne laufendes Abo — auch in der Testphase.
+  let hatAbo = false
   let trialEligible = false
   let trialEndsAt: string | null = null
   if (session?.user?.email) {
@@ -83,6 +85,7 @@ export default async function PricingPage() {
     if (user) {
       const isAdmin = user.role === "admin"
       isPro = isAdmin || user.subscriptionStatus === "pro"
+      hatAbo = isPro
       const trialActive = user.proTrialEndsAt
         ? new Date(user.proTrialEndsAt).getTime() > Date.now()
         : false
@@ -133,8 +136,8 @@ export default async function PricingPage() {
           priceSuffix="/Monat"
           subtitle="Monatlich kündbar, kein Setup."
           highlighted
-          ctaHref={!isPro && plaene.length > 1 ? "#laufzeit" : "/subscription"}
-          ctaLabel={isPro ? "Abo verwalten" : plaene.length > 1 ? "Laufzeit wählen" : "Auf Pro upgraden"}
+          ctaHref={!hatAbo && plaene.length > 1 ? "#laufzeit" : "/subscription"}
+          ctaLabel={hatAbo ? "Abo verwalten" : plaene.length > 1 ? "Laufzeit wählen" : "Auf Pro upgraden"}
           extraCta={
             trialEligible ? (
               <TrialStartButton size="sm" variant="outline" className="mt-2" />
@@ -149,7 +152,7 @@ export default async function PricingPage() {
         />
       </div>
 
-      {!isPro && plaene.length > 1 && (
+      {!hatAbo && plaene.length > 1 && (
         <section id="laufzeit" className="mt-6 scroll-mt-20">
           <h2 className="mb-2 text-sm font-medium text-muted-foreground">Pro buchen — wähle deine Laufzeit</h2>
           <PlanChooser choices={plaene} isLoggedIn={isLoggedIn} returnTo="/kreuzen" />
@@ -160,7 +163,8 @@ export default async function PricingPage() {
         <div className="mt-4 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
           <span className="font-medium">Pro-Testphase aktiv</span>{" "}
           <span className="text-muted-foreground">
-            – läuft bis {new Date(trialEndsAt).toLocaleDateString("de-DE")}.
+            – läuft bis {new Date(trialEndsAt).toLocaleDateString("de-DE")}. Du kannst schon jetzt buchen: Beim
+            Monatsabo erfolgt die erste Abbuchung erst nach der Testphase, ein Pass beginnt erst danach.
           </span>
         </div>
       )}

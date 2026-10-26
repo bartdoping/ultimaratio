@@ -5,7 +5,7 @@
 // geprüft — bereits gesehene Events werden mit 200 quittiert, ohne erneut
 // die DB zu ändern.
 import { NextResponse } from "next/server"
-import { extendBonus } from "@/lib/subscription"
+import { extendBonus, passBeginn } from "@/lib/subscription"
 import { isPlanId, istPass, passTage, type PlanId } from "@/lib/stripe-plans"
 import { sendeVertragsbestaetigung } from "@/lib/vertragsbestaetigung"
 import { track } from "@/lib/product-events"
@@ -132,12 +132,22 @@ export async function POST(req: Request) {
             const an =
               s.customer_details?.email ??
               (await prisma.user.findUnique({ where: { id: userId }, select: { email: true } }))?.email
+            // Abo mit Startverzögerung (abgeschlossen in der Testphase): erste Abbuchung nennen.
+            let abrechnungAb: Date | null = null
+            let aboPreis: number | null = null
+            if (s.mode === "subscription" && typeof s.subscription === "string") {
+              const sub = await stripe.subscriptions.retrieve(s.subscription).catch(() => null)
+              if (sub?.trial_end) abrechnungAb = new Date(sub.trial_end * 1000)
+              aboPreis = sub?.items.data[0]?.price?.unit_amount ?? null
+            }
             if (an) {
               await sendeVertragsbestaetigung(an, {
                 plan,
-                betragCents: s.amount_total ?? null,
+                // Bei Startverzögerung ist amount_total 0 — maßgeblich ist der Preis des Abos.
+                betragCents: abrechnungAb ? aboPreis : (s.amount_total ?? null),
                 waehrung: s.currency ?? "eur",
                 endetAm: passEnde,
+                abrechnungAb,
               })
             }
           } catch (e) {
@@ -274,9 +284,9 @@ export async function POST(req: Request) {
 
 /** Pass gutschreiben: 90 Tage bzw. 12 Monate Pro, angehängt an laufende Pro-Zeit. Gibt das neue Ende zurück. */
 async function grantPass(userId: string, plan: "exam_pass" | "year_pass", sessionId: string): Promise<Date | null> {
-  const u = await prisma.user.findUnique({ where: { id: userId }, select: { proBonusUntil: true } })
+  const u = await prisma.user.findUnique({ where: { id: userId }, select: { proBonusUntil: true, proTrialEndsAt: true } })
   if (!u) return null
-  const ende = extendBonus(u.proBonusUntil, passTage(plan))
+  const ende = extendBonus(passBeginn(u.proBonusUntil, u.proTrialEndsAt), passTage(plan))
   await prisma.user.update({ where: { id: userId }, data: { proBonusUntil: ende } })
   track("subscription_started", { userId, props: { plan, session: sessionId.slice(-8) } })
   return ende

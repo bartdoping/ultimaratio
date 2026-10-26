@@ -101,6 +101,14 @@ export async function ensureAdminProStatus() {
   }
 }
 
+/**
+ * Beginn eines neu gekauften Passes: nach laufender Bonuszeit UND nach einer
+ * laufenden Testphase — gekaufte Zeit soll nie mit Gratiszeit verpuffen.
+ */
+export function passBeginn(bonusBis: Date | null, testphaseBis: Date | null, now = new Date()): Date {
+  return new Date(Math.max(now.getTime(), bonusBis?.getTime() ?? 0, testphaseBis?.getTime() ?? 0))
+}
+
 /** Verlängert geschenkte Pro-Zeit ab dem späteren von jetzt und dem bisherigen Ende. */
 export function extendBonus(current: Date | null, days: number, now = new Date()): Date {
   const start = current && current.getTime() > now.getTime() ? current : now

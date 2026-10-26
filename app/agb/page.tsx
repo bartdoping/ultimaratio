@@ -171,7 +171,12 @@ export default function AgbPage() {
           (6) <strong>Testphase.</strong> Jedes Konto kann einmalig eine
           kostenlose Testphase von sieben (7) Tagen mit Pro-Zugang starten. Dafür
           sind keine Zahlungsdaten erforderlich; die Testphase endet automatisch
-          und geht nicht in einen kostenpflichtigen Vertrag über.
+          und geht nicht in einen kostenpflichtigen Vertrag über. Schließt der
+          Nutzer während der Testphase ein Pro-Monatsabo ab, erfolgt die erste
+          Abbuchung erst mit Ende der Testphase, sofern diese bei Vertragsschluss
+          noch mindestens 48 Stunden läuft; andernfalls sofort. Ein während der
+          Testphase gekaufter Examens- oder Jahrespass beginnt mit dem Ende der
+          Testphase.
         </p>
       </LegalSection>
 
