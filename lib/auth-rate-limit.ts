@@ -26,6 +26,10 @@ export const AUTH_BUCKETS = {
   // gegen Missbrauch, aber großzügig genug, dass eine echte Kündigung nie
   // blockiert wird (gesetzliche Pflicht zur leichten Zugänglichkeit).
   cancellation: { windowMs: 60 * 60_000, max: 8 },
+  // Feedback/Meldungen: jede Nachricht kann eine Admin-Mail auslösen.
+  feedback: { windowMs: 60 * 60_000, max: 12 },
+  // Produktereignisse: großzügig (geteilte IPs), aber kein Fluten der Datenbank.
+  events: { windowMs: 60_000, max: 600 },
 } as const
 
 type BucketId = keyof typeof AUTH_BUCKETS

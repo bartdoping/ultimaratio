@@ -1,6 +1,7 @@
 import prisma from "@/lib/db"
 import { getGeneratorDayKey } from "@/lib/generator-limits"
 import type { GeneratorQuotaSubject } from "@/lib/generator-limits"
+import { effektivVerbraucht } from "@/lib/ip-anteil"
 
 /**
  * Tageskontingent für Fragen AUS DEM POOL.
@@ -49,7 +50,7 @@ function limitFor(s: GeneratorQuotaSubject): number {
 
 type Feld = "poolCount" | "poolAnswerCount"
 
-async function readUsed(s: GeneratorQuotaSubject, dayKey: string): Promise<{ served: number; answered: number }> {
+async function readUsed(s: GeneratorQuotaSubject, dayKey: string, limit: number): Promise<{ served: number; answered: number }> {
   const select = { poolCount: true, poolAnswerCount: true } as const
   const [u, a, ip] = await Promise.all([
     s.userId ? prisma.generatorDailyUsage.findUnique({ where: { userId_dayKey: { userId: s.userId, dayKey } }, select }) : null,
@@ -60,16 +61,19 @@ async function readUsed(s: GeneratorQuotaSubject, dayKey: string): Promise<{ ser
       ? prisma.generatorDailyUsage.findUnique({ where: { ipHash_dayKey: { ipHash: s.ipHash, dayKey } }, select })
       : null,
   ])
-  // Anonym zählt das Maximum aus Cookie und IP — Cookie löschen setzt das
-  // Kontingent nicht zurück.
-  const max = (f: Feld) => Math.max(u?.[f] ?? 0, a?.[f] ?? 0, ip?.[f] ?? 0)
-  return { served: max("poolCount"), answered: max("poolAnswerCount") }
+  if (s.userId) return { served: u?.poolCount ?? 0, answered: u?.poolAnswerCount ?? 0 }
+  // Anonym: Kontingent des Geräts; die (oft geteilte) IP nur mit hoher Obergrenze.
+  const hat = !!s.anonKey
+  return {
+    served: effektivVerbraucht(a?.poolCount ?? 0, ip?.poolCount ?? 0, serveCap(limit), hat),
+    answered: effektivVerbraucht(a?.poolAnswerCount ?? 0, ip?.poolAnswerCount ?? 0, limit, hat),
+  }
 }
 
 export async function getPoolQuota(s: GeneratorQuotaSubject): Promise<PoolQuotaSnapshot> {
   const limit = limitFor(s)
   if (limit < 0) return { used: 0, limit: -1, remaining: -1, serveRemaining: -1, unlimited: true }
-  const { served, answered } = await readUsed(s, getGeneratorDayKey())
+  const { served, answered } = await readUsed(s, getGeneratorDayKey(), limit)
   return {
     used: answered,
     limit,

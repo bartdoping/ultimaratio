@@ -33,6 +33,11 @@ export const PRODUCT_EVENTS = [
   "referral_rewarded",
   "reminder_sent",
   "pwa_installed",
+  // Betrieb (für die Systemübersicht im Admin)
+  "cron_run",
+  "mail_failed",
+  // Prüfpfad für Admin-Eingriffe (z. B. Pro-Zeit gutgeschrieben)
+  "admin_action",
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENTS)[number]

@@ -1,4 +1,5 @@
 import { createHmac, createHash, randomUUID, timingSafeEqual } from "crypto"
+import { effektivVerbraucht } from "@/lib/ip-anteil"
 import prisma from "@/lib/db"
 import {
   GENERATOR_FREE_DAILY_LIMIT,
@@ -117,7 +118,8 @@ async function readLoggedInUsage(userId: string, dayKey: string): Promise<number
 async function readAnonymousUsage(
   anonKey: string | null,
   ipHash: string | null,
-  dayKey: string
+  dayKey: string,
+  limit: number
 ): Promise<number> {
   const [anonRow, ipRow] = await Promise.all([
     anonKey
@@ -133,7 +135,7 @@ async function readAnonymousUsage(
         })
       : Promise.resolve(null),
   ])
-  return Math.max(anonRow?.count ?? 0, ipRow?.count ?? 0)
+  return effektivVerbraucht(anonRow?.count ?? 0, ipRow?.count ?? 0, limit, !!anonKey)
 }
 
 async function readIpUsage(ipHash: string, dayKey: string): Promise<number> {
@@ -147,12 +149,13 @@ async function readIpUsage(ipHash: string, dayKey: string): Promise<number> {
 async function readFreeLoggedInUsage(
   userId: string,
   ipHash: string | null,
-  dayKey: string
+  dayKey: string,
+  limit: number
 ): Promise<number> {
   const userUsed = await readLoggedInUsage(userId, dayKey)
   if (!ipHash) return userUsed
   const ipUsed = await readIpUsage(ipHash, dayKey)
-  return Math.max(userUsed, ipUsed)
+  return effektivVerbraucht(userUsed, ipUsed, limit, true)
 }
 
 export async function getGeneratorQuota(params: {
@@ -171,8 +174,8 @@ export async function getGeneratorQuota(params: {
   const used = params.userId
     ? params.isPro || params.isAdmin
       ? await readLoggedInUsage(params.userId, dayKey)
-      : await readFreeLoggedInUsage(params.userId, params.ipHash ?? null, dayKey)
-    : await readAnonymousUsage(params.anonKey ?? null, params.ipHash ?? null, dayKey)
+      : await readFreeLoggedInUsage(params.userId, params.ipHash ?? null, dayKey, limit)
+    : await readAnonymousUsage(params.anonKey ?? null, params.ipHash ?? null, dayKey, limit)
 
   return snapshotFromUsed(used, limit, params.isPro, false)
 }
@@ -217,7 +220,7 @@ export async function consumeGeneratorQuota(
         : null
 
       const used = trackIp
-        ? Math.max(existing?.count ?? 0, ipExisting?.count ?? 0)
+        ? effektivVerbraucht(existing?.count ?? 0, ipExisting?.count ?? 0, limit, true)
         : existing?.count ?? 0
 
       if (used + n > limit) {
@@ -231,7 +234,7 @@ export async function consumeGeneratorQuota(
         }
       }
 
-      const newCount = used + n
+      const newCount = (existing?.count ?? 0) + n
 
       if (existing) {
         await tx.generatorDailyUsage.update({
@@ -244,17 +247,18 @@ export async function consumeGeneratorQuota(
         })
       }
 
+      // Die IP zählt aufsummiert (für ihre Obergrenze), nicht als Kopie des Nutzers.
       if (trackIp) {
         await tx.generatorDailyUsage.upsert({
           where: { ipHash_dayKey: { ipHash: params.ipHash!, dayKey } },
-          create: { ipHash: params.ipHash!, dayKey, count: newCount },
-          update: { count: newCount },
+          create: { ipHash: params.ipHash!, dayKey, count: n },
+          update: { count: { increment: n } },
         })
       }
 
       return {
         ok: true,
-        ...snapshotFromUsed(newCount, limit, params.isPro, false),
+        ...snapshotFromUsed(used + n, limit, params.isPro, false),
       }
     })
   }
@@ -282,7 +286,7 @@ export async function consumeGeneratorQuota(
         })
       : null
 
-    const used = Math.max(anonRow?.count ?? 0, ipRow?.count ?? 0)
+    const used = effektivVerbraucht(anonRow?.count ?? 0, ipRow?.count ?? 0, limit, !!params.anonKey)
     if (used + n > limit) {
       return {
         ok: false,
@@ -294,26 +298,24 @@ export async function consumeGeneratorQuota(
       }
     }
 
-    const newCount = used + n
-
     if (params.anonKey) {
       await tx.generatorDailyUsage.upsert({
         where: { anonKey_dayKey: { anonKey: params.anonKey!, dayKey } },
-        create: { anonKey: params.anonKey!, dayKey, count: newCount },
-        update: { count: newCount },
+        create: { anonKey: params.anonKey!, dayKey, count: n },
+        update: { count: { increment: n } },
       })
     }
     if (params.ipHash) {
       await tx.generatorDailyUsage.upsert({
         where: { ipHash_dayKey: { ipHash: params.ipHash!, dayKey } },
-        create: { ipHash: params.ipHash!, dayKey, count: newCount },
-        update: { count: newCount },
+        create: { ipHash: params.ipHash!, dayKey, count: n },
+        update: { count: { increment: n } },
       })
     }
 
     return {
       ok: true,
-      ...snapshotFromUsed(newCount, limit, false, false),
+      ...snapshotFromUsed(used + n, limit, false, false),
     }
   })
 }

@@ -97,6 +97,10 @@ export async function sendMail(opts: {
     console.error("[mail] send failed", {
       message: (error as Error)?.message?.slice(0, 200),
     })
+    // Für die Systemübersicht zählen — ohne Empfänger (keine personenbezogenen Daten).
+    void import("@/lib/product-events")
+      .then(({ track }) => track("mail_failed", { props: { betreff: opts.subject.slice(0, 60), fehler: String((error as Error)?.message ?? "").replace(/\S+@\S+/g, "[E-Mail]").slice(0, 120) } }))
+      .catch(() => {})
     throw error
   }
 }

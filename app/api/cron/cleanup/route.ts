@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/db"
+import { track } from "@/lib/product-events"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -29,5 +30,6 @@ export async function GET(req: Request) {
     prisma.aiUsageEvent.deleteMany({ where: { createdAt: { lt: new Date(jetzt - AUFBEWAHRUNG.statistikTage * tag) } } }),
     prisma.userSession.deleteMany({ where: { lastSeenAt: { lt: new Date(jetzt - AUFBEWAHRUNG.sitzungTage * tag) } } }),
   ])
+  track("cron_run", { props: { job: "cleanup", events: events.count, kosten: kosten.count, sitzungen: sitzungen.count } })
   return NextResponse.json({ ok: true, events: events.count, kosten: kosten.count, sitzungen: sitzungen.count })
 }

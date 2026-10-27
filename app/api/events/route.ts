@@ -4,6 +4,7 @@ import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
 import { CLIENT_EVENTS, isProductEventName, track } from "@/lib/product-events"
+import { rateLimitKey, tryAcquireAuth } from "@/lib/auth-rate-limit"
 
 export const runtime = "nodejs"
 
@@ -19,6 +20,10 @@ export async function POST(req: Request) {
     assertSameOrigin(req)
   } catch {
     return NextResponse.json({ ok: false }, { status: 403 })
+  }
+  // Statistik ist verzichtbar — bei Flut still verwerfen statt die Datenbank zu belasten.
+  if (!tryAcquireAuth("events", rateLimitKey(req)).ok) {
+    return NextResponse.json({ ok: true, verworfen: true }, { status: 202 })
   }
   const body = (await req.json().catch(() => ({}))) as { name?: unknown; props?: unknown }
   if (!isProductEventName(body.name) || !CLIENT_EVENTS.includes(body.name)) {

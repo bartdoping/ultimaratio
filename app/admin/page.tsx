@@ -13,9 +13,12 @@ export default async function AdminHome() {
   return (
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold">Admin-Panel</h1>
-      <p className="text-muted-foreground">Verwalte Prüfungen, Fragen und Laborwerte.</p>
+      <p className="text-muted-foreground">Betrieb überwachen, Nutzer betreuen, Fragenqualität sichern.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <Button asChild className="w-full"><Link href="/admin/system">Systemstatus</Link></Button>
         <Button asChild className="w-full"><Link href="/admin/metrics">Kennzahlen</Link></Button>
+        <Button variant="outline" asChild className="w-full"><Link href="/admin/nutzer">Nutzer suchen</Link></Button>
+        <Button variant="outline" asChild className="w-full"><Link href="/admin/meldungen">Gemeldete Fragen</Link></Button>
         <Button variant="outline" asChild className="w-full"><Link href="/admin/creators">Creator-Codes</Link></Button>
         <Button variant="outline" asChild className="w-full"><Link href="/admin/users">User</Link></Button>
         <Button variant="outline" asChild className="w-full"><Link href="/admin/sync-subscriptions">Abonnement-Sync</Link></Button>

@@ -5,6 +5,7 @@ import prisma from "@/lib/db"
 import { assertSameOrigin } from "@/lib/security"
 import { sendMail } from "@/lib/mail"
 import { reportPoolQuestion } from "@/lib/pool"
+import { rateLimitKey, tryAcquireAuth } from "@/lib/auth-rate-limit"
 
 export const runtime = "nodejs"
 
@@ -39,6 +40,15 @@ export async function POST(req: Request) {
     assertSameOrigin(req)
   } catch {
     return NextResponse.json({ ok: false, error: "forbidden" }, { status: 403 })
+  }
+
+  // Jede Nachricht kann eine Admin-Mail auslösen — gegen Fluten drosseln.
+  const rl = tryAcquireAuth("feedback", rateLimitKey(req))
+  if (!rl.ok) {
+    return NextResponse.json(
+      { ok: false, error: "rate_limited", message: "Zu viele Nachrichten in kurzer Zeit — bitte später erneut." },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } }
+    )
   }
 
   const body = (await req.json().catch(() => ({}))) as Record<string, unknown>

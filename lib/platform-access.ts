@@ -55,6 +55,7 @@ const PREFIX_PATHS = [
   "/api/cron/",
   "/api/reminders/",
   "/api/push/",
+  "/api/health",
   "/api/referral",
   "/api/og/",
   "/f/",
