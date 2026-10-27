@@ -77,7 +77,17 @@ export async function applyStripeSubscriptionToDatabase(
     where: { id: userId },
     select: { email: true, subscriptionStatus: true },
   })
-  const wasPro = prevUser?.subscriptionStatus === "pro"
+  if (!prevUser) {
+    // Konto gelöscht, Abo-Zeile verwaist: Nichts zu synchronisieren. Kein
+    // Fehler werfen — sonst wiederholt Stripe das Ereignis tagelang vergeblich.
+    // Verwaiste Abos zeigt /admin/stripe.
+    console.warn("[applyStripeSubscriptionToDatabase] User existiert nicht mehr", {
+      subscriptionId: sub.id,
+      status: sub.status,
+    })
+    return
+  }
+  const wasPro = prevUser.subscriptionStatus === "pro"
 
   await prisma.subscription.upsert({
     where: { userId },
@@ -112,7 +122,7 @@ export async function applyStripeSubscriptionToDatabase(
 
   // Admin-Benachrichtigung nur beim echten Übergang nicht-pro → pro.
   // Best-effort, blockiert den Webhook nicht.
-  if (!wasPro && grantsPro && prevUser?.email) {
+  if (!wasPro && grantsPro && prevUser.email) {
     void notifyAdminNewProSubscription({
       email: prevUser.email,
       stripeSubscriptionId: sub.id,

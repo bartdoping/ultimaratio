@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/auth"
 import prisma from "@/lib/db"
+import { beendeStripeAbos } from "@/lib/stripe-abo-beenden"
 
 export const runtime = "nodejs"
 
@@ -37,11 +38,33 @@ export async function DELETE() {
 
     console.log(`Deleting account for user: ${user.email} (${user.id})`)
 
-    // 4) Vollständige Account-Löschung
-    // Da wir CASCADE DELETE in der Prisma-Schema haben, werden alle verknüpften Daten automatisch gelöscht
-    await prisma.user.delete({
-      where: { id: user.id }
+    // 4) Laufende Stripe-Abos beenden — sonst bucht Stripe ohne Konto weiter ab.
+    //    Scheitert das, wird das Konto bewusst NICHT gelöscht.
+    const abo = await prisma.subscription.findUnique({
+      where: { userId: user.id },
+      select: { stripeSubscriptionId: true, stripeCustomerId: true },
     })
+    if (abo) {
+      try {
+        await beendeStripeAbos(abo)
+      } catch (e) {
+        console.error("account deletion: Stripe-Kündigung fehlgeschlagen", (e as Error)?.message?.slice(0, 200))
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Dein Abo konnte gerade nicht beendet werden. Dein Konto wurde nicht gelöscht — bitte versuche es gleich noch einmal.",
+          },
+          { status: 502 }
+        )
+      }
+    }
+
+    // 5) Vollständige Account-Löschung. Die Abo-Zeile explizit mitlöschen:
+    //    In Production fehlt der Fremdschlüssel, Cascade greift dort nicht.
+    await prisma.$transaction([
+      prisma.subscription.deleteMany({ where: { userId: user.id } }),
+      prisma.user.delete({ where: { id: user.id } }),
+    ])
 
     console.log(`Account successfully deleted for user: ${user.email}`)
 

@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server"
 import prisma from "@/lib/db"
 import { requireAdminJson } from "@/lib/authz"
+import { beendeStripeAbos } from "@/lib/stripe-abo-beenden"
 
 export const runtime = "nodejs"
 
@@ -40,10 +41,28 @@ export async function DELETE(
 
     console.log(`Deleting user: ${user.email} (${user.name} ${user.surname})`)
 
-    // Lösche User (Cascade löscht alle zugehörigen Daten)
-    await prisma.user.delete({
-      where: { id: userId }
+    // Laufende Stripe-Abos beenden — sonst bucht Stripe ohne Konto weiter ab.
+    const abo = await prisma.subscription.findUnique({
+      where: { userId },
+      select: { stripeSubscriptionId: true, stripeCustomerId: true },
     })
+    if (abo) {
+      try {
+        await beendeStripeAbos(abo)
+      } catch (e) {
+        return NextResponse.json(
+          { error: `Stripe-Abo konnte nicht beendet werden, User nicht gelöscht: ${(e as Error)?.message?.slice(0, 200)}` },
+          { status: 502 }
+        )
+      }
+    }
+
+    // Lösche User (Cascade löscht alle zugehörigen Daten). Abo-Zeile explizit,
+    // weil in Production der Fremdschlüssel fehlt.
+    await prisma.$transaction([
+      prisma.subscription.deleteMany({ where: { userId } }),
+      prisma.user.delete({ where: { id: userId } }),
+    ])
 
     console.log(`User successfully deleted: ${user.email}`)
 

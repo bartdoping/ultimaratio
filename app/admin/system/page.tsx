@@ -138,6 +138,12 @@ export default async function SystemPage() {
     sicher("Gemeldete Fragen", prisma.poolQuestion.count({ where: { status: "active", reportCount: { gt: 0 } } }), 0),
     sicher("Feedback", prisma.userFeedback.count({ where: { createdAt: { gte: seit24 } } }), 0),
   ])
+  const verwaisteAbos = await sicher(
+    "Verwaiste Abos",
+    prisma.$queryRaw<{ n: number }[]>`
+      SELECT count(*)::int AS n FROM "Subscription" s LEFT JOIN "User" u ON u."id" = s."userId" WHERE u."id" IS NULL`.then((r) => r[0]?.n ?? 0),
+    0
+  )
 
   // --- Konfiguration ---
   const stripe = getStripeConfig()
@@ -231,7 +237,13 @@ export default async function SystemPage() {
       titel: "Stripe-Webhooks",
       wert: letzteWebhooks ? `zuletzt ${vor(letzteWebhooks.receivedAt)} (${letzteWebhooks.type})` : "noch keiner",
       ampel: haengendeWebhooks > 0 ? "fehler" : "ok",
-      hinweis: haengendeWebhooks > 0 ? `${haengendeWebhooks} Ereignis(se) nicht fertig verarbeitet — Stripe → Webhooks prüfen` : undefined,
+      hinweis: haengendeWebhooks > 0 ? `${haengendeWebhooks} Ereignis(se) nicht fertig verarbeitet — unter „Stripe-Abgleich“ prüfen` : undefined,
+    },
+    {
+      titel: "Verwaiste Abos",
+      wert: String(verwaisteAbos),
+      ampel: verwaisteAbos > 0 ? "warn" : "ok",
+      hinweis: verwaisteAbos > 0 ? "Abo-Zeilen ohne Konto — unter „Stripe-Abgleich“ prüfen, ob Stripe noch abbucht" : undefined,
     },
     cronZeile("reminders", "Cron: Erinnerungen"),
     cronZeile("cleanup", "Cron: Löschfristen"),
@@ -277,6 +289,7 @@ export default async function SystemPage() {
       <Abschnitt titel="Nutzung" zeilen={nutzung} />
 
       <div className="flex flex-wrap gap-2 text-sm">
+        <Link href="/admin/stripe" className="rounded-full border px-3 py-1.5 hover:bg-muted">Stripe-Abgleich</Link>
         <Link href="/admin/meldungen" className="rounded-full border px-3 py-1.5 hover:bg-muted">Gemeldete Fragen</Link>
         <Link href="/admin/nutzer" className="rounded-full border px-3 py-1.5 hover:bg-muted">Nutzer suchen</Link>
         <Link href="/admin/metrics" className="rounded-full border px-3 py-1.5 hover:bg-muted">Kennzahlen</Link>
