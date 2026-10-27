@@ -18,6 +18,7 @@
  *      entscheidet über die gesamte Frageform (siehe `lib/generator-section.ts`).
  */
 import type { GeneratorSection } from "@/lib/generator-section"
+import { bestimmeDisziplin, DISZIPLIN_NAME, type Disziplin } from "@/lib/disziplin"
 
 const SYSTEM_INSTRUCTIONS = `Rolle:
 Du schreibst medizinische Single-Choice-Fragen für das deutsche Staatsexamen (Human- und Zahnmedizin) sowie für Fortbildungsprüfungen — auf dem Niveau eines anspruchsvollen Universitätskolloquiums, NICHT auf dem Niveau einer Quiz-App. Je nach Prüfungsabschnitt schlüpfst du in eine andere Rolle:
@@ -77,6 +78,7 @@ Bei VORKLINISCHEN Themen gilt ZWINGEND — hier werden mehrere der folgenden Reg
 - KEINE Patientenvignette. Kein Alter, kein Geschlecht, keine Notaufnahme, kein Setting, keine Anamnese. Gefragt sind Mechanismus, Struktur, Zusammenhang, Größenordnung — nicht ein Vorgehen am Patienten.
 - KEINE Leitlinien, keine Therapieempfehlungen, keine klinischen Scores, keine Entscheidungs-Cut-Offs, keine "primär indizierte Maßnahme".
 - Die Fachsprache ist die der Grundlagenfächer: "Substratkettenphosphorylierung", "allosterische Hemmung", "Km-Wert", "Membranpotential", "Ursprung/Ansatz/Innervation", "Keimblattderivat", "Kompartimentierung" — NICHT die Sprache der Visite oder des Arztbriefs. Die Regeln zur deutschen medizinischen Fachsprache gelten sinngemäß für die Grundlagenterminologie.
+- FACH-TREUE: Bleibe im Fach des Themas. Ein makroskopisch-anatomisches Thema (z. B. "Unterarm", "Leitungsbahnen der oberen Extremität") wird als Anatomiefrage gestellt — Struktur, Lage, Verlauf, Innervation, Versorgung, Funktion —, nicht als Physiologie- oder Biochemiefrage an einem Gewebe aus dieser Region. Ein Thema der Psychologie/Soziologie bleibt eine Psychologie-/Soziologiefrage. Passt eine Variabilitäts-Vorgabe nicht zum Fach, hat die Fach-Treue Vorrang: Setze die Vorgabe innerhalb des Fachs um.
 - Ein klinischer Bezug darf am Rande vorkommen, wenn er das Grundlagenwissen beleuchtet (z. B. der Enzymdefekt hinter einer Stoffwechselerkrankung, die Lähmung hinter einer Nervenläsion). Die abgefragte Leistung bleibt aber die vorklinische — nicht Diagnose oder Therapie.
 - Stufen-Vorrang, Erklärungs-Mandat, Anti-Cliché-Liste, Terminologie-Disziplin und Eindeutigkeit der richtigen Antwort gelten unverändert weiter.
 
@@ -558,62 +560,214 @@ const PATIENT_ARCHETYPES: readonly Weighted[] = [
 ]
 
 /**
- * Fokus-Winkel für VORKLINISCHE Themen.
+ * Fachtöpfe für die Variationsvorgaben.
  *
- * Der klinische Pool oben taugt hier nicht: "Akutmanagement mit Stolperstein"
- * oder "Bildgebungsbefund" erzwingen genau die Patientenfrage, die bei einem
- * Physikums-Thema wie dem Citratzyklus falsch wäre.
+ * Früher kamen Fokus-Winkel und Kontext für die ganze Vorklinik aus EINEM
+ * Topf — überwiegend Biochemie/Physiologie. Ein Anatomiethema ("Unterarm")
+ * bekam dann z. B. "In-vitro-Ansatz an isoliertem Gewebe" + "allosterische
+ * Hemmung" als Pflichtvorgabe und wurde zur Sarkomer-Frage. Jetzt zieht jedes
+ * Fach nur aus seinem eigenen Topf (siehe lib/disziplin.ts).
  */
-const PRECLINICAL_FOCUS_ANGLES: readonly Weighted[] = [
-  // --- Stufe 1–2: Zuordnung und Grundbegriffe, ohne Denkumweg ---
-  { text: "Bedeutung eines zentralen Grundlagenbegriffs", min: 1, max: 2 },
-  { text: "Zuordnung einer Struktur zu ihrer Funktion", min: 1, max: 3 },
-  { text: "Beteiligtes Organell oder Zellkompartiment", min: 1, max: 3 },
-  { text: "Ausgangsstoff und Endprodukt eines Vorgangs", min: 1, max: 3 },
-  { text: "Grundlegender Mechanismus in einem Satz", min: 1, max: 3 },
-  { text: "Benennung einer anatomischen Struktur nach Lage oder Aufgabe", min: 1, max: 3 },
+type Fachtopf = { readonly winkel: readonly Weighted[]; readonly kontext: readonly Weighted[] }
 
-  // --- Stufe 3–5: die eigentlichen Anspruchs-Winkel der Vorklinik ---
-  { text: "Molekularer Mechanismus eines einzelnen Reaktionsschritts", min: 3, max: 5 },
-  { text: "Regulation: allosterische Aktivierung oder Hemmung eines Enzyms bzw. Kanals", min: 3, max: 5 },
-  { text: "Quantitativer Zusammenhang: Stöchiometrie, Energiebilanz, Konzentrationsgradient", min: 3, max: 5 },
-  { text: "Kompartimentierung: In welchem Zellkompartiment läuft der Schritt ab und warum dort?", min: 3, max: 5 },
-  { text: "Verknüpfung zweier Stoffwechselwege über ein gemeinsames Zwischenprodukt", min: 3, max: 5 },
-  { text: "Folge eines Enzym- oder Transporterdefekts für den Gesamtstoffwechsel", min: 3, max: 5 },
-  { text: "Ursprung, Ansatz, Verlauf, Innervation oder Versorgungsgebiet einer Struktur", min: 3, max: 5 },
-  { text: "Topographische Beziehung zweier benachbarter Strukturen", min: 3, max: 5 },
-  { text: "Embryologische Herkunft einer Struktur (Keimblatt, Schlundbogen, Anlage)", min: 3, max: 5 },
-  { text: "Histologisches Erkennungsmerkmal eines Gewebes oder Zelltyps", min: 3, max: 5 },
-  { text: "Physikalisches Prinzip hinter einem physiologischen Vorgang", min: 3, max: 5 },
-  { text: "Zwei verwandte Isoformen, Rezeptor- oder Kanaltypen anhand eines Merkmals trennen", min: 3, max: 5 },
-  { text: "Zeitlicher Ablauf: Reihenfolge der Phasen eines Prozesses", min: 3, max: 5 },
-  { text: "Rückkopplung und Homöostase: Was geschieht bei Störung von außen?", min: 3, max: 5 },
-  { text: "Experimenteller Nachweis oder Messmethode eines Grundlagenphänomens", min: 4, max: 5 },
-  { text: "Pharmakologische Blockade eines einzelnen Schritts und ihre Folge im System", min: 3, max: 5 },
-  { text: "Vergleich zweier Gewebe oder Zelltypen unter derselben Bedingung", min: 3, max: 5 },
-  { text: "Kinetisches Detail: Km, Vmax, Kooperativität, Sättigungsverhalten", min: 4, max: 5 },
+const ANATOMIE_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Benennung einer anatomischen Struktur nach Lage oder Aufgabe", min: 1, max: 3 },
+    { text: "Zuordnung eines Muskels zu seiner Hauptfunktion", min: 1, max: 3 },
+    { text: "Knöcherne Landmarke oder tastbarer Orientierungspunkt", min: 1, max: 3 },
+    { text: "Ursprung, Ansatz, Verlauf, Innervation oder Versorgungsgebiet einer Struktur", min: 2, max: 5 },
+    { text: "Topographische Beziehung zweier benachbarter Strukturen", min: 3, max: 5 },
+    { text: "Ausfallbild bei Läsion eines Nervs an definierter Stelle — gefragt ist die geschädigte Struktur bzw. der ausgefallene Muskel", min: 3, max: 5 },
+    { text: "Durchtrittsstelle, Lücke, Kanal oder Loge und die durchziehenden Leitungsbahnen", min: 3, max: 5 },
+    { text: "Gelenk: Bewegungsachsen, Bandapparat und die Muskeln einer Bewegung", min: 3, max: 5 },
+    { text: "Arterielle Versorgung, venöser Abfluss oder Anastomosen einer Region", min: 3, max: 5 },
+    { text: "Segmentale Zuordnung: Dermatom, Myotom oder Anteil eines Plexus", min: 3, max: 5 },
+    { text: "Querschnittsanatomie: Strukturen auf einer definierten Höhe", min: 4, max: 5 },
+    { text: "Embryologische Herkunft einer Struktur dieser Region", min: 4, max: 5 },
+    { text: "Normvariante oder Eponym einer Struktur dieser Region", min: 5, max: 5 },
+  ],
+  kontext: [
+    { text: "Präparationssitus: Strukturen einer bestimmten Schicht oder Region", min: 2, max: 5 },
+    { text: "Bewegungsprüfung in definierter Gelenkstellung", min: 2, max: 5 },
+    { text: "Tastbare Landmarke bei der Untersuchung am Lebenden", min: 2, max: 5 },
+    { text: "Ausfallbild nach Nervenläsion an definierter Stelle (nur Ausgangspunkt, gefragt bleibt die Anatomie)", min: 3, max: 5 },
+    { text: "Querschnitt bzw. Schnittbild auf definierter Höhe", min: 3, max: 5 },
+    { text: "Injektions- oder Zugangsweg und die dabei gefährdeten Strukturen", min: 3, max: 5 },
+  ],
+}
 
-  // --- ausschließlich Stufe 5 ---
-  { text: "Entdeckungsgeschichte oder Eponym eines Grundlagenbefunds", min: 5, max: 5 },
-  { text: "Exakter Zahlenwert aus der Fachliteratur (Konstante, Potential, Leitfähigkeit)", min: 5, max: 5 },
-  { text: "Seltene Isoform, Speziesunterschied oder Sonderfall abseits des Lehrbuchs", min: 5, max: 5 },
-]
+const HISTOLOGIE_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Bedeutung eines zentralen histologischen Begriffs", min: 1, max: 2 },
+    { text: "Histologisches Erkennungsmerkmal eines Gewebes oder Zelltyps", min: 1, max: 5 },
+    { text: "Organell, Zytoskelett oder Zellkontakt und seine Funktion", min: 2, max: 5 },
+    { text: "Färbeverhalten und was es über die Struktur verrät", min: 3, max: 5 },
+    { text: "Vergleich zweier Gewebe oder Zelltypen anhand eines Merkmals", min: 3, max: 5 },
+    { text: "Aufbau der Extrazellulärmatrix: Fasertypen und Grundsubstanz", min: 3, max: 5 },
+    { text: "Regeneration, Umbau oder Wachstum eines Gewebes", min: 3, max: 5 },
+    { text: "Ultrastrukturelles Detail im elektronenmikroskopischen Bild", min: 4, max: 5 },
+  ],
+  kontext: [
+    { text: "Histologisches Präparat mit definierter Färbung", min: 2, max: 5 },
+    { text: "Elektronenmikroskopisches Bild als gedachte Vorlage", min: 3, max: 5 },
+    { text: "Vergleich zweier Gewebe unter identischer Färbung", min: 3, max: 5 },
+  ],
+}
+
+const EMBRYOLOGIE_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Grundbegriff der Frühentwicklung", min: 1, max: 2 },
+    { text: "Keimblattderivat einer Struktur", min: 1, max: 5 },
+    { text: "Schlundbogen- bzw. Schlundtaschenderivat", min: 3, max: 5 },
+    { text: "Zeitpunkt bzw. Entwicklungswoche eines Ereignisses", min: 3, max: 5 },
+    { text: "Fehlbildung als Folge einer gestörten Anlage", min: 3, max: 5 },
+    { text: "Wanderung, Drehung oder Verlagerung einer Anlage", min: 3, max: 5 },
+  ],
+  kontext: [
+    { text: "Entwicklungsstadium: bestimmte Embryonalwoche oder Anlagestadium", min: 2, max: 5 },
+    { text: "Fehlbildung als Ausgangspunkt (gefragt bleibt die Entwicklung)", min: 3, max: 5 },
+  ],
+}
+
+const PHYSIOLOGIE_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Grundlegender Mechanismus in einem Satz", min: 1, max: 3 },
+    { text: "Zuordnung einer Struktur zu ihrer Funktion", min: 1, max: 3 },
+    { text: "Rückkopplung und Homöostase: Was geschieht bei Störung von außen?", min: 3, max: 5 },
+    { text: "Quantitativer Zusammenhang: Gradient, Druck, Fluss oder Widerstand", min: 3, max: 5 },
+    { text: "Zeitlicher Ablauf: Reihenfolge der Phasen eines Prozesses", min: 3, max: 5 },
+    { text: "Zwei verwandte Rezeptor- oder Kanaltypen anhand eines Merkmals trennen", min: 3, max: 5 },
+    { text: "Physikalisches Prinzip hinter einem physiologischen Vorgang", min: 3, max: 5 },
+    { text: "Pharmakologische Blockade eines einzelnen Schritts und ihre Folge im System", min: 3, max: 5 },
+    { text: "Experimenteller Nachweis oder Messmethode eines Grundlagenphänomens", min: 4, max: 5 },
+    { text: "Exakter Zahlenwert aus der Fachliteratur (Konstante, Potential, Leitfähigkeit)", min: 5, max: 5 },
+  ],
+  kontext: [
+    { text: "Definierte Ausgangslage mit konkreten Zahlenwerten (Konzentration, Potential, Druck)", min: 2, max: 5 },
+    { text: "Körperliche Belastung, Höhe, Hitze oder Lagewechsel als Auslöser", min: 2, max: 5 },
+    { text: "Experimenteller Ansatz an isoliertem Organ oder Gewebe", min: 3, max: 5 },
+    { text: "Gezielte pharmakologische Blockade genau eines Schritts", min: 3, max: 5 },
+    { text: "Störung des Milieus: Hypoxie, Azidose, Osmolaritätsänderung, Temperaturwechsel", min: 3, max: 5 },
+  ],
+}
+
+const BIOCHEMIE_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Ausgangsstoff und Endprodukt eines Vorgangs", min: 1, max: 3 },
+    { text: "Beteiligtes Organell oder Zellkompartiment", min: 1, max: 3 },
+    { text: "Molekularer Mechanismus eines einzelnen Reaktionsschritts", min: 3, max: 5 },
+    { text: "Regulation: allosterische Aktivierung oder Hemmung eines Enzyms", min: 3, max: 5 },
+    { text: "Quantitativer Zusammenhang: Stöchiometrie oder Energiebilanz", min: 3, max: 5 },
+    { text: "Kompartimentierung: In welchem Zellkompartiment läuft der Schritt ab und warum dort?", min: 3, max: 5 },
+    { text: "Verknüpfung zweier Stoffwechselwege über ein gemeinsames Zwischenprodukt", min: 3, max: 5 },
+    { text: "Folge eines Enzym- oder Transporterdefekts für den Gesamtstoffwechsel", min: 3, max: 5 },
+    { text: "Kinetisches Detail: Km, Vmax, Kooperativität, Sättigungsverhalten", min: 4, max: 5 },
+    { text: "Seltene Isoform oder Sonderfall abseits des Lehrbuchs", min: 5, max: 5 },
+  ],
+  kontext: [
+    { text: "Stoffwechselzustand: Nahrungskarenz, Resorptionsphase, körperliche Belastung", min: 2, max: 5 },
+    { text: "Genetischer Defekt eines einzelnen Enzyms oder Transporters", min: 3, max: 5 },
+    { text: "Gezielte Hemmung genau eines Reaktionsschritts", min: 3, max: 5 },
+    { text: "Labormethode oder Versuchsansatz der Biochemie", min: 3, max: 5 },
+  ],
+}
+
+const PSYCHSOZ_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Bedeutung eines zentralen Begriffs der Psychologie oder Soziologie", min: 1, max: 3 },
+    { text: "Lerntheoretisches Prinzip auf ein Verhalten anwenden", min: 2, max: 5 },
+    { text: "Testgütekriterium erkennen: Objektivität, Reliabilität, Validität", min: 2, max: 5 },
+    { text: "Studiendesign und typische Verzerrung (Bias)", min: 3, max: 5 },
+    { text: "Statistische Kenngröße berechnen oder richtig deuten", min: 3, max: 5 },
+    { text: "Gesprächstechnik oder Kommunikationsmodell zuordnen", min: 2, max: 5 },
+    { text: "Abwehrmechanismus oder Bewältigungsstrategie zuordnen", min: 3, max: 5 },
+    { text: "Soziologisches Konzept (Rolle, Schicht, Stigma) auf eine Situation anwenden", min: 3, max: 5 },
+    { text: "Modell des Gesundheitsverhaltens oder der Prävention anwenden", min: 3, max: 5 },
+  ],
+  kontext: [
+    { text: "Kurze Alltags- oder Gesprächssituation — ohne Diagnose und Therapie", min: 2, max: 5 },
+    { text: "Studie mit konkreten Zahlen (Stichprobe, Ergebnis)", min: 3, max: 5 },
+    { text: "Fragebogen- oder Testsituation", min: 3, max: 5 },
+  ],
+}
+
+const NATURWISS_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Grundbegriff und Einheit einer physikalischen oder chemischen Größe", min: 1, max: 3 },
+    { text: "Rechnung mit Größenordnung und Einheit", min: 2, max: 5 },
+    { text: "Chemische Bindung oder Reaktionstyp", min: 2, max: 5 },
+    { text: "Gleichgewicht, pH-Wert und Puffer", min: 3, max: 5 },
+    { text: "Strahlung: Art, Wechselwirkung mit Materie, Schutz", min: 3, max: 5 },
+    { text: "Optik oder Akustik am Beispiel eines Sinnesorgans oder Geräts", min: 3, max: 5 },
+    { text: "Physikalisches Prinzip hinter einem medizinischen Messverfahren", min: 3, max: 5 },
+  ],
+  kontext: [
+    { text: "Definierte Ausgangslage mit konkreten Zahlenwerten", min: 2, max: 5 },
+    { text: "Messaufbau oder Experiment", min: 3, max: 5 },
+  ],
+}
+
+/** Klinische Querschnittsfächer: keine Patientenführung, sondern Kenngrößen, Recht, Exposition. */
+const KLINIK_QUER_TOPF: Fachtopf = {
+  winkel: [
+    { text: "Bedeutung eines zentralen Fachbegriffs", min: 1, max: 2 },
+    { text: "Kenngröße berechnen oder deuten (Sensitivität, prädiktiver Wert, NNT, Inzidenz)", min: 2, max: 5 },
+    { text: "Studiendesign, Evidenzstufe und typischer Bias", min: 3, max: 5 },
+    { text: "Rechtliche Regel, Frist oder Meldepflicht", min: 2, max: 5 },
+    { text: "Befund deuten, z. B. Leichenschau: Totenflecken, Totenstarre, Verletzungsmuster", min: 3, max: 5 },
+    { text: "Berufskrankheit oder Exposition und der zugehörige Grenzwert", min: 3, max: 5 },
+    { text: "Zuständigkeit im Gesundheits- und Sozialsystem (Kostenträger, Reha, Begutachtung)", min: 3, max: 5 },
+  ],
+  kontext: [
+    { text: "Studie oder Screening mit konkreten Zahlen", min: 2, max: 5 },
+    { text: "Rechtsmedizinischer Sachverhalt (Leichenschau, Verletzungsmuster, Gutachten)", min: 3, max: 5 },
+    { text: "Arbeitsplatz mit definierter Exposition", min: 3, max: 5 },
+    { text: "Versorgungs- oder sozialrechtliche Konstellation", min: 3, max: 5 },
+  ],
+}
+
+/** Nicht eindeutig zuordenbar (z. B. ein Organ): ausgewogen aus allen Grundlagenfächern. */
+const ALLGEMEIN_VORKLINIK_TOPF: Fachtopf = {
+  winkel: [ANATOMIE_TOPF, HISTOLOGIE_TOPF, PHYSIOLOGIE_TOPF, BIOCHEMIE_TOPF, EMBRYOLOGIE_TOPF].flatMap((t) => t.winkel),
+  kontext: [ANATOMIE_TOPF, HISTOLOGIE_TOPF, PHYSIOLOGIE_TOPF, BIOCHEMIE_TOPF].flatMap((t) => t.kontext),
+}
+
+function vorklinikTopf(d: Disziplin): Fachtopf {
+  switch (d) {
+    case "anatomie":
+      return ANATOMIE_TOPF
+    case "histologie":
+      return HISTOLOGIE_TOPF
+    case "embryologie":
+      return EMBRYOLOGIE_TOPF
+    case "physiologie":
+      return PHYSIOLOGIE_TOPF
+    case "biochemie":
+      return BIOCHEMIE_TOPF
+    case "psychsoz":
+      return PSYCHSOZ_TOPF
+    case "naturwiss":
+      return NATURWISS_TOPF
+    default:
+      return ALLGEMEIN_VORKLINIK_TOPF
+  }
+}
 
 /**
- * Gegenstück zu den Patient-Archetypen für vorklinische Themen: ein
- * Sachkontext statt einer Krankengeschichte.
+ * Fach-Vorgabe im Auftrag. Steht direkt unter dem Abschnitt, damit das
+ * Modell das Thema nicht in ein Nachbarfach verschiebt.
  */
-const PRECLINICAL_CONTEXT_ARCHETYPES: readonly Weighted[] = [
-  { text: "Definierte Ausgangslage mit konkreten Zahlenwerten (Konzentration, Potential, pH)", min: 2, max: 5 },
-  { text: "Stoffwechselzustand: Nahrungskarenz, Resorptionsphase, körperliche Belastung", min: 2, max: 5 },
-  { text: "Experimenteller In-vitro-Ansatz an isoliertem Gewebe oder Zellkultur", min: 3, max: 5 },
-  { text: "Gezielte pharmakologische Blockade genau eines Schritts", min: 3, max: 5 },
-  { text: "Genetischer Defekt eines einzelnen Enzyms, Kanals oder Transporters", min: 3, max: 5 },
-  { text: "Vergleich zweier Gewebe, Zelltypen oder Organe unter identischer Bedingung", min: 3, max: 5 },
-  { text: "Störung des Milieus: Hypoxie, Azidose, Osmolaritätsänderung, Temperaturwechsel", min: 3, max: 5 },
-  { text: "Histologisches Präparat oder anatomisches Situs-Bild als gedachte Vorlage", min: 3, max: 5 },
-  { text: "Entwicklungsstadium: bestimmte Embryonalwoche oder Anlagestadium", min: 4, max: 5 },
-]
+function fachLine(d: Disziplin): string | null {
+  if (d === "allgemein" || d === "klinik") return null
+  const name = DISZIPLIN_NAME[d]
+  const beispiel =
+    d === "anatomie"
+      ? " Gefragt sind Struktur, Lage, Verlauf, Innervation, Versorgung und Funktion — keine Physiologie oder Biochemie eines Gewebes aus dieser Region."
+      : d === "psychsoz"
+        ? " Gefragt sind Konzepte, Modelle und Methoden der Psychologie und Soziologie — keine Biologie."
+        : ""
+  return `- Fach (aus dem Thema abgeleitet): ${name}. VERBINDLICH — die Frage muss eine Frage dieses Fachs sein.${beispiel}`
+}
 
 /**
  * Anti-Reflexe verbieten die naheliegende Antwort als Lösung. Das ist ein
@@ -629,7 +783,7 @@ const ANTI_REFLEX_PROMPTS: readonly Weighted[] = [
 
 /** Anti-Reflexe für vorklinische Themen — ohne Diagnose-/Therapiebezug. */
 const PRECLINICAL_ANTI_REFLEX_PROMPTS: readonly Weighted[] = [
-  { text: "Der erste Reflex zum Thema ist meist der bekannteste Schritt bzw. das prominenteste Enzym oder die prominenteste Struktur — genau diese naheliegende Antwort darf NICHT die richtige sein, sondern ist der attraktivste Distraktor.", min: 4, max: 5 },
+  { text: "Der erste Reflex zum Thema ist meist das bekannteste Element des Themas (der prominenteste Schritt, die bekannteste Struktur, das geläufigste Konzept) — genau diese naheliegende Antwort darf NICHT die richtige sein, sondern ist der attraktivste Distraktor.", min: 4, max: 5 },
   { text: "Die aus dem Stichwort direkt ableitbare Antwort ist als richtige Lösung verboten — sie ist zwingend Distraktor.", min: 4, max: 5 },
   { text: "Frage nicht den auswendig gelernten Merksatz ab, sondern eine Folgerung daraus, die man nur mit verstandenem Mechanismus zieht.", min: 3, max: 5 },
   { text: "Konstruiere eine Bedingung, unter der die im Lehrbuch gelernte Regel gerade NICHT gilt; die korrekte Antwort erfordert das Erkennen dieser Ausnahme.", min: 4, max: 5 },
@@ -668,7 +822,8 @@ function buildVariabilityBlock(
   seed: number,
   mode: "single" | "case",
   level: number,
-  section: GeneratorSection = "auto"
+  section: GeneratorSection = "auto",
+  disziplin: Disziplin = "allgemein"
 ): string {
   const lines = [
     "VARIABILITÄTS-VORGABEN (zwingend zu beachten, sie sind keine Hinweise sondern Bedingungen):",
@@ -687,7 +842,14 @@ function buildVariabilityBlock(
   const praefix = (fuerKlinik: boolean) =>
     beide ? (fuerKlinik ? "Falls das Thema KLINISCH ist — " : "Falls das Thema VORKLINISCH ist — ") : ""
 
-  if (klinisch) {
+  // Klinische Querschnittsfächer (Epidemiologie, Rechtsmedizin …) haben keinen
+  // Patienten im Mittelpunkt — eigener Topf statt Krankheits-Winkeln.
+  if (klinisch && disziplin === "klinik_quer") {
+    lines.push(`- FOKUS-WINKEL: ${pickBySeed(eligible(KLINIK_QUER_TOPF.winkel, level), seed, 1).text}.`)
+    if (level >= 2) {
+      lines.push(`- KONTEXT: ${pickBySeed(eligible(KLINIK_QUER_TOPF.kontext, level), seed, 2).text}.`)
+    }
+  } else if (klinisch) {
     const angle = pickBySeed(eligible(FOCUS_ANGLES, level), seed, 1).text
     lines.push(`- ${praefix(true)}FOKUS-WINKEL: ${angle}.`)
     if (mode === "case") {
@@ -708,11 +870,12 @@ function buildVariabilityBlock(
     }
   }
 
-  if (vorklinisch) {
-    const angle = pickBySeed(eligible(PRECLINICAL_FOCUS_ANGLES, level), seed, 5).text
+  if (vorklinisch && disziplin !== "klinik_quer") {
+    const topf = vorklinikTopf(disziplin)
+    const angle = pickBySeed(eligible(topf.winkel, level), seed, 5).text
     lines.push(`- ${praefix(false)}FOKUS-WINKEL: ${angle}.`)
     if (mode === "case") {
-      const angle2 = pickBySeed(eligible(PRECLINICAL_FOCUS_ANGLES, level), seed, 6).text
+      const angle2 = pickBySeed(eligible(topf.winkel, level), seed, 6).text
       if (angle2 !== angle) {
         lines.push(
           `- ${praefix(false)}ZWEITER FOKUS-WINKEL (für eine andere Teilfrage): ${angle2}.`
@@ -720,7 +883,7 @@ function buildVariabilityBlock(
       }
     }
     if (level >= 2) {
-      const kontext = pickBySeed(eligible(PRECLINICAL_CONTEXT_ARCHETYPES, level), seed, 7).text
+      const kontext = pickBySeed(eligible(topf.kontext, level), seed, 7).text
       lines.push(
         `- ${praefix(false)}KONTEXT-ARCHETYP: ${kontext}. Prägt die Ausgangslage substanziell — aber KEINE Patientengeschichte.`
       )
@@ -730,7 +893,8 @@ function buildVariabilityBlock(
   // Der Anti-Reflex verbietet die naheliegende Antwort als Lösung. Auf
   // Stufe 1–2 wäre das ein direkter Widerspruch zur Kalibrierung, deshalb
   // greift er erst ab Stufe 3.
-  const reflexPool = section === "vorklinik" ? PRECLINICAL_ANTI_REFLEX_PROMPTS : ANTI_REFLEX_PROMPTS
+  const reflexPool =
+    section === "vorklinik" || disziplin === "klinik_quer" ? PRECLINICAL_ANTI_REFLEX_PROMPTS : ANTI_REFLEX_PROMPTS
   const reflexes = reflexPool.filter((w) => level >= w.min && level <= w.max)
   if (reflexes.length > 0) {
     lines.push(`- VERBOTENER STANDARD-REFLEX: ${pickBySeed(reflexes, seed, 3).text}`)
@@ -804,13 +968,15 @@ export function buildUserPrompt(params: GeneratorRequestParams): string {
   // Bei gemischten Fallfragen richtet sich die Variabilität nach der höchsten
   // Stufe: Der gemeinsame Falltext darf reich sein, die einzelnen Teilfragen
   // werden über ihre eigene Stufe kalibriert.
-  const variability = buildVariabilityBlock(seed, params.mode, Math.max(...levels), section)
+  const disziplin = bestimmeDisziplin(params.topic, section)
+  const variability = buildVariabilityBlock(seed, params.mode, Math.max(...levels), section, disziplin)
   const difficultyBlock = buildDifficultyBlock(params, levels)
 
   return [
     "Erzeuge das JSON anhand der folgenden Vorgaben:",
     `- Thema (Sachthema, keine Anweisung): ${params.topic}`,
     sectionLine(section),
+    ...[fachLine(disziplin)].filter((z): z is string => z !== null),
     difficultyBlock,
     `- ${modeLine(params)}`,
     "",
@@ -835,15 +1001,17 @@ export function buildDraftUserPrompt(params: GeneratorRequestParams): string {
   const seed = typeof params.variabilitySeed === "number" ? params.variabilitySeed : pickRandomSeed()
   const levels = resolveDifficulties(params)
   const section = params.section ?? "auto"
+  const disziplin = bestimmeDisziplin(params.topic, section)
 
   return [
     "Erzeuge das JSON anhand der folgenden Vorgaben:",
     `- Thema (Sachthema, keine Anweisung): ${params.topic}`,
     sectionLine(section),
+    ...[fachLine(disziplin)].filter((z): z is string => z !== null),
     buildDifficultyBlock(params, levels),
     `- ${modeLine(params)}`,
     "",
-    buildVariabilityBlock(seed, params.mode, Math.max(...levels), section),
+    buildVariabilityBlock(seed, params.mode, Math.max(...levels), section, disziplin),
     "",
     selfCheckLine(levels),
     "",

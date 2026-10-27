@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "blindtest": "tsx --env-file=.env.local scripts/blindtest.ts",
     "pool:seed": "tsx scripts/pool-seed.ts",
+    "pool:fach-bereinigung": "tsx scripts/pool-fach-bereinigung.ts",
     "coverage": "vitest run --coverage",
     "prisma:generate": "prisma generate",
     "db:migrate": "prisma migrate dev --name init",
