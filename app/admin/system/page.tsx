@@ -55,7 +55,17 @@ export default async function SystemPage() {
   }
   const dbMs = Date.now() - t0
 
-  const zaehle = (name: string) => prisma.productEvent.count({ where: { name, createdAt: { gte: seit24 } } })
+  // Eine kaputte Abfrage darf nicht die ganze Seite reißen — gerade im
+  // Ernstfall muss der Rest sichtbar bleiben. Fehler landen als rote Zeile.
+  const abfrageFehler: string[] = []
+  const sicher = <T,>(titel: string, p: Promise<T>, ersatz: T): Promise<T> =>
+    p.catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message.split("\n").filter(Boolean).pop() ?? e.message : String(e)
+      abfrageFehler.push(`${titel}: ${msg.slice(0, 160)}`)
+      console.error(`[admin/system] ${titel}:`, e)
+      return ersatz
+    })
+  const zaehle = (name: string) => sicher(name, prisma.productEvent.count({ where: { name, createdAt: { gte: seit24 } } }), 0)
 
   const [
     signups,
@@ -87,26 +97,46 @@ export default async function SystemPage() {
     zaehle("reminder_sent"),
     zaehle("subscription_started"),
     zaehle("subscription_canceled"),
-    prisma.productEvent.count({
-      where: { name: "generation_requested", createdAt: { gte: seit24 }, props: { path: ["via"], equals: "kreuzen" } },
-    }),
-    prisma.aiUsageEvent.count({ where: { createdAt: { gte: seit24 } } }),
-    prisma.aiUsageEvent.count({ where: { createdAt: { gte: seit24 }, ok: false } }),
-    prisma.aiUsageEvent.groupBy({ by: ["purpose"], where: { createdAt: { gte: seit24 }, ok: false }, _count: { _all: true } }),
-    prisma.aiUsageEvent.groupBy({
-      by: ["model"],
-      where: { createdAt: { gte: seit24 } },
-      _sum: { inputTokens: true, cachedTokens: true, outputTokens: true },
-    }),
-    prisma.stripeEventLog.findFirst({ orderBy: { receivedAt: "desc" }, select: { receivedAt: true, type: true } }),
-    prisma.stripeEventLog.count({ where: { processedAt: null, receivedAt: { lt: new Date(jetzt.getTime() - 10 * 60_000) } } }),
-    prisma.productEvent.findMany({ where: { name: "cron_run" }, orderBy: { createdAt: "desc" }, take: 20, select: { createdAt: true, props: true } }),
-    prisma.user.count({ where: { subscriptionStatus: "pro", role: { not: "admin" } } }),
-    prisma.user.count({ where: { proBonusUntil: { gt: jetzt } } }),
-    prisma.user.count({ where: { proTrialEndsAt: { gt: jetzt } } }),
-    prisma.poolQuestion.count({ where: { status: "active" } }),
-    prisma.poolQuestion.count({ where: { status: "active", reportCount: { gt: 0 } } }),
-    prisma.userFeedback.count({ where: { createdAt: { gte: seit24 } } }),
+    sicher(
+      "Neuerzeugung",
+      prisma.productEvent.count({
+        where: { name: "generation_requested", createdAt: { gte: seit24 }, props: { path: ["via"], equals: "kreuzen" } },
+      }),
+      0
+    ),
+    sicher("KI-Aufrufe", prisma.aiUsageEvent.count({ where: { createdAt: { gte: seit24 } } }), 0),
+    sicher("KI-Fehler", prisma.aiUsageEvent.count({ where: { createdAt: { gte: seit24 }, ok: false } }), 0),
+    sicher(
+      "KI-Fehler nach Zweck",
+      prisma.aiUsageEvent.groupBy({ by: ["purpose"], where: { createdAt: { gte: seit24 }, ok: false }, _count: { _all: true } }),
+      []
+    ),
+    sicher(
+      "KI-Verbrauch",
+      prisma.aiUsageEvent.groupBy({
+        by: ["model"],
+        where: { createdAt: { gte: seit24 } },
+        _sum: { inputTokens: true, cachedTokens: true, outputTokens: true },
+      }),
+      []
+    ),
+    sicher("Stripe-Webhooks", prisma.stripeEventLog.findFirst({ orderBy: { receivedAt: "desc" }, select: { receivedAt: true, type: true } }), null),
+    sicher(
+      "Hängende Webhooks",
+      prisma.stripeEventLog.count({ where: { processedAt: null, receivedAt: { lt: new Date(jetzt.getTime() - 10 * 60_000) } } }),
+      0
+    ),
+    sicher(
+      "Cron-Läufe",
+      prisma.productEvent.findMany({ where: { name: "cron_run" }, orderBy: { createdAt: "desc" }, take: 20, select: { createdAt: true, props: true } }),
+      []
+    ),
+    sicher("Abos", prisma.user.count({ where: { subscriptionStatus: "pro", role: { not: "admin" } } }), 0),
+    sicher("Pässe", prisma.user.count({ where: { proBonusUntil: { gt: jetzt } } }), 0),
+    sicher("Testphasen", prisma.user.count({ where: { proTrialEndsAt: { gt: jetzt } } }), 0),
+    sicher("Fragenpool", prisma.poolQuestion.count({ where: { status: "active" } }), 0),
+    sicher("Gemeldete Fragen", prisma.poolQuestion.count({ where: { status: "active", reportCount: { gt: 0 } } }), 0),
+    sicher("Feedback", prisma.userFeedback.count({ where: { createdAt: { gte: seit24 } } }), 0),
   ])
 
   // --- Konfiguration ---
@@ -180,6 +210,9 @@ export default async function SystemPage() {
 
   const betrieb: Zeile[] = [
     { titel: "Datenbank", wert: dbOk ? `${dbMs} ms` : "nicht erreichbar", ampel: !dbOk ? "fehler" : dbMs > 800 ? "warn" : "ok", hinweis: dbMs > 800 ? "Langsam — evtl. Kaltstart von Neon" : undefined },
+    ...(abfrageFehler.length
+      ? [{ titel: "Statusabfragen", wert: `${abfrageFehler.length} fehlgeschlagen`, ampel: "fehler" as const, hinweis: abfrageFehler.join(" · ") }]
+      : []),
     {
       titel: "KI-Aufrufe (24 h)",
       wert: `${kiGesamt} · ${Math.round(fehlerquote * 100)} % Fehler`,
