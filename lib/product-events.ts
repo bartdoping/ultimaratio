@@ -1,3 +1,4 @@
+import { after } from "next/server"
 import prisma from "@/lib/db"
 
 /**
@@ -69,7 +70,7 @@ export function track(
   name: ProductEventName,
   opts: { userId?: string | null; props?: Record<string, unknown> } = {}
 ): void {
-  void prisma.productEvent
+  const schreiben = prisma.productEvent
     .create({
       data: {
         name,
@@ -80,4 +81,11 @@ export function track(
     .catch(() => {
       // Messung ist nie wichtiger als die Funktion.
     })
+  // Vercel friert die Funktion nach der Antwort ein: Ohne after() gehen
+  // Ereignisse verloren, die kurz vor dem return ausgelöst werden.
+  try {
+    after(() => schreiben)
+  } catch {
+    // Außerhalb einer Anfrage (Skripte, Tests) gibt es kein after().
+  }
 }
