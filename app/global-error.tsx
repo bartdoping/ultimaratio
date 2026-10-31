@@ -1,5 +1,7 @@
 "use client"
 
+import { useEffect } from "react"
+
 /**
  * Letzte Verteidigungslinie, wenn der Root-Layout selbst einen Fehler wirft.
  * Hier ist kein <html>/<body> aus dem Layout verfügbar — wir rendern bewusst
@@ -12,6 +14,10 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }) {
+  useEffect(() => {
+    void import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error))
+  }, [error])
+
   return (
     <html lang="de">
       <body

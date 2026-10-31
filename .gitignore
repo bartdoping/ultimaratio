@@ -47,3 +47,7 @@ next-env.d.ts
 # Uploaded media files
 public/media/uploads/
 .vercel
+
+# Browser-Tests
+/test-results/
+/playwright-report/

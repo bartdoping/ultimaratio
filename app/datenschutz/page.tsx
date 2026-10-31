@@ -20,7 +20,7 @@ export default function DatenschutzPage() {
     <LegalShell
       title="Datenschutzerklärung"
       description="Informationen zur Verarbeitung personenbezogener Daten gemäß Art. 13 und 14 DSGVO."
-      lastUpdated="20. August 2026"
+      lastUpdated="31. Oktober 2026"
     >
       <LegalSection title="1. Datenschutz auf einen Blick">
         <LegalSubsection title="Allgemeine Hinweise">
@@ -149,6 +149,10 @@ export default function DatenschutzPage() {
               Frankfurt am Main (Abschnitt 4)
             </li>
             <li>
+              <strong>Functional Software, Inc. (Sentry)</strong> – Erkennung
+              technischer Fehler, Speicherort EU (Abschnitt 4)
+            </li>
+            <li>
               <strong>OpenAI Ireland Ltd.</strong> – KI-Fragengenerierung
               (Abschnitt 7)
             </li>
@@ -170,7 +174,7 @@ export default function DatenschutzPage() {
         <LegalSubsection title="Datenübermittlung in Drittländer">
           <p>
             Wir setzen unter anderem Dienste ein, deren Mutterkonzerne in den USA
-            sitzen (Vercel, Neon, OpenAI, Stripe, Google). Dabei können personenbezogene
+            sitzen (Vercel, Neon, Sentry, OpenAI, Stripe, Google). Dabei können personenbezogene
             Daten in die USA übermittelt und dort verarbeitet werden. Die
             Übermittlung erfolgt, soweit der jeweilige Anbieter nach dem{" "}
             <strong>EU-U.S. Data Privacy Framework</strong> zertifiziert ist, auf
@@ -262,6 +266,25 @@ export default function DatenschutzPage() {
           nicht ausgeschlossen werden kann, gelten die Standardvertragsklauseln
           der EU-Kommission. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b und f DSGVO
           (Erbringung des Dienstes, sicherer und zuverlässiger Betrieb).
+        </p>
+        <p>
+          <strong>Fehlererkennung (Sentry):</strong> Damit wir technische Fehler
+          schnell finden und beheben können, setzen wir den Dienst Sentry der
+          Functional Software, Inc. (USA) ein. Tritt in deinem Browser oder auf
+          unserem Server ein Fehler auf, wird ein technischer Bericht übermittelt:
+          Fehlermeldung, betroffene Programmstelle, Adresse der Seite ohne
+          Parameter sowie Browser und Betriebssystem. Wir übermitteln bewusst
+          keine Namen, E-Mail-Adressen, Nutzerkennungen oder Cookies, und E-Mail-Adressen
+          werden vor dem Versand aus den Fehlermeldungen entfernt. Sentry setzt
+          dafür keine Cookies und zeichnet keine Sitzungen auf. Die Berichte liegen
+          in der EU-Region von Sentry (Frankfurt am Main) und werden in der Regel
+          nach 90 Tagen gelöscht. Beim Versand verarbeitet Sentry technisch
+          bedingt deine IP-Adresse; sie wird nicht in den Berichten gespeichert.
+          Mit Sentry besteht ein Vertrag über Auftragsverarbeitung nach Art. 28
+          DSGVO; soweit ein Zugriff aus den USA nicht ausgeschlossen werden kann,
+          gelten die Standardvertragsklauseln der EU-Kommission. Rechtsgrundlage
+          ist Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einem sicheren
+          und fehlerfreien Betrieb).
         </p>
       </LegalSection>
 

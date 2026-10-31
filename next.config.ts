@@ -1,4 +1,5 @@
 import type { NextConfig } from "next"
+import { withSentryConfig } from "@sentry/nextjs/config"
 
 const nextConfig: NextConfig = {
   async redirects() {
@@ -19,4 +20,15 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  telemetry: false,
+  // Quellcode-Zuordnung nur mit Token; die Maps landen nie öffentlich im Build.
+  sourcemaps: { disable: !process.env.SENTRY_AUTH_TOKEN, deleteSourcemapsAfterUpload: true },
+  widenClientFileUpload: true,
+  // Kein Tracing, daher auch keine Routen-Instrumentierung im Browser.
+  suppressOnRouterTransitionStartWarning: true,
+})

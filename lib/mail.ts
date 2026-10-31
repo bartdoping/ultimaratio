@@ -55,6 +55,10 @@ function buildTransport() {
 }
 
 function getTransporter(): nodemailer.Transporter {
+  // Browser-Tests: nichts verschicken. In Production bewusst wirkungslos.
+  if (process.env.E2E === "1" && process.env.NODE_ENV !== "production") {
+    return nodemailer.createTransport({ jsonTransport: true })
+  }
   if (process.env.NODE_ENV === "production") {
     return buildTransport()
   }

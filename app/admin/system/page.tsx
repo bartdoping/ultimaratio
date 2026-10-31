@@ -185,6 +185,12 @@ export default async function SystemPage() {
       wert: gesetzt("EMAIL_SERVER_USER") && gesetzt("EMAIL_SERVER_PASSWORD") ? "konfiguriert" : "unvollständig",
       ampel: gesetzt("EMAIL_SERVER_USER") && gesetzt("EMAIL_SERVER_PASSWORD") ? "ok" : "fehler",
     },
+    {
+      titel: "Fehlerüberwachung (Sentry)",
+      wert: gesetzt("NEXT_PUBLIC_SENTRY_DSN") ? "aktiv" : "aus",
+      ampel: gesetzt("NEXT_PUBLIC_SENTRY_DSN") ? "ok" : "warn",
+      hinweis: gesetzt("NEXT_PUBLIC_SENTRY_DSN") ? undefined : "NEXT_PUBLIC_SENTRY_DSN fehlt — Fehler bleiben unbemerkt",
+    },
     { titel: "Web-Push", wert: pushConfigured() ? "aktiv" : "aus (nur Mail)", ampel: pushConfigured() ? "ok" : "warn" },
     { titel: "App-URL", wert: process.env.NEXT_PUBLIC_APP_URL?.trim() || "Standard (fragenkreuzen.de)", ampel: "ok" },
   ]
@@ -295,6 +301,7 @@ export default async function SystemPage() {
         <Link href="/admin/metrics" className="rounded-full border px-3 py-1.5 hover:bg-muted">Kennzahlen</Link>
         <Link href="/api/admin/stripe-plans" className="rounded-full border px-3 py-1.5 hover:bg-muted">Tarif-Diagnose (JSON)</Link>
         <Link href="/api/admin/ai-config" className="rounded-full border px-3 py-1.5 hover:bg-muted">KI-Konfiguration (JSON)</Link>
+        <Link href="/api/admin/sentry-test" className="rounded-full border px-3 py-1.5 hover:bg-muted">Sentry testen</Link>
       </div>
     </div>
   )

@@ -19,7 +19,7 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Konsolen-Log für Telemetrie. In Production via Sentry-ähnlichem Tool ersetzbar.
+    void import("@sentry/nextjs").then((Sentry) => Sentry.captureException(error))
     if (typeof window !== "undefined") {
       // Best-effort: an ein potenzielles Server-Endpoint melden.
       try {
